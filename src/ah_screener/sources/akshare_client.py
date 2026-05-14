@@ -16,6 +16,16 @@ from ah_screener.classification import (
 
 
 Market = Literal["A", "HK"]
+DEFAULT_BENCHMARKS = [
+    "A:000300",  # 沪深 300
+    "A:000905",  # 中证 500
+    "A:000852",  # 中证 1000
+    "A:000688",  # 科创 50
+    "A:399006",  # 创业板指
+    "HK:HSI",  # 恒生指数
+    "HK:HSCEI",  # 恒生中国企业指数
+    "HK:HSTECH",  # 恒生科技指数
+]
 
 
 def _now() -> pd.Timestamp:
@@ -39,6 +49,24 @@ def _clean_a_symbol(series: pd.Series) -> pd.Series:
 
 def _clean_hk_symbol(series: pd.Series) -> pd.Series:
     return series.astype(str).str.lower().str.replace(r"^hk", "", regex=True).str.zfill(5)
+
+
+def _clean_benchmark_symbol(market: Market, symbol: str) -> str:
+    raw = str(symbol).strip()
+    if market == "A":
+        return raw.lower().replace("sh", "").replace("sz", "").replace("bj", "").zfill(6)
+    return raw.upper().removeprefix("HK")
+
+
+def parse_benchmark(benchmark: str) -> tuple[Market, str]:
+    if ":" not in benchmark:
+        raise ValueError("Benchmark must use MARKET:SYMBOL format, such as A:000300 or HK:HSI.")
+    market_raw, symbol_raw = benchmark.split(":", 1)
+    market = market_raw.upper().strip()
+    if market not in {"A", "HK"}:
+        raise ValueError("Benchmark market must be A or HK.")
+    symbol = _clean_benchmark_symbol(market, symbol_raw)
+    return market, symbol  # type: ignore[return-value]
 
 
 def normalize_a_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -339,6 +367,43 @@ def _normalize_history(
     ).dropna(subset=["trade_date", "close"])
 
 
+def _normalize_benchmark_history(
+    raw: pd.DataFrame,
+    market: Market,
+    symbol: str,
+    source: str,
+) -> pd.DataFrame:
+    if raw.empty:
+        return pd.DataFrame()
+
+    updated_at = _now()
+    date_series = pd.to_datetime(_first_existing(raw, ["日期", "date", "时间"]), errors="coerce")
+    return pd.DataFrame(
+        {
+            "market": market,
+            "symbol": _clean_benchmark_symbol(market, symbol),
+            "trade_date": date_series,
+            "open": _number(_first_existing(raw, ["开盘", "open"])),
+            "high": _number(_first_existing(raw, ["最高", "high"])),
+            "low": _number(_first_existing(raw, ["最低", "low"])),
+            "close": _number(_first_existing(raw, ["收盘", "close"])),
+            "volume": _number(_first_existing(raw, ["成交量", "volume"])),
+            "amount": _number(_first_existing(raw, ["成交额", "amount"])),
+            "adj_type": "benchmark",
+            "source": source,
+            "updated_at": updated_at,
+        }
+    ).dropna(subset=["trade_date", "close"])
+
+
+def _a_index_symbol(symbol: str) -> str:
+    if symbol.startswith(("sh", "sz", "bj")):
+        return symbol
+    clean = _clean_benchmark_symbol("A", symbol)
+    prefix = "sz" if clean.startswith("399") else "sh"
+    return f"{prefix}{clean}"
+
+
 def fetch_history(
     market: Market,
     symbol: str,
@@ -418,6 +483,51 @@ def fetch_history(
             last_error = exc
             sleep(0.3)
     raise RuntimeError(f"All history sources failed for {market}:{symbol}. Last error: {last_error}")
+
+
+def fetch_benchmark_history(benchmark: str, start_date: str, end_date: str) -> pd.DataFrame:
+    import akshare as ak
+
+    market, symbol = parse_benchmark(benchmark)
+    if market == "A":
+        clean = _clean_benchmark_symbol(market, symbol)
+        calls = [
+            (
+                "akshare.index_zh_a_hist",
+                lambda: ak.index_zh_a_hist(
+                    symbol=clean,
+                    period="daily",
+                    start_date=start_date,
+                    end_date=end_date,
+                ),
+            ),
+            (
+                "akshare.stock_zh_index_daily",
+                lambda: ak.stock_zh_index_daily(symbol=_a_index_symbol(clean)),
+            ),
+        ]
+    else:
+        clean = _clean_benchmark_symbol(market, symbol)
+        calls = [
+            ("akshare.stock_hk_index_daily_em", lambda: ak.stock_hk_index_daily_em(symbol=clean)),
+            ("akshare.stock_hk_index_daily_sina", lambda: ak.stock_hk_index_daily_sina(symbol=clean)),
+        ]
+
+    start = pd.to_datetime(start_date)
+    end = pd.to_datetime(end_date)
+    last_error: Exception | None = None
+    for source, func in calls:
+        try:
+            raw = func()
+            history = _normalize_benchmark_history(raw, market=market, symbol=symbol, source=source)
+            history = history[(history["trade_date"] >= start) & (history["trade_date"] <= end)]
+            if history.empty:
+                raise RuntimeError(f"{source} returned empty benchmark history")
+            return history
+        except Exception as exc:
+            last_error = exc
+            sleep(0.3)
+    raise RuntimeError(f"All benchmark sources failed for {market}:{symbol}. Last error: {last_error}")
 
 
 def _empty_tags() -> pd.DataFrame:

@@ -72,6 +72,12 @@ def _score_row(row: pd.Series) -> tuple[float, float, float, str]:
 def compute_technical_indicators(daily_prices: pd.DataFrame, snapshots: pd.DataFrame) -> pd.DataFrame:
     if daily_prices.empty:
         return pd.DataFrame()
+    if "adj_type" in daily_prices.columns:
+        daily_prices = daily_prices[
+            ~daily_prices["adj_type"].fillna("").astype(str).str.lower().eq("benchmark")
+        ]
+        if daily_prices.empty:
+            return pd.DataFrame()
 
     latest_snapshot_date = snapshots["trade_date"].max() if not snapshots.empty else pd.Timestamp.today()
     names = (

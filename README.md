@@ -73,7 +73,8 @@ ah-screener expert-export --top 50
 ah-screener refined-export --top 50
 ah-screener candidate-changes
 ah-screener etf-export --top 50
-ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10
+ah-screener sync-benchmarks --lookback-days 430
+ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
 ```
 
 结果会落库到：
@@ -89,7 +90,7 @@ refined_candidates
 
 `refined_candidates` 会按主题桶、风格桶和 A/H 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H 两地上市或同名主体只保留专家分最高的一只。
 
-`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点和行业分散约束。
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H 免费指数基准对比。
 
 ## 报告
 

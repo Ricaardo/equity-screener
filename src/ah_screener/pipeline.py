@@ -18,7 +18,15 @@ from ah_screener.expert_model import (
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.reporting import generate_report
 from ah_screener.scoring import score_snapshot
-from ah_screener.sources.akshare_client import fetch_a_board_tags, fetch_a_etf_spot, fetch_history, fetch_spot
+from ah_screener.sources.akshare_client import (
+    DEFAULT_BENCHMARKS,
+    fetch_a_board_tags,
+    fetch_a_etf_spot,
+    fetch_benchmark_history,
+    fetch_history,
+    fetch_spot,
+    parse_benchmark,
+)
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
 
@@ -35,6 +43,11 @@ BACKTEST_COLUMNS = [
     "cost_rate",
     "period_return",
     "equity",
+    "benchmark",
+    "benchmark_return",
+    "benchmark_equity",
+    "excess_return",
+    "excess_equity",
     "holding_symbols",
 ]
 
@@ -192,6 +205,29 @@ def sync_history(market: MarketArg, top: int = 150, lookback_days: int = 420) ->
             inserted += store.upsert_dataframe("daily_prices", history)
         result[f"{item}_history_rows"] = inserted
         result[f"{item}_history_failed_symbols"] = failed
+    return result
+
+
+def sync_benchmarks(
+    benchmarks: list[str] | None = None,
+    lookback_days: int = 430,
+) -> dict[str, int]:
+    store = get_store()
+    store.init_db()
+    end = datetime.now().strftime("%Y%m%d")
+    start = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
+    result: dict[str, int] = {}
+    for benchmark in benchmarks or DEFAULT_BENCHMARKS:
+        market, symbol = parse_benchmark(benchmark)
+        key = f"{market}_{symbol}_benchmark_rows"
+        try:
+            history = fetch_benchmark_history(f"{market}:{symbol}", start_date=start, end_date=end)
+        except Exception:
+            result[key] = 0
+            result[f"{market}_{symbol}_benchmark_failed"] = 1
+            continue
+        result[key] = store.upsert_dataframe("daily_prices", history)
+        result[f"{market}_{symbol}_benchmark_failed"] = 0
     return result
 
 
@@ -541,6 +577,36 @@ def _select_backtest_picks(
     return picks.loc[selected]
 
 
+def _benchmark_frame(prices: pd.DataFrame, benchmark: str) -> pd.DataFrame:
+    market, symbol = parse_benchmark(benchmark)
+    frame = prices[
+        (prices["market"].astype(str).str.upper() == market) & (prices["symbol"].astype(str) == symbol)
+    ].copy()
+    if frame.empty:
+        return frame
+    adj = frame.get("adj_type", pd.Series("", index=frame.index)).astype(str).str.lower()
+    source = frame.get("source", pd.Series("", index=frame.index)).astype(str).str.lower()
+    benchmark_rows = frame[adj.eq("benchmark") | source.str.contains("index", na=False)]
+    return benchmark_rows if not benchmark_rows.empty else frame
+
+
+def _period_price_return(
+    prices: pd.DataFrame,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+) -> float | None:
+    history = prices[
+        (prices["trade_date"] >= start_date) & (prices["trade_date"] <= end_date)
+    ].sort_values("trade_date")
+    if len(history) < 2:
+        return None
+    start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
+    end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
+    if pd.notna(start_close) and pd.notna(end_close) and float(start_close) > 0:
+        return float(end_close) / float(start_close) - 1
+    return None
+
+
 def backtest_refined_candidates(
     initial_capital: float = 1_000_000,
     max_names: int = 12,
@@ -549,6 +615,7 @@ def backtest_refined_candidates(
     slippage_bps: float = 10.0,
     industry_neutral: bool = False,
     max_per_group: int = 2,
+    benchmark: str | None = None,
 ) -> pd.DataFrame:
     store = get_store()
     refined = store.query_df(
@@ -573,9 +640,11 @@ def backtest_refined_candidates(
 
     rows: list[dict[str, object]] = []
     equity = float(initial_capital)
+    benchmark_equity = float(initial_capital)
     previous_weights: dict[tuple[str, str], float] = {}
     cost_bps = max(fee_bps, 0) + max(slippage_bps, 0)
     points = _rebalance_points([pd.Timestamp(date) for date in dates], final_price_date, rebalance)
+    benchmark_prices = _benchmark_frame(prices, benchmark) if benchmark else pd.DataFrame()
     for index, (start_date, signal_date) in enumerate(points):
         end_date = points[index + 1][0] if index + 1 < len(points) else final_price_date
         if end_date <= start_date:
@@ -614,6 +683,14 @@ def backtest_refined_candidates(
         cost_rate = traded_notional * cost_bps / 10_000
         period_return = gross_return - cost_rate
         equity *= 1 + period_return
+        benchmark_return = None
+        if benchmark and not benchmark_prices.empty:
+            benchmark_return = _period_price_return(benchmark_prices, start_date, end_date)
+            if benchmark_return is not None:
+                benchmark_equity *= 1 + benchmark_return
+        benchmark_equity_value = benchmark_equity if benchmark_return is not None else None
+        excess_return = period_return - benchmark_return if benchmark_return is not None else None
+        excess_equity = equity - benchmark_equity if benchmark_return is not None else None
         rows.append(
             {
                 "period_start": pd.Timestamp(start_date).date(),
@@ -625,6 +702,11 @@ def backtest_refined_candidates(
                 "cost_rate": cost_rate,
                 "period_return": period_return,
                 "equity": equity,
+                "benchmark": benchmark,
+                "benchmark_return": benchmark_return,
+                "benchmark_equity": benchmark_equity_value,
+                "excess_return": excess_return,
+                "excess_equity": excess_equity,
                 "holding_symbols": ",".join(f"{market}:{symbol}" for market, symbol in current_weights),
             }
         )
@@ -700,6 +782,7 @@ def run_full_update(
     result["curated_theme_tags"] = sync_curated_theme_tags()
     result["basic_scores"] = run_scores()
     result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
+    result["benchmarks"] = sync_benchmarks(lookback_days=lookback_days)
     result["technical_rows"] = run_technical_indicators()
     if include_fundamentals:
         result["fundamentals"] = sync_fundamentals("all", top=top)

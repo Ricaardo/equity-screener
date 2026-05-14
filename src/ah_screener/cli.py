@@ -28,6 +28,7 @@ from ah_screener.pipeline import (
     run_scores,
     run_technical_indicators,
     sync_a_tags,
+    sync_benchmarks,
     sync_curated_theme_tags,
     sync_fundamentals,
     sync_history,
@@ -51,6 +52,12 @@ def _fmt_signed_float(value: object, digits: int = 1) -> str:
     if value is None or pd.isna(value):
         return ""
     return f"{float(value):+.{digits}f}"
+
+
+def _fmt_optional_pct(value: object, digits: int = 2) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return f"{float(value) * 100:.{digits}f}%"
 
 
 @app.command("init-db")
@@ -133,6 +140,21 @@ def sync_history_command(
         top=top,
         lookback_days=lookback_days,
     )
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
+@app.command("sync-benchmarks")
+def sync_benchmarks_command(
+    benchmarks: Optional[str] = typer.Option(
+        None,
+        help="Comma-separated benchmarks, for example A:000300,HK:HSI. Defaults to common A/H indexes.",
+    ),
+    lookback_days: int = typer.Option(430, help="Calendar lookback days."),
+) -> None:
+    """Sync free A/H benchmark index history into daily_prices."""
+    items = [item.strip() for item in benchmarks.split(",") if item.strip()] if benchmarks else None
+    result = sync_benchmarks(benchmarks=items, lookback_days=lookback_days)
     for key, count in result.items():
         console.print(f"{key}: {count}")
 
@@ -438,6 +460,10 @@ def backtest_command(
         help="Limit holdings per industry peer group.",
     ),
     max_per_group: int = typer.Option(2, help="Maximum holdings per peer group when industry-neutral."),
+    benchmark: Optional[str] = typer.Option(
+        None,
+        help="Optional benchmark in MARKET:SYMBOL format, for example A:000300 or HK:HSI.",
+    ),
 ) -> None:
     """Run an equal-weight backtest over stored refined snapshots."""
     normalized = rebalance.lower()
@@ -451,6 +477,7 @@ def backtest_command(
         slippage_bps=slippage_bps,
         industry_neutral=industry_neutral,
         max_per_group=max_per_group,
+        benchmark=benchmark,
     )
     if df.empty:
         console.print("No backtest rows yet. Need daily prices plus refined snapshots with future price data.")
@@ -468,18 +495,38 @@ def backtest_command(
         "equity",
     ]:
         table.add_column(column)
+    if benchmark:
+        for column in [
+            "benchmark",
+            "benchmark_return",
+            "benchmark_equity",
+            "excess_return",
+            "excess_equity",
+        ]:
+            table.add_column(column)
     for _, row in df.iterrows():
-        table.add_row(
+        values = [
             str(row["period_start"]),
             str(row["period_end"]),
             str(row["signal_date"]),
             str(row["holdings"]),
-            _fmt_optional_float(float(row["gross_return"]) * 100, digits=2, suffix="%"),
+            _fmt_optional_pct(row["gross_return"]),
             _fmt_optional_float(row["turnover"], digits=2),
-            _fmt_optional_float(float(row["cost_rate"]) * 100, digits=2, suffix="%"),
-            _fmt_optional_float(float(row["period_return"]) * 100, digits=2, suffix="%"),
+            _fmt_optional_pct(row["cost_rate"]),
+            _fmt_optional_pct(row["period_return"]),
             _fmt_optional_float(row["equity"], digits=0),
-        )
+        ]
+        if benchmark:
+            values.extend(
+                [
+                    str(row["benchmark"] or ""),
+                    _fmt_optional_pct(row["benchmark_return"]),
+                    _fmt_optional_float(row["benchmark_equity"], digits=0),
+                    _fmt_optional_pct(row["excess_return"]),
+                    _fmt_optional_float(row["excess_equity"], digits=0),
+                ]
+            )
+        table.add_row(*values)
     console.print(table)
 
 

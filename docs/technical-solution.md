@@ -419,7 +419,8 @@ ah-screener expert-export --top 50
 ah-screener refined-export --top 50
 ah-screener candidate-changes
 ah-screener etf-export --top 50
-ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10
+ah-screener sync-benchmarks --lookback-days 430
+ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
 ```
 
 第七步：打开看板。
@@ -467,7 +468,7 @@ ah-screener install-schedule --hour 18 --minute 30
 - 扩展港股自建主题标签：当前已支持 CSV 导入和内置策展主题落库，后续补更多可验证来源。
 - 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
 - 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值、稳定性、研发费用率、资本开支效率和行业化阈值，后续补更多细分行业口径。
-- 扩展回测模块：当前已支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费和滑点，后续补基准指数和更长历史样本。
+- 扩展回测模块：当前已支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费、滑点和 A/H 免费指数基准对比，后续补更长历史样本。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 
 ## 9. 看板和自动化
