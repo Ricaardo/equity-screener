@@ -222,8 +222,8 @@ class Store:
         self.db_path = db_path
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-    def connect(self) -> duckdb.DuckDBPyConnection:
-        return duckdb.connect(str(self.db_path))
+    def connect(self, *, read_only: bool = False) -> duckdb.DuckDBPyConnection:
+        return duckdb.connect(str(self.db_path), read_only=read_only)
 
     def init_db(self) -> None:
         with self.connect() as conn:
@@ -246,9 +246,10 @@ class Store:
         return len(df)
 
     def query_df(self, sql: str, parameters: object | None = None) -> pd.DataFrame:
-        with self.connect() as conn:
-            conn.execute(SCHEMA_SQL)
-            conn.execute(MIGRATION_SQL)
+        if not self.db_path.exists():
+            self.init_db()
+
+        with self.connect(read_only=True) as conn:
             if parameters is None:
                 return conn.execute(sql).fetch_df()
             return conn.execute(sql, parameters).fetch_df()

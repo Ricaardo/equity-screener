@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+from pathlib import Path
 from typing import Optional
 
 import typer
@@ -13,6 +16,7 @@ from ah_screener.pipeline import (
     export_scores,
     fundamentals_status,
     init_db,
+    run_full_update,
     run_expert_scores,
     run_scores,
     run_technical_indicators,
@@ -21,6 +25,8 @@ from ah_screener.pipeline import (
     sync_history,
     sync_spot,
 )
+from ah_screener.reporting import generate_report
+from ah_screener.scheduler import install_launchd_schedule, uninstall_launchd_schedule
 
 
 app = typer.Typer(help="A/H stock screener built on free data sources.")
@@ -247,6 +253,86 @@ def refined_export_command(
             str(row["selection_note"]),
         )
     console.print(table)
+
+
+@app.command("report")
+def report_command(
+    output_dir: Path = typer.Option(Path("reports"), help="Directory for the Markdown report."),
+) -> None:
+    """Generate a Markdown research report from the current local database."""
+    path = generate_report(output_dir=output_dir)
+    console.print(f"Report generated: {path}")
+
+
+@app.command("update-all")
+def update_all_command(
+    top: int = typer.Option(120, help="Top liquid names per market for history and fundamentals."),
+    lookback_days: int = typer.Option(430, help="Calendar lookback days for daily price history."),
+    industry_limit: Optional[int] = typer.Option(50, help="A-share industry board limit."),
+    concept_limit: Optional[int] = typer.Option(120, help="A-share concept board limit."),
+    skip_fundamentals: bool = typer.Option(False, help="Skip financial statements for faster refresh."),
+    skip_report: bool = typer.Option(False, help="Skip Markdown report generation."),
+) -> None:
+    """Run the full refresh pipeline and regenerate expert outputs."""
+    result = run_full_update(
+        top=top,
+        lookback_days=lookback_days,
+        industry_limit=industry_limit,
+        concept_limit=concept_limit,
+        include_fundamentals=not skip_fundamentals,
+        include_report=not skip_report,
+    )
+    for key, value in result.items():
+        console.print(f"{key}: {value}")
+
+
+@app.command("install-schedule")
+def install_schedule_command(
+    hour: int = typer.Option(18, help="Local hour for daily scheduled update."),
+    minute: int = typer.Option(30, help="Local minute for daily scheduled update."),
+    top: int = typer.Option(120, help="Top liquid names per market."),
+    lookback_days: int = typer.Option(430, help="Calendar lookback days for price history."),
+    load: bool = typer.Option(True, help="Load the LaunchAgent immediately."),
+) -> None:
+    """Install a macOS LaunchAgent to refresh the screener every day."""
+    repo_dir = Path.cwd()
+    script_path, plist_path = install_launchd_schedule(
+        repo_dir=repo_dir,
+        hour=hour,
+        minute=minute,
+        top=top,
+        lookback_days=lookback_days,
+    )
+    console.print(f"Update script: {script_path}")
+    console.print(f"LaunchAgent plist: {plist_path}")
+    if not load:
+        return
+
+    target = f"gui/{os.getuid()}"
+    subprocess.run(["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True)
+    completed = subprocess.run(
+        ["launchctl", "bootstrap", target, str(plist_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode == 0:
+        console.print(f"Loaded schedule: daily {hour:02d}:{minute:02d}")
+    else:
+        console.print("LaunchAgent file was written, but launchctl did not load it automatically.")
+        console.print(completed.stderr.strip())
+        console.print(f"Manual command: launchctl bootstrap {target} {plist_path}")
+
+
+@app.command("uninstall-schedule")
+def uninstall_schedule_command() -> None:
+    """Remove the macOS LaunchAgent installed by install-schedule."""
+    label = "com.ah-screener.update"
+    target = f"gui/{os.getuid()}"
+    plist_path = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
+    subprocess.run(["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True)
+    removed = uninstall_launchd_schedule(label=label)
+    console.print(f"Removed schedule: {removed}")
 
 
 if __name__ == "__main__":

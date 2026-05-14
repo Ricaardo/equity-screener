@@ -9,7 +9,7 @@
 - A 股：沪深北上市公司。
 - 港股：港交所上市普通股。
 - 数据源：免费、可脚本化、可本地缓存。
-- 输出：剔除名单、高风险名单、行业候选池、概念候选池、综合评分 Top N。
+- 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown 报告和本地看板。
 
 第二阶段扩展：
 
@@ -319,11 +319,17 @@ ah-stock-screener/
   src/ah_screener/
     cli.py
     config.py
+    expert_model.py
+    fundamentals.py
     pipeline.py
+    reporting.py
+    scheduler.py
     scoring.py
     storage.py
+    technical.py
     sources/akshare_client.py
     ui/streamlit_app.py
+  reports/
   pyproject.toml
   README.md
 ```
@@ -378,58 +384,66 @@ ah-screener refined-export --top 50
 streamlit run src/ah_screener/ui/streamlit_app.py
 ```
 
+第八步：生成当前研究报告。
+
+```bash
+ah-screener report
+```
+
+报告默认输出：
+
+```text
+reports/ah-screening-report-YYYY-MM-DD.md
+```
+
+第九步：一键全量刷新。
+
+```bash
+ah-screener update-all --top 120 --lookback-days 430
+```
+
+第十步：安装每日自动更新。
+
+```bash
+ah-screener install-schedule --hour 18 --minute 30
+```
+
+该命令会生成 `scripts/update_all.sh`，并注册 macOS LaunchAgent：
+
+```text
+~/Library/LaunchAgents/com.ah-screener.update.plist
+```
+
+默认每天本地时间 18:30 运行全量刷新，并把日志写到 `logs/`。
+
 ## 8. 后续增强
 
 - 接入年报/公告 PDF 下载和文本解析。
 - 对港股建立自建主题标签 CSV 导入。
 - 增加行业内分位数评分。
-- 增加财务质量评分：ROE、毛利率、净利率、经营现金流/净利润、资产负债率。
-- 增加成长评分：收入 3 年 CAGR、扣非净利 CAGR、研发费用率。
+- 增加多期财务质量评分：ROE、毛利率、净利率、经营现金流/净利润、资产负债率的稳定性和趋势。
+- 增加成长评分：收入 3 年 CAGR、扣非净利 CAGR、研发费用率和资本开支效率。
 - 增加回测模块：季度调仓、行业中性、手续费、滑点。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 
-## 9. 专家筛选模型
+## 9. 看板和自动化
 
-用户不需要自己定义评分。系统内置一套 `masters_hot_theme_technical_v1` 模型，结合：
+本地看板使用 Streamlit 实现，定位为“研究卷宗”而不是交易终端。视觉上采用羊皮纸黄色、复古红、墨绿和古典衬线字体，减少冷色金融终端感，方便个人投资者做候选复盘。
 
-- 格雷厄姆：估值安全边际、低风险、避免过度高估。
-- 巴菲特/芒格：优先质量、护城河、稳定现金流和行业龙头代理指标。
-- 费雪：优先长期成长赛道和研发/产业趋势。
-- 彼得·林奇：GARP 思路，主题成长不能脱离估值和基本面。
-- 欧奈尔/Minervini：趋势、相对强弱、均线结构、不过度追高。
+看板分为五个主要视图：
 
-第一版热门主题：
+- 精选卷宗：展示同类去重后的主题候选和候选卡片。
+- 专家榜：展示 `core_candidate`、`watchlist`、`reserve`、`reject` 的完整专家评分。
+- 基本面簿：展示三表提炼后的 ROE、收入增速、利润增速、负债率和现金流质量。
+- 基础筛选：展示第一层排雷和基础评分。
+- 标签索引：展示行业、概念、主题标签覆盖。
 
-- AI 算力硬件。
-- 半导体国产替代。
-- 人形机器人与高端制造。
-- 创新药与医疗科技。
-- 高股息央国企防御。
-- 电力储能与能源转型。
-- 资源涨价与安全资产。
-- 港股 AI 互联网平台。
-- 汽车智能化与出海。
+自动化链路由 `ah-screener update-all` 串起：
 
-技术指标：
-
-- 20/60/120 日均线结构。
-- 20 日和 60 日收益。
-- 距离 120 日高点。
-- RSI14。
-- 20 日年化波动。
-
-专家模型输出四类：
-
-- `core_candidate`：主题、技术和大师框架均较强。
-- `watchlist`：值得跟踪，但至少有一项还不够强。
-- `reserve`：备用池，等待主题、基本面或技术面确认。
-- `reject`：流动性、风险、技术面或主题相关性不足。
-
-执行：
-
-```bash
-ah-screener sync-history --market all --top 120 --lookback-days 430
-ah-screener technical
-ah-screener expert-score
-ah-screener expert-export --top 50
-```
+- 同步 A 股和港股行情快照。
+- 更新 A 股行业和概念标签。
+- 计算基础评分。
+- 同步历史行情并计算技术指标。
+- 同步三表财务数据并生成标准化基本面指标。
+- 执行专家筛选和同类去重提炼。
+- 生成当日 Markdown 研究报告。

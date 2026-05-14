@@ -8,6 +8,7 @@ import pandas as pd
 from ah_screener.config import get_settings
 from ah_screener.expert_model import STRATEGY_NAME, refine_candidates, run_expert_model
 from ah_screener.fundamentals import fetch_fundamentals
+from ah_screener.reporting import generate_report
 from ah_screener.scoring import score_snapshot
 from ah_screener.sources.akshare_client import fetch_a_board_tags, fetch_history, fetch_spot
 from ah_screener.storage import Store
@@ -244,3 +245,28 @@ def export_refined_candidates(top: int = 50) -> pd.DataFrame:
         """,
         [top],
     )
+
+
+def run_full_update(
+    top: int = 120,
+    lookback_days: int = 430,
+    industry_limit: int | None = 50,
+    concept_limit: int | None = 120,
+    include_fundamentals: bool = True,
+    include_report: bool = True,
+) -> dict[str, object]:
+    result: dict[str, object] = {}
+    result["sync_spot"] = sync_spot("all")
+    if industry_limit is not None:
+        result["a_industry_tags"] = sync_a_tags("industry", limit=industry_limit)
+    if concept_limit is not None:
+        result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
+    result["basic_scores"] = run_scores()
+    result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
+    result["technical_rows"] = run_technical_indicators()
+    if include_fundamentals:
+        result["fundamentals"] = sync_fundamentals("all", top=top)
+    result["expert_scores"] = run_expert_scores()
+    if include_report:
+        result["report"] = str(generate_report())
+    return result

@@ -14,7 +14,9 @@
 - 内置欧美和中国投资大师框架，面向 A 股和港股做专家筛选。
 - 按主题和相似标的去重提炼，每个方向只保留最好几个候选。
 - 输出候选池、观察池、剔除池和提炼候选池。
-- 提供本地 Streamlit 看板。
+- 提供本地 Streamlit 看板，使用羊皮纸黄色复古卷宗风格。
+- 生成 Markdown 研究报告。
+- 支持一键全量刷新和 macOS 定时更新。
 
 ## 安装
 
@@ -68,6 +70,49 @@ refined_candidates
 ```
 
 `refined_candidates` 会按主题桶、风格桶和 A/H 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H 两地上市或同名主体只保留专家分最高的一只。
+
+## 报告
+
+基于当前 DuckDB 生成 Markdown 研究报告：
+
+```bash
+ah-screener report
+```
+
+默认输出到：
+
+```text
+reports/ah-screening-report-YYYY-MM-DD.md
+```
+
+## 全量更新和定时任务
+
+一键刷新行情、标签、历史价格、技术指标、三表基本面、专家评分和报告：
+
+```bash
+ah-screener update-all --top 120 --lookback-days 430
+```
+
+在 macOS 上安装每日定时任务，默认每天 18:30 运行：
+
+```bash
+ah-screener install-schedule --hour 18 --minute 30
+```
+
+定时任务会生成：
+
+```text
+scripts/update_all.sh
+~/Library/LaunchAgents/com.ah-screener.update.plist
+logs/scheduled-update.out.log
+logs/scheduled-update.err.log
+```
+
+卸载定时任务：
+
+```bash
+ah-screener uninstall-schedule
+```
 
 ## 数据位置
 
