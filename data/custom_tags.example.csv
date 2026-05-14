@@ -1,0 +1,8 @@
+market,symbol,tag_type,tag_name,evidence_level,source
+HK,00700,theme,港股AI互联网平台,B,manual_example
+HK,09988,theme,港股AI互联网平台,B,manual_example
+HK,03690,theme,港股AI互联网平台,B,manual_example
+HK,02359,theme,创新药与医疗科技,B,manual_example
+HK,00883,theme,高股息央国企防御,B,manual_example
+A,300476,theme,AI算力硬件,B,manual_example
+A,603986,theme,半导体国产替代,B,manual_example

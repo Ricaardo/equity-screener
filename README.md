@@ -9,6 +9,7 @@
 - 同步 A 股、港股和 A 股 ETF 市场快照。
 - 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF。
 - 同步 A 股行业和概念标签。
+- 支持内置策展主题标签和自建 CSV 标签导入，补足港股免费概念数据不足。
 - 基于估值、流动性、主题和风险做可解释评分。
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 基本面分纳入多期收入/利润 CAGR、ROE 均值和稳定性。
@@ -44,6 +45,7 @@ ah-screener sync-spot --market all
 ah-screener classify-securities
 ah-screener sync-a-tags --kind industry --limit 30
 ah-screener sync-a-tags --kind concept --limit 50
+ah-screener sync-curated-tags
 ah-screener score
 ah-screener export --top 100
 streamlit run src/ah_screener/ui/streamlit_app.py
@@ -63,6 +65,7 @@ ah-screener sync-spot --market ETF
 ah-screener sync-history --market all --top 120 --lookback-days 430
 ah-screener technical
 ah-screener sync-fundamentals --market all --top 120
+ah-screener import-tags --path data/custom_tags.csv
 ah-screener fundamentals-status --top 120
 ah-screener coverage-status
 ah-screener expert-score

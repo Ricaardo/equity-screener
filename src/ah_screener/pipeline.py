@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Literal
 
 import pandas as pd
@@ -8,7 +9,12 @@ import pandas as pd
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
 from ah_screener.etf_model import enrich_etf_snapshot
-from ah_screener.expert_model import STRATEGY_NAME, refine_candidates, run_expert_model
+from ah_screener.expert_model import (
+    CURATED_THEME_OVERRIDES,
+    STRATEGY_NAME,
+    refine_candidates,
+    run_expert_model,
+)
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.reporting import generate_report
 from ah_screener.scoring import score_snapshot
@@ -60,6 +66,66 @@ def sync_a_tags(kind: Literal["industry", "concept"], limit: int | None) -> int:
     store = get_store()
     store.init_db()
     tags = fetch_a_board_tags(kind=kind, limit=limit)
+    return store.upsert_dataframe("company_tags", tags)
+
+
+def _normalize_tag_symbol(market: str, symbol: object) -> str:
+    raw = str(symbol).strip().lower()
+    clean = raw.replace("sh", "").replace("sz", "").replace("bj", "").replace("hk", "")
+    return clean.zfill(5 if market == "HK" else 6)
+
+
+def _prepare_custom_tags(tags: pd.DataFrame, source: str) -> pd.DataFrame:
+    required = {"market", "symbol", "tag_name"}
+    missing = required.difference(tags.columns)
+    if missing:
+        raise ValueError(f"Missing custom tag columns: {', '.join(sorted(missing))}")
+
+    frame = tags.copy()
+    frame["market"] = frame["market"].astype(str).str.upper().str.strip()
+    frame = frame[frame["market"].isin(["A", "HK"])]
+    frame["symbol"] = frame.apply(lambda row: _normalize_tag_symbol(str(row["market"]), row["symbol"]), axis=1)
+    frame["tag_name"] = frame["tag_name"].astype(str).str.strip()
+    frame["tag_type"] = (
+        frame["tag_type"].astype(str).str.lower().str.strip() if "tag_type" in frame.columns else "theme"
+    )
+    frame["evidence_level"] = (
+        frame["evidence_level"].astype(str).str.upper().str.strip() if "evidence_level" in frame.columns else "B"
+    )
+    frame["source"] = frame["source"].astype(str).str.strip() if "source" in frame.columns else source
+    frame["source"] = frame["source"].replace("", source)
+    frame["updated_at"] = pd.Timestamp(datetime.now())
+    frame = frame[frame["tag_name"].ne("")]
+    return frame[
+        ["market", "symbol", "tag_type", "tag_name", "evidence_level", "source", "updated_at"]
+    ].drop_duplicates(["market", "symbol", "tag_type", "tag_name", "source"])
+
+
+def import_custom_tags(path: Path, source: str = "custom_csv") -> int:
+    store = get_store()
+    store.init_db()
+    if not path.exists():
+        raise FileNotFoundError(path)
+    tags = pd.read_csv(path)
+    return store.upsert_dataframe("company_tags", _prepare_custom_tags(tags, source=source))
+
+
+def sync_curated_theme_tags() -> int:
+    rows = [
+        {
+            "market": market,
+            "symbol": symbol,
+            "tag_type": "theme",
+            "tag_name": theme,
+            "evidence_level": "B",
+            "source": "curated_theme_overrides",
+        }
+        for (market, symbol), themes in CURATED_THEME_OVERRIDES.items()
+        for theme in themes
+    ]
+    tags = _prepare_custom_tags(pd.DataFrame(rows), source="curated_theme_overrides")
+    store = get_store()
+    store.init_db()
     return store.upsert_dataframe("company_tags", tags)
 
 
@@ -527,6 +593,7 @@ def run_full_update(
         result["a_industry_tags"] = sync_a_tags("industry", limit=industry_limit)
     if concept_limit is not None:
         result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
+    result["curated_theme_tags"] = sync_curated_theme_tags()
     result["basic_scores"] = run_scores()
     result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
     result["technical_rows"] = run_technical_indicators()

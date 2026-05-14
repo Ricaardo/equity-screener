@@ -21,12 +21,14 @@ from ah_screener.pipeline import (
     export_refined_candidates,
     export_scores,
     fundamentals_status,
+    import_custom_tags,
     init_db,
     run_full_update,
     run_expert_scores,
     run_scores,
     run_technical_indicators,
     sync_a_tags,
+    sync_curated_theme_tags,
     sync_fundamentals,
     sync_history,
     sync_spot,
@@ -90,6 +92,23 @@ def sync_a_tags_command(
         raise typer.BadParameter("kind must be industry or concept")
     count = sync_a_tags(normalized, limit=limit)  # type: ignore[arg-type]
     console.print(f"A-share {normalized} tags: {count}")
+
+
+@app.command("sync-curated-tags")
+def sync_curated_tags_command() -> None:
+    """Write built-in curated A/H theme tags into company_tags."""
+    count = sync_curated_theme_tags()
+    console.print(f"Curated theme tags: {count}")
+
+
+@app.command("import-tags")
+def import_tags_command(
+    path: Path = typer.Option(Path("data/custom_tags.csv"), help="CSV path with market,symbol,tag_name columns."),
+    source: str = typer.Option("custom_csv", help="Source label stored with imported tags."),
+) -> None:
+    """Import user-maintained industry, concept, theme, or risk tags from CSV."""
+    count = import_custom_tags(path=path, source=source)
+    console.print(f"Imported custom tags: {count}")
 
 
 @app.command("score")

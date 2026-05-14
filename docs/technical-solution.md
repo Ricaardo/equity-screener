@@ -373,11 +373,18 @@ ah-screener classify-securities
 
 `sync-spot --market all` 会同步 A 股股票、港股股票和 A 股 ETF；`classify-securities` 会回填主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF 类型。
 
-第三步：同步 A 股行业/概念标签。
+第三步：同步 A 股行业/概念标签，并写入内置策展主题标签。
 
 ```bash
 ah-screener sync-a-tags --kind industry --limit 50
 ah-screener sync-a-tags --kind concept --limit 100
+ah-screener sync-curated-tags
+```
+
+如果需要自建标签，可复制 `data/custom_tags.example.csv` 为 `data/custom_tags.csv`，然后运行：
+
+```bash
+ah-screener import-tags --path data/custom_tags.csv
 ```
 
 第四步：运行基础评分。
@@ -449,7 +456,7 @@ ah-screener install-schedule --hour 18 --minute 30
 ## 8. 后续增强
 
 - 接入年报/公告 PDF 下载和文本解析。
-- 对港股建立自建主题标签 CSV 导入。
+- 扩展港股自建主题标签：当前已支持 CSV 导入和内置策展主题落库，后续补更多可验证来源。
 - 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
 - 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值和稳定性，后续继续补研发费用率和资本开支效率。
 - 扩展回测模块：在当前等权区间回测骨架上加入季度调仓、行业中性、手续费和滑点。
