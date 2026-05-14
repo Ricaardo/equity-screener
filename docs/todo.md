@@ -24,9 +24,8 @@
 - [ ] 等第二个及以上 `refined_candidates` 快照生成后，跑真实库回测并确认输出表。
   - 触发条件：定时更新至少跨过一个新的交易日，且有后续日线价格。
   - 命令：`ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300`
-- [ ] 确认自动刷新日志和 DuckDB 写锁情况。
-  - 触发条件：LaunchAgent 完整运行一次后检查 `logs/`。
-  - 目标：没有写锁冲突，报告和专家评分均正常刷新。
+- [x] 确认自动刷新日志和 DuckDB 写锁情况。
+  - 结果：LaunchAgent 已运行；`logs/` 中未见 DuckDB 写锁异常，主要为 AkShare 进度条输出。
 
 ## P1：研究质量增强
 
@@ -51,10 +50,10 @@
 
 ## P3：工程自动化
 
-- [ ] 将数据库 Release 上传脚本化。
-  - 目标：减少手动 gzip、sha256、`gh release upload --clobber` 步骤。
-- [ ] 增加最小化测试套件。
-  - 目标：覆盖基准回测、同类去重、ETF 分类、基本面评分边界。
+- [x] 将数据库 Release 上传脚本化。
+  - 命令：`scripts/upload_release_db.sh data-YYYY-MM-DD`
+- [x] 增加最小化测试套件。
+  - 覆盖：基准回测、同类去重、ETF 分类、基本面评分边界。
 - [ ] 增加 UI 截图回归。
   - 目标：防止顶部留白、HTML 转义、移动端表格溢出等视觉问题回归。
 

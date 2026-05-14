@@ -139,6 +139,14 @@ logs/scheduled-update.err.log
 ah-screener uninstall-schedule
 ```
 
+## 本地测试
+
+最小测试套件覆盖基准回测、同类去重、ETF 分类和基本面评分边界：
+
+```bash
+PYTHONPATH=src python -m unittest discover -s tests -v
+```
+
 ## 数据位置
 
 默认数据库：
@@ -148,6 +156,12 @@ data/ah_screener.duckdb
 ```
 
 数据库文件超过 GitHub 普通文件 100MB 限制，仓库中默认不直接提交 `*.duckdb`。需要共享完整本地库时，将 `data/ah_screener.duckdb` 作为 GitHub Release 附件上传和下载。
+
+上传当前数据库到 GitHub Release：
+
+```bash
+scripts/upload_release_db.sh data-YYYY-MM-DD
+```
 
 可以通过环境变量覆盖：
 

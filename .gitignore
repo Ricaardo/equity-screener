@@ -6,6 +6,7 @@ __pycache__/
 .ruff_cache/
 logs/
 scripts/update_all.sh
+dist/
 
 data/*.duckdb
 data/*.duckdb.*
