@@ -508,24 +508,21 @@ def render_candidate_cards(df: pd.DataFrame, limit: int = 8) -> None:
         theme_html = "".join(f'<span class="chip green">{_safe(item)}</span>' for item in themes[:3])
         st_chip = '<span class="chip red">ST/退</span>' if bool(row.get("is_st")) else ""
         cards.append(
-            f"""
-            <div class="candidate-card">
-              <div class="candidate-head">
-                <div>
-                  <div class="candidate-name">{_safe(row.get("name"))}</div>
-                  <div class="candidate-meta">{_safe(row.get("market"))} · {_safe(row.get("symbol"))} · {_safe(row.get("board"))}</div>
-                </div>
-                <div class="score">{_score(row.get("expert_score"))}</div>
-              </div>
-              <div class="chip-row">
-                <span class="chip">{_safe(row.get("style_bucket"))}</span>
-                <span class="chip">基本面 {_score(row.get("fundamental_score"))}</span>
-                <span class="chip">技术 {_score(row.get("technical_score"))}</span>
-                {st_chip}
-                {theme_html}
-              </div>
-            </div>
-            """
+            '<div class="candidate-card">'
+            '<div class="candidate-head">'
+            "<div>"
+            f'<div class="candidate-name">{_safe(row.get("name"))}</div>'
+            f'<div class="candidate-meta">{_safe(row.get("market"))} · {_safe(row.get("symbol"))} · {_safe(row.get("board"))}</div>'
+            "</div>"
+            f'<div class="score">{_score(row.get("expert_score"))}</div>'
+            "</div>"
+            '<div class="chip-row">'
+            f'<span class="chip">{_safe(row.get("style_bucket"))}</span>'
+            f'<span class="chip">基本面 {_score(row.get("fundamental_score"))}</span>'
+            f'<span class="chip">技术 {_score(row.get("technical_score"))}</span>'
+            f"{st_chip}{theme_html}"
+            "</div>"
+            "</div>"
         )
     st.markdown(f'<div class="card-grid">{"".join(cards)}</div>', unsafe_allow_html=True)
 
