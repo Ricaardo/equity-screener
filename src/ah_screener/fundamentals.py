@@ -63,6 +63,18 @@ def _first(row: pd.Series, names: list[str]) -> float:
     return np.nan
 
 
+def _sum_first(row: pd.Series, names: list[str]) -> float:
+    values = [_num(row.get(name)) for name in names if name in row.index]
+    values = [value for value in values if not math.isnan(value)]
+    return float(sum(values)) if values else np.nan
+
+
+def _ratio(numerator: float, denominator: float, scale: float = 1.0) -> float:
+    if math.isnan(numerator) or math.isnan(denominator) or denominator <= 0:
+        return np.nan
+    return float(numerator / denominator * scale)
+
+
 def _clean_a_symbol(symbol: str) -> str:
     return str(symbol).lower().replace("sh", "").replace("sz", "").replace("bj", "").zfill(6)
 
@@ -200,6 +212,12 @@ def _stability_score(values: pd.Series, penalty_per_point: float) -> float:
     if len(clean) < 2:
         return 50.0
     return float(np.clip(100 - clean.std(ddof=0) * penalty_per_point, 0, 100))
+
+
+def _innovation_efficiency_score(rd_expense_ratio: float, capex_to_operating_cashflow: float) -> float:
+    rd_score = _score_metric(rd_expense_ratio, 1, 10)
+    capex_funding_score = _score_metric(capex_to_operating_cashflow, 0.15, 1.25, reverse=True)
+    return float(np.clip(rd_score * 0.55 + capex_funding_score * 0.45, 0, 100))
 
 
 def _fundamental_trend_metrics(
@@ -356,6 +374,8 @@ def _a_metric_row(
     total_equity = _first(balance_row, ["TOTAL_EQUITY", "TOTAL_PARENT_EQUITY"])
     operating_cashflow = _first(cash_row, ["NETCASH_OPERATE", "NETCASH_OPERATENOTE"])
     gross_profit = _first(income_row, ["OPERATE_PROFIT", "TOTAL_PROFIT"])
+    rd_expense = _first(income_row, ["RESEARCH_EXPENSE", "ME_RESEARCH_EXPENSE"])
+    capex = abs(_first(cash_row, ["CONSTRUCT_LONG_ASSET"]))
 
     cashflow_to_profit = operating_cashflow / parent_profit if parent_profit and parent_profit > 0 else np.nan
     if math.isnan(debt_asset_ratio) and total_assets and total_assets > 0:
@@ -397,6 +417,8 @@ def _a_metric_row(
         current_ratio,
         cashflow_to_profit,
         ocf_to_revenue,
+        rd_expense,
+        capex,
         scores,
         trend,
     )
@@ -411,6 +433,16 @@ def _row_for_report(df: pd.DataFrame, report_date: pd.Timestamp) -> pd.Series:
     if matched.empty:
         matched = temp.sort_values("REPORT_DATE", ascending=False).head(1)
     return matched.iloc[0] if not matched.empty else pd.Series(dtype=object)
+
+
+def _items_by_name_for_report(items: pd.DataFrame, report_date: pd.Timestamp) -> pd.Series:
+    if items.empty or not {"REPORT_DATE", "STD_ITEM_NAME", "AMOUNT"}.issubset(items.columns):
+        return pd.Series(dtype=float)
+    item_dates = pd.to_datetime(items["REPORT_DATE"], errors="coerce")
+    item_for_date = items[item_dates == report_date]
+    if item_for_date.empty:
+        return pd.Series(dtype=float)
+    return item_for_date.set_index("STD_ITEM_NAME")["AMOUNT"]
 
 
 def _metric_frame(
@@ -438,6 +470,8 @@ def _metric_frame(
     current_ratio: float,
     cashflow_to_profit: float,
     ocf_to_revenue: float,
+    rd_expense: float,
+    capex: float,
     scores: tuple[float, float, float, float, float, list[str]],
     trend: dict[str, float] | None = None,
 ) -> pd.DataFrame:
@@ -456,7 +490,13 @@ def _metric_frame(
         trend_score = 50.0
     if trend_score < 40:
         warnings.append("多期成长或稳定性偏弱")
-    enhanced_fundamental = fundamental * 0.78 + trend_score * 0.22
+    rd_expense_ratio = _ratio(rd_expense, revenue, scale=100)
+    capex_to_revenue = _ratio(capex, revenue, scale=100)
+    capex_to_operating_cashflow = _ratio(capex, operating_cashflow)
+    innovation_score = _innovation_efficiency_score(rd_expense_ratio, capex_to_operating_cashflow)
+    if not math.isnan(capex_to_operating_cashflow) and capex_to_operating_cashflow > 1.25:
+        warnings.append("资本开支对经营现金流占用偏高")
+    enhanced_fundamental = fundamental * 0.72 + trend_score * 0.22 + innovation_score * 0.06
     return pd.DataFrame(
         [
             {
@@ -484,6 +524,12 @@ def _metric_frame(
                 "current_ratio": current_ratio,
                 "cashflow_to_profit": cashflow_to_profit,
                 "ocf_to_revenue": ocf_to_revenue,
+                "rd_expense": rd_expense,
+                "rd_expense_ratio": rd_expense_ratio,
+                "capex": capex,
+                "capex_to_revenue": capex_to_revenue,
+                "capex_to_operating_cashflow": capex_to_operating_cashflow,
+                "innovation_efficiency_score": innovation_score,
                 "revenue_cagr_3y": trend["revenue_cagr_3y"],
                 "net_profit_cagr_3y": trend["net_profit_cagr_3y"],
                 "roe_avg_3y": trend["roe_avg_3y"],
@@ -505,7 +551,9 @@ def _metric_frame(
 def _hk_metric_row(
     symbol: str,
     indicators: pd.DataFrame,
+    income_items: pd.DataFrame,
     balance_items: pd.DataFrame,
+    cashflow_items: pd.DataFrame,
     snapshot_date: pd.Timestamp,
 ) -> pd.DataFrame:
     latest = _latest_by_report_date(indicators)
@@ -515,15 +563,14 @@ def _hk_metric_row(
     name = latest.get("SECURITY_NAME_ABBR")
     report_type = latest.get("DATE_TYPE_CODE")
 
-    balance_for_date = balance_items[pd.to_datetime(balance_items["REPORT_DATE"], errors="coerce") == report_date]
-    by_name = (
-        balance_for_date.set_index("STD_ITEM_NAME")["AMOUNT"]
-        if not balance_for_date.empty and "STD_ITEM_NAME" in balance_for_date.columns
-        else pd.Series(dtype=float)
-    )
+    by_name = _items_by_name_for_report(balance_items, report_date)
+    income_by_name = _items_by_name_for_report(income_items, report_date)
+    cashflow_by_name = _items_by_name_for_report(cashflow_items, report_date)
     total_assets = _num(by_name.get("总资产"))
     total_liabilities = _num(by_name.get("总负债"))
     total_equity = _num(by_name.get("总权益", by_name.get("股东权益", by_name.get("净资产"))))
+    rd_expense = abs(_num(income_by_name.get("研发费用")))
+    capex = abs(_sum_first(cashflow_by_name, ["购建固定资产", "购建无形资产及其他资产"]))
 
     revenue = _first(latest, ["OPERATE_INCOME"])
     revenue_yoy = _first(latest, ["OPERATE_INCOME_YOY"])
@@ -581,6 +628,8 @@ def _hk_metric_row(
         current_ratio,
         cashflow_to_profit,
         ocf_to_revenue,
+        rd_expense,
+        capex,
         scores,
         trend,
     )
@@ -624,7 +673,7 @@ def fetch_fundamentals(market: Market, symbol: str, snapshot_date: pd.Timestamp)
                 _hk_rows_to_items("cashflow", cashflow, "akshare.stock_financial_hk_report_em"),
             ]
         )
-        metrics = _hk_metric_row(clean, indicators, balance, snapshot_date)
+        metrics = _hk_metric_row(clean, indicators, income, balance, cashflow, snapshot_date)
     else:
         raise ValueError(f"Unsupported market: {market}")
 

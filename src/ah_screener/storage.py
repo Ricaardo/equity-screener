@@ -145,6 +145,12 @@ CREATE TABLE IF NOT EXISTS financial_metrics (
     current_ratio DOUBLE,
     cashflow_to_profit DOUBLE,
     ocf_to_revenue DOUBLE,
+    rd_expense DOUBLE,
+    rd_expense_ratio DOUBLE,
+    capex DOUBLE,
+    capex_to_revenue DOUBLE,
+    capex_to_operating_cashflow DOUBLE,
+    innovation_efficiency_score DOUBLE,
     revenue_cagr_3y DOUBLE,
     net_profit_cagr_3y DOUBLE,
     roe_avg_3y DOUBLE,
@@ -250,6 +256,12 @@ ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_avg_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_stability_score DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS margin_stability_score DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS fundamental_trend_score DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS rd_expense DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS rd_expense_ratio DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex_to_revenue DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex_to_operating_cashflow DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS innovation_efficiency_score DOUBLE;
 """
 
 

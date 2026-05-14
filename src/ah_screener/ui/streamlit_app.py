@@ -773,6 +773,10 @@ def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
         "roe_avg_3y",
         "roe_stability_score",
         "fundamental_trend_score",
+        "rd_expense_ratio",
+        "capex_to_revenue",
+        "capex_to_operating_cashflow",
+        "innovation_efficiency_score",
     ]:
         if column not in df.columns:
             df[column] = pd.NA
@@ -792,6 +796,10 @@ def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
             "roe_avg_3y",
             "roe_stability_score",
             "fundamental_trend_score",
+            "rd_expense_ratio",
+            "capex_to_revenue",
+            "capex_to_operating_cashflow",
+            "innovation_efficiency_score",
             "debt_asset_ratio",
             "cashflow_to_profit",
             "warnings",
@@ -814,6 +822,10 @@ def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
             "roe_avg_3y": "ROE均值",
             "roe_stability_score": "ROE稳定",
             "fundamental_trend_score": "多期趋势",
+            "rd_expense_ratio": "研发费用率",
+            "capex_to_revenue": "资本开支/收入",
+            "capex_to_operating_cashflow": "资本开支/经营现金流",
+            "innovation_efficiency_score": "研发资本效率",
             "debt_asset_ratio": "资产负债率",
             "cashflow_to_profit": "现金流/利润",
             "warnings": "预警",

@@ -285,6 +285,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
         "roe_stability_score",
         "margin_stability_score",
         "fundamental_trend_score",
+        "rd_expense_ratio",
+        "capex_to_revenue",
+        "capex_to_operating_cashflow",
+        "innovation_efficiency_score",
     ]:
         if column not in fundamentals.columns:
             fundamentals[column] = pd.NA
@@ -356,6 +360,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "roe_avg_3y": "ROE均值",
                 "roe_stability_score": "ROE稳定",
                 "fundamental_trend_score": "多期趋势",
+                "rd_expense_ratio": "研发费用率",
+                "capex_to_revenue": "资本开支/收入",
+                "capex_to_operating_cashflow": "资本开支/经营现金流",
+                "innovation_efficiency_score": "研发资本效率",
                 "cashflow_to_profit": "现金流/利润",
                 "debt_asset_ratio": "资产负债率",
             }
@@ -557,6 +565,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                     "ROE均值",
                     "ROE稳定",
                     "多期趋势",
+                    "研发费用率",
+                    "资本开支/收入",
+                    "资本开支/经营现金流",
+                    "研发资本效率",
                     "现金流/利润",
                     "资产负债率",
                 ],

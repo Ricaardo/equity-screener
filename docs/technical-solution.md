@@ -188,6 +188,12 @@ financial_metrics
 - current_ratio
 - cashflow_to_profit
 - ocf_to_revenue
+- rd_expense
+- rd_expense_ratio
+- capex
+- capex_to_revenue
+- capex_to_operating_cashflow
+- innovation_efficiency_score
 - revenue_cagr_3y
 - net_profit_cagr_3y
 - roe_avg_3y
@@ -458,7 +464,7 @@ ah-screener install-schedule --hour 18 --minute 30
 - 接入年报/公告 PDF 下载和文本解析。
 - 扩展港股自建主题标签：当前已支持 CSV 导入和内置策展主题落库，后续补更多可验证来源。
 - 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
-- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值和稳定性，后续继续补研发费用率和资本开支效率。
+- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值、稳定性、研发费用率和资本开支效率，后续补更多行业化阈值。
 - 扩展回测模块：当前已支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费和滑点，后续补基准指数和更长历史样本。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 
