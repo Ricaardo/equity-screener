@@ -7,6 +7,7 @@ import pandas as pd
 
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
+from ah_screener.etf_model import enrich_etf_snapshot
 from ah_screener.expert_model import STRATEGY_NAME, refine_candidates, run_expert_model
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.reporting import generate_report
@@ -215,6 +216,242 @@ def fundamentals_status(top: int = 120) -> pd.DataFrame:
     return status[
         ["market", "metric_rows", "target", "remaining_estimate", "progress_pct", "statement_items"]
     ]
+
+
+def _latest_table(store: Store, table: str, date_column: str) -> pd.DataFrame:
+    df = store.query_df(f"SELECT * FROM {table}")
+    if df.empty or date_column not in df.columns:
+        return df
+    return df[df[date_column] == df[date_column].max()].copy()
+
+
+def coverage_status() -> pd.DataFrame:
+    store = get_store()
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    if snapshots.empty:
+        return pd.DataFrame(
+            columns=[
+                "market",
+                "asset_type",
+                "board",
+                "universe",
+                "technical_covered",
+                "technical_pct",
+                "fundamental_covered",
+                "fundamental_pct",
+                "expert_covered",
+                "expert_pct",
+            ]
+        )
+
+    snapshots = snapshots.drop_duplicates(["market", "symbol"], keep="last").copy()
+    securities = store.query_df("SELECT * FROM securities")
+    if not securities.empty:
+        securities = enrich_security_metadata(securities)
+        metadata_columns = [
+            column
+            for column in ["asset_type", "board", "exchange", "status", "is_st", "is_hk_connect"]
+            if column in securities.columns
+        ]
+        snapshots = snapshots.drop(columns=[column for column in metadata_columns if column in snapshots.columns])
+        snapshots = snapshots.merge(
+            securities[["market", "symbol", *metadata_columns]].drop_duplicates(["market", "symbol"]),
+            on=["market", "symbol"],
+            how="left",
+        )
+
+    if "asset_type" not in snapshots.columns:
+        snapshots["asset_type"] = "stock"
+    if "board" not in snapshots.columns:
+        snapshots["board"] = "未分类"
+    snapshots["asset_type"] = snapshots["asset_type"].fillna("stock")
+    snapshots["board"] = snapshots["board"].fillna("未分类")
+
+    technicals = _latest_table(store, "technical_indicators", "snapshot_date")
+    fundamentals = _latest_table(store, "financial_metrics", "snapshot_date")
+    expert = _latest_table(store, "expert_screening_results", "snapshot_date")
+    if not expert.empty and "strategy" in expert.columns:
+        expert = expert[expert["strategy"] == STRATEGY_NAME]
+
+    for name, df in [
+        ("technical", technicals),
+        ("fundamental", fundamentals),
+        ("expert", expert),
+    ]:
+        flag = f"has_{name}"
+        keys = (
+            df[["market", "symbol"]].drop_duplicates().assign(**{flag: True})
+            if not df.empty
+            else pd.DataFrame(columns=["market", "symbol", flag])
+        )
+        snapshots = snapshots.merge(keys, on=["market", "symbol"], how="left")
+        snapshots[flag] = snapshots[flag].eq(True)
+
+    status = (
+        snapshots.groupby(["market", "asset_type", "board"], dropna=False)
+        .agg(
+            universe=("symbol", "count"),
+            technical_covered=("has_technical", "sum"),
+            fundamental_covered=("has_fundamental", "sum"),
+            expert_covered=("has_expert", "sum"),
+        )
+        .reset_index()
+    )
+    for prefix in ["technical", "fundamental", "expert"]:
+        status[f"{prefix}_pct"] = (
+            status[f"{prefix}_covered"] / status["universe"].replace(0, pd.NA) * 100
+        ).fillna(0).round(1)
+
+    return status[
+        [
+            "market",
+            "asset_type",
+            "board",
+            "universe",
+            "technical_covered",
+            "technical_pct",
+            "fundamental_covered",
+            "fundamental_pct",
+            "expert_covered",
+            "expert_pct",
+        ]
+    ].sort_values(["market", "asset_type", "universe"], ascending=[True, True, False])
+
+
+def export_etf_candidates(top: int = 100, category: str | None = None) -> pd.DataFrame:
+    store = get_store()
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    if snapshots.empty or "asset_type" not in snapshots.columns:
+        return pd.DataFrame()
+    etfs = snapshots[snapshots["asset_type"].fillna("stock").eq("etf")].copy()
+    etfs = enrich_etf_snapshot(etfs)
+    if category:
+        etfs = etfs[etfs["etf_category"].eq(category)]
+    return etfs.sort_values(["etf_score", "amount"], ascending=[False, False]).head(top)
+
+
+def candidate_changes() -> pd.DataFrame:
+    store = get_store()
+    refined = store.query_df(
+        """
+        SELECT *
+        FROM refined_candidates
+        WHERE strategy = ?
+        """,
+        [STRATEGY_NAME],
+    )
+    if refined.empty or refined["snapshot_date"].nunique() < 2:
+        return pd.DataFrame(
+            columns=[
+                "status",
+                "bucket",
+                "market",
+                "symbol",
+                "name",
+                "latest_score",
+                "previous_score",
+                "score_delta",
+            ]
+        )
+
+    dates = sorted(refined["snapshot_date"].dropna().unique())
+    previous_date, latest_date = dates[-2], dates[-1]
+    previous = refined[refined["snapshot_date"] == previous_date].copy()
+    latest = refined[refined["snapshot_date"] == latest_date].copy()
+    key_columns = ["bucket", "market", "symbol"]
+    merged = latest.merge(
+        previous[key_columns + ["expert_score"]].rename(columns={"expert_score": "previous_score"}),
+        on=key_columns,
+        how="outer",
+        indicator=True,
+        suffixes=("", "_previous"),
+    )
+    merged["status"] = merged["_merge"].map({"left_only": "new", "right_only": "removed", "both": "kept"})
+    merged["latest_score"] = pd.to_numeric(merged.get("expert_score"), errors="coerce")
+    merged["previous_score"] = pd.to_numeric(merged.get("previous_score"), errors="coerce")
+    merged["score_delta"] = (merged["latest_score"] - merged["previous_score"]).round(1)
+    merged["name"] = merged["name"].fillna(merged.get("name_previous"))
+    return merged[
+        [
+            "status",
+            "bucket",
+            "market",
+            "symbol",
+            "name",
+            "latest_score",
+            "previous_score",
+            "score_delta",
+        ]
+    ].sort_values(["status", "bucket", "latest_score"], ascending=[True, True, False])
+
+
+def backtest_refined_candidates(
+    initial_capital: float = 1_000_000,
+    max_names: int = 12,
+) -> pd.DataFrame:
+    store = get_store()
+    refined = store.query_df(
+        """
+        SELECT *
+        FROM refined_candidates
+        WHERE strategy = ?
+        """,
+        [STRATEGY_NAME],
+    )
+    prices = store.query_df("SELECT * FROM daily_prices")
+    if refined.empty or prices.empty:
+        return pd.DataFrame(
+            columns=["period_start", "period_end", "holdings", "period_return", "equity"]
+        )
+
+    refined["snapshot_date"] = pd.to_datetime(refined["snapshot_date"])
+    prices["trade_date"] = pd.to_datetime(prices["trade_date"])
+    dates = sorted(refined["snapshot_date"].dropna().unique())
+    final_price_date = prices["trade_date"].max()
+    if not dates or final_price_date <= dates[0]:
+        return pd.DataFrame(
+            columns=["period_start", "period_end", "holdings", "period_return", "equity"]
+        )
+
+    rows: list[dict[str, object]] = []
+    equity = float(initial_capital)
+    for index, start_date in enumerate(dates):
+        end_date = dates[index + 1] if index + 1 < len(dates) else final_price_date
+        if end_date <= start_date:
+            continue
+        picks = (
+            refined[refined["snapshot_date"] == start_date]
+            .sort_values(["expert_score", "fundamental_score", "technical_score"], ascending=False)
+            .head(max_names)
+        )
+        returns: list[float] = []
+        for _, pick in picks.iterrows():
+            history = prices[
+                (prices["market"] == pick["market"])
+                & (prices["symbol"].astype(str) == str(pick["symbol"]))
+                & (prices["trade_date"] >= start_date)
+                & (prices["trade_date"] <= end_date)
+            ].sort_values("trade_date")
+            if len(history) < 2:
+                continue
+            start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
+            end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
+            if pd.notna(start_close) and pd.notna(end_close) and float(start_close) > 0:
+                returns.append(float(end_close) / float(start_close) - 1)
+        if not returns:
+            continue
+        period_return = float(pd.Series(returns).mean())
+        equity *= 1 + period_return
+        rows.append(
+            {
+                "period_start": pd.Timestamp(start_date).date(),
+                "period_end": pd.Timestamp(end_date).date(),
+                "holdings": len(returns),
+                "period_return": period_return,
+                "equity": equity,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def export_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:

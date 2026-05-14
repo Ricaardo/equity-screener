@@ -8,7 +8,9 @@ import streamlit as st
 
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
+from ah_screener.etf_model import enrich_etf_snapshot
 from ah_screener.expert_model import STRATEGY_NAME
+from ah_screener.pipeline import coverage_status
 from ah_screener.storage import Store
 
 
@@ -40,9 +42,36 @@ DESK_CSS = """
     var(--bg);
 }
 
+header,
+header[data-testid="stHeader"],
+div[data-testid="stToolbar"],
+div[data-testid="stDecoration"],
+div[data-testid="stStatusWidget"],
+#MainMenu,
+footer {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  visibility: hidden !important;
+}
+
+div[data-testid="stAppViewContainer"],
+section.main,
+main,
+.stMain {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
+div[data-testid="stAppViewBlockContainer"],
+section[data-testid="stSidebar"] > div:first-child {
+  padding-top: 0 !important;
+  margin-top: 0 !important;
+}
+
 .block-container {
   max-width: 1540px;
-  padding: 1.1rem 1.4rem 2.6rem;
+  padding: 0 1.4rem 2.6rem !important;
 }
 
 section[data-testid="stSidebar"] {
@@ -428,6 +457,14 @@ def load_fundamental_view(securities: pd.DataFrame) -> pd.DataFrame:
     return with_metadata(fundamentals, securities)
 
 
+@st.cache_data(ttl=300)
+def load_coverage_view() -> pd.DataFrame:
+    try:
+        return coverage_status()
+    except Exception:
+        return pd.DataFrame()
+
+
 def apply_common_filters(df: pd.DataFrame) -> pd.DataFrame:
     filtered = df.copy()
     if filtered.empty:
@@ -650,6 +687,65 @@ def display_market(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def display_etf(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    out = df[
+        [
+            "market",
+            "symbol",
+            "name",
+            "etf_category",
+            "etf_keyword",
+            "etf_score",
+            "etf_liquidity_score",
+            "etf_recommendation",
+            "last_price",
+            "pct_change",
+            "amount",
+            "market_cap",
+        ]
+    ].copy()
+    out["amount"] = out["amount"].map(_amount)
+    out["market_cap"] = out["market_cap"].map(_amount)
+    out["pct_change"] = out["pct_change"].map(_pct)
+    return out.rename(
+        columns={
+            "market": "市场",
+            "symbol": "代码",
+            "name": "名称",
+            "etf_category": "分类",
+            "etf_keyword": "识别词",
+            "etf_score": "ETF分",
+            "etf_liquidity_score": "流动性",
+            "etf_recommendation": "建议",
+            "last_price": "最新价",
+            "pct_change": "涨跌幅",
+            "amount": "成交额",
+            "market_cap": "规模",
+        }
+    )
+
+
+def display_coverage(df: pd.DataFrame) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return df.rename(
+        columns={
+            "market": "市场",
+            "asset_type": "类型",
+            "board": "板块",
+            "universe": "证券数",
+            "technical_covered": "技术覆盖",
+            "technical_pct": "技术覆盖率",
+            "fundamental_covered": "基本面覆盖",
+            "fundamental_pct": "基本面覆盖率",
+            "expert_covered": "专家覆盖",
+            "expert_pct": "专家覆盖率",
+        }
+    )
+
+
 def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -695,6 +791,7 @@ market_view = load_market_view(securities)
 expert_view = load_expert_view(securities)
 refined_view = load_refined_view(securities)
 fundamental_view = load_fundamental_view(securities)
+coverage_view = load_coverage_view()
 
 if market_view.empty and expert_view.empty and refined_view.empty:
     st.info("暂无数据。请先运行 ah-screener sync-spot --market all。")
@@ -762,8 +859,8 @@ if not filtered_fundamentals.empty:
 render_hero(snapshot_text, len(market_view), len(refined_view))
 render_kpis(market_view, expert_view, refined_view)
 
-overview_tab, refined_tab, stocks_tab, etf_tab, fundamentals_tab, tags_tab = st.tabs(
-    ["总览", "精选", "股票池", "ETF", "基本面", "标签"]
+overview_tab, refined_tab, stocks_tab, etf_tab, fundamentals_tab, coverage_tab, tags_tab = st.tabs(
+    ["总览", "精选", "股票池", "ETF", "基本面", "覆盖", "标签"]
 )
 
 with overview_tab:
@@ -808,12 +905,18 @@ with etf_tab:
     if etfs.empty:
         st.info("暂无 ETF 数据。运行 ah-screener sync-spot --market ETF 后刷新。")
     else:
-        a, b, c = st.columns(3)
+        etfs = enrich_etf_snapshot(etfs)
+        category_options = sorted(etfs["etf_category"].dropna().unique())
+        selected_categories = st.multiselect("ETF 分类", category_options, default=category_options)
+        if selected_categories:
+            etfs = etfs[etfs["etf_category"].isin(selected_categories)]
+        a, b, c, d = st.columns(4)
         a.metric("ETF 数量", f"{len(etfs):,}")
         b.metric("成交额过亿", f"{(pd.to_numeric(etfs['amount'], errors='coerce') >= 100_000_000).sum():,}")
-        c.metric("上涨 ETF", f"{(pd.to_numeric(etfs['pct_change'], errors='coerce') > 0).sum():,}")
+        c.metric("优先观察", f"{etfs['etf_recommendation'].eq('优先观察').sum():,}")
+        d.metric("分类数", f"{etfs['etf_category'].nunique():,}")
         st.dataframe(
-            display_market(etfs.sort_values("amount", ascending=False).head(300)),
+            display_etf(etfs.sort_values(["etf_score", "amount"], ascending=False).head(300)),
             width="stretch",
             hide_index=True,
             height=650,
@@ -830,6 +933,13 @@ with fundamentals_tab:
             hide_index=True,
             height=650,
         )
+
+with coverage_tab:
+    st.markdown("## 覆盖状态")
+    if coverage_view.empty:
+        st.info("暂无覆盖率数据。")
+    else:
+        st.dataframe(display_coverage(coverage_view), width="stretch", hide_index=True, height=650)
 
 with tags_tab:
     st.markdown("## 标签")

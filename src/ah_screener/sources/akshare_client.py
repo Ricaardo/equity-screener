@@ -81,6 +81,8 @@ def normalize_a_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.D
             "status": name.map(lambda value: infer_status(value, "stock")),
             "is_st": name.map(is_st_name),
             "is_hk_connect": False,
+            "metadata_source": source,
+            "metadata_confidence": "high",
             "updated_at": updated_at,
         }
     )
@@ -93,6 +95,8 @@ def normalize_hk_spot(
     raw: pd.DataFrame,
     source: str,
     hk_connect_symbols: set[str] | None = None,
+    hk_connect_source: str = "akshare.hk_connect.unavailable",
+    hk_connect_confidence: str = "low",
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     today = pd.Timestamp.today().normalize()
     updated_at = _now()
@@ -135,6 +139,8 @@ def normalize_hk_spot(
             "status": "listed",
             "is_st": False,
             "is_hk_connect": is_hk_connect,
+            "metadata_source": f"{source}; hk_connect={hk_connect_source}",
+            "metadata_confidence": hk_connect_confidence,
             "updated_at": updated_at,
         }
     )
@@ -181,14 +187,20 @@ def fetch_spot(market: Market) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         return normalize_a_spot(raw, source)
     if market == "HK":
-        hk_connect_symbols = fetch_hk_connect_symbols()
+        hk_connect_symbols, hk_connect_source, hk_connect_confidence = fetch_hk_connect_symbols_with_meta()
         raw, source = _fetch_first_available(
             [
                 ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
                 ("akshare.stock_hk_spot", ak.stock_hk_spot),
             ]
         )
-        return normalize_hk_spot(raw, source, hk_connect_symbols=hk_connect_symbols)
+        return normalize_hk_spot(
+            raw,
+            source,
+            hk_connect_symbols=hk_connect_symbols,
+            hk_connect_source=hk_connect_source,
+            hk_connect_confidence=hk_connect_confidence,
+        )
     raise ValueError(f"Unsupported market: {market}")
 
 
@@ -233,6 +245,8 @@ def normalize_a_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, 
             "status": "listed",
             "is_st": False,
             "is_hk_connect": False,
+            "metadata_source": source,
+            "metadata_confidence": "high",
             "updated_at": updated_at,
         }
     )
@@ -252,14 +266,14 @@ def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
     return normalize_a_etf_spot(raw, source)
 
 
-def fetch_hk_connect_symbols() -> set[str]:
+def fetch_hk_connect_symbols_with_meta() -> tuple[set[str], str, str]:
     import akshare as ak
 
     calls = [
         ("akshare.stock_hk_ggt_components_em", ak.stock_hk_ggt_components_em),
         ("akshare.stock_hsgt_sh_hk_spot_em", ak.stock_hsgt_sh_hk_spot_em),
     ]
-    for _, func in calls:
+    for source, func in calls:
         try:
             raw = func()
             if raw is None or raw.empty:
@@ -267,7 +281,7 @@ def fetch_hk_connect_symbols() -> set[str]:
             symbol = _clean_hk_symbol(_first_existing(raw, ["代码", "股票代码"]))
             values = {item for item in symbol.dropna().astype(str) if item and item != "00000"}
             if values:
-                return values
+                return values, source, "high"
         except Exception:
             continue
     end_date = datetime.now().strftime("%Y%m%d")
@@ -282,10 +296,15 @@ def fetch_hk_connect_symbols() -> set[str]:
             symbol = _clean_hk_symbol(_first_existing(raw, ["股票代码", "代码"]))
             values = {item for item in symbol.dropna().astype(str) if item and item != "00000"}
             if values:
-                return values
+                return values, "akshare.stock_hsgt_stock_statistics_em", "medium"
     except Exception:
         pass
-    return set()
+    return set(), "akshare.hk_connect.unavailable", "low"
+
+
+def fetch_hk_connect_symbols() -> set[str]:
+    symbols, _, _ = fetch_hk_connect_symbols_with_meta()
+    return symbols
 
 
 def _normalize_history(

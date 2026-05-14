@@ -380,6 +380,7 @@ ah-screener sync-history --market all --top 120 --lookback-days 430
 ah-screener technical
 ah-screener sync-fundamentals --market all --top 120
 ah-screener fundamentals-status --top 120
+ah-screener coverage-status
 ```
 
 第六步：运行专家筛选和同类提炼。
@@ -388,6 +389,9 @@ ah-screener fundamentals-status --top 120
 ah-screener expert-score
 ah-screener expert-export --top 50
 ah-screener refined-export --top 50
+ah-screener candidate-changes
+ah-screener etf-export --top 50
+ah-screener backtest
 ```
 
 第七步：打开看板。
@@ -427,6 +431,7 @@ ah-screener install-schedule --hour 18 --minute 30
 ```
 
 默认每天本地时间 18:30 运行全量刷新，并把日志写到 `logs/`。
+生成的 `scripts/update_all.sh` 使用 `.update.lock` 做互斥保护；如果上一轮更新没有结束，下一轮会跳过，避免 DuckDB 写锁冲突。
 
 ## 8. 后续增强
 
@@ -435,20 +440,21 @@ ah-screener install-schedule --hour 18 --minute 30
 - 增加行业内分位数评分。
 - 增加多期财务质量评分：ROE、毛利率、净利率、经营现金流/净利润、资产负债率的稳定性和趋势。
 - 增加成长评分：收入 3 年 CAGR、扣非净利 CAGR、研发费用率和资本开支效率。
-- 增加回测模块：季度调仓、行业中性、手续费、滑点。
+- 扩展回测模块：在当前等权区间回测骨架上加入季度调仓、行业中性、手续费和滑点。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 
 ## 9. 看板和自动化
 
 本地看板使用 Streamlit 实现，定位为“研究台”而不是交易终端。视觉上采用暖色纸面、深墨侧栏、复古红和铜色强调，保留古典感但提高信息密度和可读性。
 
-看板分为五个主要视图：
+看板分为七个主要视图：
 
 - 总览：展示市场覆盖、板块结构、成交额和专家决策分布。
 - 精选：展示同类去重后的主题候选和候选卡片。
 - 股票池：展示 `core_candidate`、`watchlist`、`reserve`、`reject` 的完整专家评分。
-- ETF：展示 A 股 ETF 池、成交额、涨跌幅和规模。
+- ETF：展示 A 股 ETF 池、宽基/行业/主题/跨境/债券/商品/货币分类、工具评分和观察建议。
 - 基本面：展示三表提炼后的 ROE、收入增速、利润增速、负债率和现金流质量。
+- 覆盖：按市场、资产类型和板块展示技术指标、基本面和专家评分覆盖率。
 - 标签：展示行业、概念、主题标签覆盖。
 
 自动化链路由 `ah-screener update-all` 串起：

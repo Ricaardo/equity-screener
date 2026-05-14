@@ -13,6 +13,8 @@
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 内置欧美和中国投资大师框架，面向 A 股和港股做专家筛选。
 - 按主题和相似标的去重提炼，每个方向只保留最好几个候选。
+- 对 ETF 做分类、工具评分和观察建议。
+- 提供全市场覆盖率、候选变化和简单等权回测命令。
 - 输出候选池、观察池、剔除池和提炼候选池。
 - 提供本地 Streamlit 研究台，支持按市场、类型、板块、港股通和 ST 状态筛选。
 - 生成 Markdown 研究报告。
@@ -60,9 +62,13 @@ ah-screener sync-history --market all --top 120 --lookback-days 430
 ah-screener technical
 ah-screener sync-fundamentals --market all --top 120
 ah-screener fundamentals-status --top 120
+ah-screener coverage-status
 ah-screener expert-score
 ah-screener expert-export --top 50
 ah-screener refined-export --top 50
+ah-screener candidate-changes
+ah-screener etf-export --top 50
+ah-screener backtest
 ```
 
 结果会落库到：
@@ -77,6 +83,8 @@ refined_candidates
 ```
 
 `refined_candidates` 会按主题桶、风格桶和 A/H 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H 两地上市或同名主体只保留专家分最高的一只。
+
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和简单等权回测。
 
 ## 报告
 
@@ -114,6 +122,8 @@ scripts/update_all.sh
 logs/scheduled-update.out.log
 logs/scheduled-update.err.log
 ```
+
+生成的 `scripts/update_all.sh` 内置 `.update.lock` 互斥锁。如果上一轮更新仍在运行，下一轮会跳过，避免 DuckDB 写锁冲突和重复拉取免费接口。
 
 卸载定时任务：
 

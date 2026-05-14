@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 from pathlib import Path
 
 
@@ -21,12 +22,19 @@ def install_launchd_schedule(
 
     script_path = script_dir / "update_all.sh"
     plist_path = launch_agents / f"{label}.plist"
+    repo_shell = shlex.quote(str(repo_dir))
     script_path.write_text(
         "\n".join(
             [
                 "#!/bin/zsh",
                 "set -euo pipefail",
-                f"cd {repo_dir}",
+                f"cd {repo_shell}",
+                'LOCK_DIR=".update.lock"',
+                'if ! mkdir "$LOCK_DIR" 2>/dev/null; then',
+                '  echo "$(date +%Y-%m-%dT%H:%M:%S%z) update skipped: another run is active"',
+                "  exit 0",
+                "fi",
+                'trap \'rmdir "$LOCK_DIR"\' EXIT INT TERM',
                 (
                     ".venv/bin/ah-screener update-all "
                     f"--top {top} "

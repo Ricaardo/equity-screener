@@ -5,13 +5,18 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
 import typer
 from rich.console import Console
 from rich.table import Table
 
 from ah_screener.config import get_settings
 from ah_screener.pipeline import (
+    backtest_refined_candidates,
+    candidate_changes,
     classify_existing_securities,
+    coverage_status,
+    export_etf_candidates,
     export_expert_scores,
     export_refined_candidates,
     export_scores,
@@ -32,6 +37,18 @@ from ah_screener.scheduler import install_launchd_schedule, uninstall_launchd_sc
 
 app = typer.Typer(help="A/H stock screener built on free data sources.")
 console = Console()
+
+
+def _fmt_optional_float(value: object, digits: int = 1, suffix: str = "") -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return f"{float(value):.{digits}f}{suffix}"
+
+
+def _fmt_signed_float(value: object, digits: int = 1) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return f"{float(value):+.{digits}f}"
 
 
 @app.command("init-db")
@@ -153,6 +170,43 @@ def fundamentals_status_command(
     console.print(table)
 
 
+@app.command("coverage-status")
+def coverage_status_command() -> None:
+    """Show full-market coverage by market, asset type, and board."""
+    df = coverage_status()
+    if df.empty:
+        console.print("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in [
+        "market",
+        "asset_type",
+        "board",
+        "universe",
+        "technical_covered",
+        "technical_pct",
+        "fundamental_covered",
+        "fundamental_pct",
+        "expert_covered",
+        "expert_pct",
+    ]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["market"]),
+            str(row["asset_type"]),
+            str(row["board"]),
+            str(row["universe"]),
+            str(row["technical_covered"]),
+            f"{float(row['technical_pct']):.1f}%",
+            str(row["fundamental_covered"]),
+            f"{float(row['fundamental_pct']):.1f}%",
+            str(row["expert_covered"]),
+            f"{float(row['expert_pct']):.1f}%",
+        )
+    console.print(table)
+
+
 @app.command("expert-score")
 def expert_score_command() -> None:
     """Run the built-in expert theme + master + technical model."""
@@ -260,6 +314,110 @@ def refined_export_command(
             f"{float(row['fundamental_score']):.1f}",
             f"{float(row['technical_score']):.1f}",
             str(row["selection_note"]),
+        )
+    console.print(table)
+
+
+@app.command("etf-export")
+def etf_export_command(
+    top: int = typer.Option(100, help="Rows to show."),
+    category: Optional[str] = typer.Option(None, help="Filter by ETF category."),
+) -> None:
+    """Print classified and scored ETF candidates."""
+    df = export_etf_candidates(top=top, category=category)
+    if df.empty:
+        console.print("No ETF rows found. Run `ah-screener sync-spot --market ETF` first.")
+        return
+
+    table = Table(show_header=True, header_style="bold")
+    for column in [
+        "market",
+        "symbol",
+        "name",
+        "etf_category",
+        "etf_score",
+        "etf_recommendation",
+        "pct_change",
+        "amount",
+        "market_cap",
+    ]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["market"]),
+            str(row["symbol"]),
+            str(row["name"]),
+            str(row["etf_category"]),
+            f"{float(row['etf_score']):.1f}",
+            str(row["etf_recommendation"]),
+            _fmt_optional_float(row.get("pct_change"), digits=2, suffix="%"),
+            _fmt_optional_float(
+                float(row["amount"]) / 100_000_000 if pd.notna(row.get("amount")) else None,
+                digits=2,
+                suffix="亿",
+            ),
+            _fmt_optional_float(
+                float(row["market_cap"]) / 100_000_000 if pd.notna(row.get("market_cap")) else None,
+                digits=2,
+                suffix="亿",
+            ),
+        )
+    console.print(table)
+
+
+@app.command("candidate-changes")
+def candidate_changes_command() -> None:
+    """Compare latest refined candidates with the previous snapshot."""
+    df = candidate_changes()
+    if df.empty:
+        console.print("No previous refined snapshot found yet.")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in [
+        "status",
+        "bucket",
+        "market",
+        "symbol",
+        "name",
+        "latest_score",
+        "previous_score",
+        "score_delta",
+    ]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["status"]),
+            str(row["bucket"]),
+            str(row["market"]),
+            str(row["symbol"]),
+            str(row["name"]),
+            _fmt_optional_float(row["latest_score"]),
+            _fmt_optional_float(row["previous_score"]),
+            _fmt_signed_float(row["score_delta"]),
+        )
+    console.print(table)
+
+
+@app.command("backtest")
+def backtest_command(
+    initial_capital: float = typer.Option(1_000_000, help="Starting capital."),
+    max_names: int = typer.Option(12, help="Maximum holdings per rebalance snapshot."),
+) -> None:
+    """Run a simple equal-weight backtest over stored refined snapshots."""
+    df = backtest_refined_candidates(initial_capital=initial_capital, max_names=max_names)
+    if df.empty:
+        console.print("No backtest rows yet. Need daily prices plus at least one past refined snapshot.")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in ["period_start", "period_end", "holdings", "period_return", "equity"]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["period_start"]),
+            str(row["period_end"]),
+            str(row["holdings"]),
+            _fmt_optional_float(float(row["period_return"]) * 100, digits=2, suffix="%"),
+            _fmt_optional_float(row["equity"], digits=0),
         )
     console.print(table)
 

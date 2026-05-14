@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS securities (
     status VARCHAR,
     is_st BOOLEAN DEFAULT false,
     is_hk_connect BOOLEAN DEFAULT false,
+    metadata_source VARCHAR,
+    metadata_confidence VARCHAR,
     updated_at TIMESTAMP,
     PRIMARY KEY (market, symbol)
 );
@@ -219,6 +221,8 @@ ALTER TABLE securities ADD COLUMN IF NOT EXISTS asset_type VARCHAR DEFAULT 'stoc
 ALTER TABLE securities ADD COLUMN IF NOT EXISTS board VARCHAR;
 ALTER TABLE securities ADD COLUMN IF NOT EXISTS is_st BOOLEAN DEFAULT false;
 ALTER TABLE securities ADD COLUMN IF NOT EXISTS is_hk_connect BOOLEAN DEFAULT false;
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS metadata_source VARCHAR;
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS metadata_confidence VARCHAR;
 ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS asset_type VARCHAR DEFAULT 'stock';
 ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS board VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS china_master_score DOUBLE;
