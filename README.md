@@ -106,6 +106,8 @@ ah-screener report
 reports/ah-screening-report-YYYY-MM-DD.md
 ```
 
+后续事项统一记录在 [docs/todo.md](docs/todo.md)。
+
 ## 全量更新和定时任务
 
 一键刷新行情、标签、历史价格、技术指标、三表基本面、专家评分和报告：
