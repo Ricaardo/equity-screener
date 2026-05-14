@@ -749,6 +749,16 @@ def display_coverage(df: pd.DataFrame) -> pd.DataFrame:
 def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
+    df = df.copy()
+    for column in [
+        "revenue_cagr_3y",
+        "net_profit_cagr_3y",
+        "roe_avg_3y",
+        "roe_stability_score",
+        "fundamental_trend_score",
+    ]:
+        if column not in df.columns:
+            df[column] = pd.NA
     out = df[
         [
             "market",
@@ -760,6 +770,11 @@ def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
             "roe",
             "revenue_yoy",
             "net_profit_yoy",
+            "revenue_cagr_3y",
+            "net_profit_cagr_3y",
+            "roe_avg_3y",
+            "roe_stability_score",
+            "fundamental_trend_score",
             "debt_asset_ratio",
             "cashflow_to_profit",
             "warnings",
@@ -777,6 +792,11 @@ def display_fundamentals(df: pd.DataFrame) -> pd.DataFrame:
             "roe": "ROE",
             "revenue_yoy": "收入同比",
             "net_profit_yoy": "利润同比",
+            "revenue_cagr_3y": "收入CAGR",
+            "net_profit_cagr_3y": "利润CAGR",
+            "roe_avg_3y": "ROE均值",
+            "roe_stability_score": "ROE稳定",
+            "fundamental_trend_score": "多期趋势",
             "debt_asset_ratio": "资产负债率",
             "cashflow_to_profit": "现金流/利润",
             "warnings": "预警",

@@ -145,6 +145,12 @@ CREATE TABLE IF NOT EXISTS financial_metrics (
     current_ratio DOUBLE,
     cashflow_to_profit DOUBLE,
     ocf_to_revenue DOUBLE,
+    revenue_cagr_3y DOUBLE,
+    net_profit_cagr_3y DOUBLE,
+    roe_avg_3y DOUBLE,
+    roe_stability_score DOUBLE,
+    margin_stability_score DOUBLE,
+    fundamental_trend_score DOUBLE,
     quality_score DOUBLE,
     growth_score DOUBLE,
     balance_score DOUBLE,
@@ -230,6 +236,12 @@ ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS fundamental_score 
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_group VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS style_bucket VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS selection_note VARCHAR;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS revenue_cagr_3y DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS net_profit_cagr_3y DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_avg_3y DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_stability_score DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS margin_stability_score DOUBLE;
+ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS fundamental_trend_score DOUBLE;
 """
 
 

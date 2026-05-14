@@ -180,6 +180,96 @@ def _score_metric(value: float, low: float, high: float, reverse: bool = False) 
     return float(100 - score if reverse else score)
 
 
+def _series_first(df: pd.DataFrame, names: list[str]) -> pd.Series:
+    for name in names:
+        if name in df.columns:
+            return pd.to_numeric(df[name], errors="coerce")
+    return pd.Series(np.nan, index=df.index)
+
+
+def _cagr(latest: float, earliest: float, years: float) -> float:
+    if any(math.isnan(value) for value in [latest, earliest, years]):
+        return np.nan
+    if latest <= 0 or earliest <= 0 or years <= 0:
+        return np.nan
+    return float(((latest / earliest) ** (1 / years) - 1) * 100)
+
+
+def _stability_score(values: pd.Series, penalty_per_point: float) -> float:
+    clean = pd.to_numeric(values, errors="coerce").dropna()
+    if len(clean) < 2:
+        return 50.0
+    return float(np.clip(100 - clean.std(ddof=0) * penalty_per_point, 0, 100))
+
+
+def _fundamental_trend_metrics(
+    indicators: pd.DataFrame,
+    revenue_names: list[str],
+    profit_names: list[str],
+    roe_names: list[str],
+    margin_names: list[str],
+) -> dict[str, float]:
+    if indicators.empty or "REPORT_DATE" not in indicators.columns:
+        return {
+            "revenue_cagr_3y": np.nan,
+            "net_profit_cagr_3y": np.nan,
+            "roe_avg_3y": np.nan,
+            "roe_stability_score": 50.0,
+            "margin_stability_score": 50.0,
+            "fundamental_trend_score": 50.0,
+        }
+
+    history = indicators.copy()
+    history["REPORT_DATE"] = pd.to_datetime(history["REPORT_DATE"], errors="coerce")
+    history = history.dropna(subset=["REPORT_DATE"]).sort_values("REPORT_DATE", ascending=False)
+    history = history.drop_duplicates("REPORT_DATE")
+    annual = history[history["REPORT_DATE"].dt.month.eq(12) & history["REPORT_DATE"].dt.day.eq(31)]
+    if len(annual) >= 2:
+        history = annual
+    history = history.head(4).copy()
+    if len(history) < 2:
+        return {
+            "revenue_cagr_3y": np.nan,
+            "net_profit_cagr_3y": np.nan,
+            "roe_avg_3y": np.nan,
+            "roe_stability_score": 50.0,
+            "margin_stability_score": 50.0,
+            "fundamental_trend_score": 50.0,
+        }
+
+    latest = history.iloc[0]
+    earliest = history.iloc[-1]
+    years = max((latest["REPORT_DATE"] - earliest["REPORT_DATE"]).days / 365.25, 1.0)
+    revenue = _series_first(history, revenue_names)
+    profit = _series_first(history, profit_names)
+    roe = _series_first(history, roe_names)
+    margin = _series_first(history, margin_names)
+
+    revenue_cagr = _cagr(float(revenue.iloc[0]), float(revenue.iloc[-1]), years)
+    profit_cagr = _cagr(float(profit.iloc[0]), float(profit.iloc[-1]), years)
+    roe_avg = float(roe.dropna().mean()) if roe.notna().any() else np.nan
+    roe_stability = _stability_score(roe, penalty_per_point=4.0)
+    margin_stability = _stability_score(margin, penalty_per_point=3.0)
+    growth_trend = (
+        _score_metric(revenue_cagr, -5, 20) * 0.45
+        + _score_metric(profit_cagr, -10, 25) * 0.55
+    )
+    quality_trend = (
+        _score_metric(roe_avg, 5, 18) * 0.45
+        + roe_stability * 0.35
+        + margin_stability * 0.20
+    )
+    trend_score = float(np.clip(growth_trend * 0.55 + quality_trend * 0.45, 0, 100))
+    return {
+        "revenue_cagr_3y": revenue_cagr,
+        "net_profit_cagr_3y": profit_cagr,
+        "roe_avg_3y": roe_avg,
+        "roe_stability_score": roe_stability,
+        "margin_stability_score": margin_stability,
+        "fundamental_trend_score": trend_score,
+    }
+
+
 def _quality_scores(
     roe: float,
     gross_margin: float,
@@ -253,6 +343,13 @@ def _a_metric_row(
     debt_asset_ratio = _first(latest, ["ZCFZL"])
     current_ratio = _first(latest, ["LD"])
     ocf_to_revenue = _first(latest, ["JYXJLYYSR", "OCF_SALES"])
+    trend = _fundamental_trend_metrics(
+        indicators,
+        revenue_names=["TOTALOPERATEREVE", "OPERATE_INCOME"],
+        profit_names=["PARENTNETPROFIT", "KCFJCXSYJLR"],
+        roe_names=["ROEJQ", "ROE_YEARLY"],
+        margin_names=["XSJLL", "NET_PROFIT_RATIO"],
+    )
 
     total_assets = _first(balance_row, ["TOTAL_ASSETS"])
     total_liabilities = _first(balance_row, ["TOTAL_LIABILITIES"])
@@ -301,6 +398,7 @@ def _a_metric_row(
         cashflow_to_profit,
         ocf_to_revenue,
         scores,
+        trend,
     )
 
 
@@ -341,8 +439,24 @@ def _metric_frame(
     cashflow_to_profit: float,
     ocf_to_revenue: float,
     scores: tuple[float, float, float, float, float, list[str]],
+    trend: dict[str, float] | None = None,
 ) -> pd.DataFrame:
     quality, growth, balance, cashflow, fundamental, warnings = scores
+    trend_defaults = {
+        "revenue_cagr_3y": np.nan,
+        "net_profit_cagr_3y": np.nan,
+        "roe_avg_3y": np.nan,
+        "roe_stability_score": 50.0,
+        "margin_stability_score": 50.0,
+        "fundamental_trend_score": 50.0,
+    }
+    trend = {**trend_defaults, **(trend or {})}
+    trend_score = _num(trend["fundamental_trend_score"])
+    if math.isnan(trend_score):
+        trend_score = 50.0
+    if trend_score < 40:
+        warnings.append("多期成长或稳定性偏弱")
+    enhanced_fundamental = fundamental * 0.78 + trend_score * 0.22
     return pd.DataFrame(
         [
             {
@@ -370,11 +484,17 @@ def _metric_frame(
                 "current_ratio": current_ratio,
                 "cashflow_to_profit": cashflow_to_profit,
                 "ocf_to_revenue": ocf_to_revenue,
+                "revenue_cagr_3y": trend["revenue_cagr_3y"],
+                "net_profit_cagr_3y": trend["net_profit_cagr_3y"],
+                "roe_avg_3y": trend["roe_avg_3y"],
+                "roe_stability_score": trend["roe_stability_score"],
+                "margin_stability_score": trend["margin_stability_score"],
+                "fundamental_trend_score": trend_score,
                 "quality_score": quality,
                 "growth_score": growth,
                 "balance_score": balance,
                 "cashflow_score": cashflow,
-                "fundamental_score": fundamental,
+                "fundamental_score": float(np.clip(enhanced_fundamental, 0, 100)),
                 "warnings": json.dumps(warnings, ensure_ascii=False),
                 "updated_at": _now(),
             }
@@ -419,6 +539,13 @@ def _hk_metric_row(
     ocf_to_revenue = _first(latest, ["OCF_SALES"])
     operating_cashflow = revenue * ocf_to_revenue / 100 if revenue and not math.isnan(ocf_to_revenue) else np.nan
     cashflow_to_profit = operating_cashflow / parent_profit if parent_profit and parent_profit > 0 else np.nan
+    trend = _fundamental_trend_metrics(
+        indicators,
+        revenue_names=["OPERATE_INCOME"],
+        profit_names=["HOLDER_PROFIT"],
+        roe_names=["ROE_AVG", "ROE_YEARLY"],
+        margin_names=["NET_PROFIT_RATIO"],
+    )
 
     scores = _quality_scores(
         roe=roe,
@@ -455,6 +582,7 @@ def _hk_metric_row(
         cashflow_to_profit,
         ocf_to_revenue,
         scores,
+        trend,
     )
 
 

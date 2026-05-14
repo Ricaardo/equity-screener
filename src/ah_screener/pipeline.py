@@ -173,6 +173,10 @@ def sync_fundamentals(market: MarketArg, top: int = 120) -> dict[str, int]:
             .sort_values("amount_num", ascending=False)
             .head(top)
         )
+        store.execute(
+            "DELETE FROM financial_metrics WHERE snapshot_date = ? AND market = ?",
+            [snapshot_date, item],
+        )
         statement_rows = 0
         metric_rows = 0
         failed = 0

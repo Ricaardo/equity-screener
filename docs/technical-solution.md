@@ -188,6 +188,12 @@ financial_metrics
 - current_ratio
 - cashflow_to_profit
 - ocf_to_revenue
+- revenue_cagr_3y
+- net_profit_cagr_3y
+- roe_avg_3y
+- roe_stability_score
+- margin_stability_score
+- fundamental_trend_score
 - quality_score
 - growth_score
 - balance_score
@@ -438,8 +444,7 @@ ah-screener install-schedule --hour 18 --minute 30
 - 接入年报/公告 PDF 下载和文本解析。
 - 对港股建立自建主题标签 CSV 导入。
 - 增加行业内分位数评分。
-- 增加多期财务质量评分：ROE、毛利率、净利率、经营现金流/净利润、资产负债率的稳定性和趋势。
-- 增加成长评分：收入 3 年 CAGR、扣非净利 CAGR、研发费用率和资本开支效率。
+- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值和稳定性，后续继续补研发费用率和资本开支效率。
 - 扩展回测模块：在当前等权区间回测骨架上加入季度调仓、行业中性、手续费和滑点。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 

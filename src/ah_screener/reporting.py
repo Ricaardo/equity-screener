@@ -278,6 +278,16 @@ def generate_report(output_dir: Path | None = None) -> Path:
     refined = _latest(data["refined"], "snapshot_date")
     expert = _latest(data["expert"], "snapshot_date")
     fundamentals = _latest(data["fundamentals"], "snapshot_date")
+    for column in [
+        "revenue_cagr_3y",
+        "net_profit_cagr_3y",
+        "roe_avg_3y",
+        "roe_stability_score",
+        "margin_stability_score",
+        "fundamental_trend_score",
+    ]:
+        if column not in fundamentals.columns:
+            fundamentals[column] = pd.NA
     snapshots = _latest(data["snapshots"], "trade_date")
     technicals = _latest(data["technicals"], "snapshot_date")
     securities = data["securities"]
@@ -319,6 +329,25 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "china_master_score": "中国大师框架",
                 "technical_score": "技术面",
                 "theme_matches_text": "匹配主题",
+            }
+        )
+    fundamental_display = fundamentals.sort_values(
+        ["fundamental_score", "fundamental_trend_score"], ascending=False
+    ).head(20).copy() if not fundamentals.empty else pd.DataFrame()
+    if not fundamental_display.empty:
+        fundamental_display = fundamental_display.rename(
+            columns={
+                "market": "市场",
+                "symbol": "代码",
+                "name": "名称",
+                "fundamental_score": "基本面",
+                "revenue_cagr_3y": "收入CAGR",
+                "net_profit_cagr_3y": "利润CAGR",
+                "roe_avg_3y": "ROE均值",
+                "roe_stability_score": "ROE稳定",
+                "fundamental_trend_score": "多期趋势",
+                "cashflow_to_profit": "现金流/利润",
+                "debt_asset_ratio": "资产负债率",
             }
         )
 
@@ -480,11 +509,32 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not change_display.empty
             else "当前只有一个提炼快照，下一次定时更新后会生成新增、移出和分数变化。",
             "",
-            "## 11. 操作建议",
+            "## 11. 多期基本面",
+            "",
+            _table(
+                fundamental_display,
+                [
+                    "市场",
+                    "代码",
+                    "名称",
+                    "基本面",
+                    "收入CAGR",
+                    "利润CAGR",
+                    "ROE均值",
+                    "ROE稳定",
+                    "多期趋势",
+                    "现金流/利润",
+                    "资产负债率",
+                ],
+            )
+            if not fundamental_display.empty
+            else "暂无多期基本面数据。",
+            "",
+            "## 12. 操作建议",
             "",
             *_portfolio_notes(refined),
             "",
-            "## 12. 后续自动刷新",
+            "## 13. 后续自动刷新",
             "",
             "建议每天收盘后或每周固定运行完整刷新流程，重新同步行情、技术指标、三表基本面、专家评分和报告。",
             "本项目已提供 `ah-screener update-all` 与 `ah-screener install-schedule` 两个命令用于自动化。",
