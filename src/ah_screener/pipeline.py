@@ -514,6 +514,7 @@ def _select_backtest_picks(
     for column, default in [
         ("expert_score", 0.0),
         ("peer_score", 50.0),
+        ("industry_fit_score", 50.0),
         ("fundamental_score", 50.0),
         ("technical_score", 50.0),
         ("industry_peer_group", "未分类"),
@@ -521,7 +522,7 @@ def _select_backtest_picks(
         if column not in picks.columns:
             picks[column] = default
     picks = picks.sort_values(
-        ["expert_score", "peer_score", "fundamental_score", "technical_score"],
+        ["expert_score", "industry_fit_score", "peer_score", "fundamental_score", "technical_score"],
         ascending=False,
     )
     if not industry_neutral:

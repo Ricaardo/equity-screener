@@ -220,6 +220,7 @@ expert_screening_results
 - fundamental_score
 - industry_peer_group
 - peer_score
+- industry_fit_score
 - theme_score
 - technical_score
 - liquidity_score
@@ -245,6 +246,7 @@ refined_candidates
 - technical_score
 - industry_peer_group
 - peer_score
+- industry_fit_score
 - theme_matches
 - selection_note
 - reasons
@@ -333,7 +335,7 @@ expert_score =
 
 - 先按主题进入 bucket，例如 AI 算力硬件、半导体国产替代、港股 AI 互联网平台、高股息资源防御。
 - 再按风格进入 style_bucket，例如科技成长、科技成长偏估值、红利防御、资源周期、医药成长、智能汽车、能源转型。
-- 同时计算 industry_peer_group 和 peer_score，用于同主题内排序和人工复核。
+- 同时计算 industry_peer_group、peer_score 和 industry_fit_score，用于同主题内排序和人工复核。
 - A/H 两地上市或同名主体进入同一个 peer_group，只保留专家分最高的一只。
 - 每个主题默认最多保留 3 只；同一风格优先最多保留 2 只，不足时按总分补齐。
 - 提炼结果落库到 `refined_candidates`，保留 `selection_note` 说明为什么入选。
@@ -464,7 +466,7 @@ ah-screener install-schedule --hour 18 --minute 30
 - 接入年报/公告 PDF 下载和文本解析。
 - 扩展港股自建主题标签：当前已支持 CSV 导入和内置策展主题落库，后续补更多可验证来源。
 - 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
-- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值、稳定性、研发费用率和资本开支效率，后续补更多行业化阈值。
+- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值、稳定性、研发费用率、资本开支效率和行业化阈值，后续补更多细分行业口径。
 - 扩展回测模块：当前已支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费和滑点，后续补基准指数和更长历史样本。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
 

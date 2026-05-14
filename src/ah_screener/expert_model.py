@@ -272,6 +272,171 @@ def _peer_scores(df: pd.DataFrame) -> pd.Series:
     return score.clip(0, 100)
 
 
+def _metric(row: pd.Series | None, column: str, default: float = np.nan) -> float:
+    if row is None or column not in row.index:
+        return default
+    value = pd.to_numeric(pd.Series([row.get(column)]), errors="coerce").iloc[0]
+    return float(value) if pd.notna(value) else default
+
+
+def _score_metric(value: float, low: float, high: float, reverse: bool = False) -> float:
+    if pd.isna(value) or high == low:
+        return 50.0
+    score = float(np.clip((float(value) - low) / (high - low) * 100, 0, 100))
+    return 100 - score if reverse else score
+
+
+def _weighted(parts: list[tuple[float, float]]) -> float:
+    weight = sum(item_weight for _, item_weight in parts)
+    if weight <= 0:
+        return 50.0
+    return float(np.clip(sum(score * item_weight for score, item_weight in parts) / weight, 0, 100))
+
+
+def _industry_fit_score(
+    fundamental_row: pd.Series | None,
+    matches: list[HotTheme],
+) -> tuple[float, list[str]]:
+    if fundamental_row is None:
+        return 50.0, ["行业化阈值=缺少财报，按中性"]
+
+    fundamental = _metric(fundamental_row, "fundamental_score", 50.0)
+    trend = _metric(fundamental_row, "fundamental_trend_score", 50.0)
+    innovation = _metric(fundamental_row, "innovation_efficiency_score", 50.0)
+    rd_ratio = _metric(fundamental_row, "rd_expense_ratio")
+    capex_ocf = _metric(fundamental_row, "capex_to_operating_cashflow")
+    cash_profit = _metric(fundamental_row, "cashflow_to_profit")
+    debt_ratio = _metric(fundamental_row, "debt_asset_ratio")
+    roe_avg = _metric(fundamental_row, "roe_avg_3y")
+    revenue_cagr = _metric(fundamental_row, "revenue_cagr_3y")
+    profit_cagr = _metric(fundamental_row, "net_profit_cagr_3y")
+
+    cash_score = _score_metric(cash_profit, 0.6, 1.4)
+    debt_score = _score_metric(debt_ratio, 20, 75, reverse=True)
+    roe_score = _score_metric(roe_avg, 5, 18)
+    revenue_score = _score_metric(revenue_cagr, -5, 25)
+    profit_score = _score_metric(profit_cagr, -10, 30)
+    capex_score = _score_metric(capex_ocf, 0.2, 1.25, reverse=True)
+    rd_growth_score = _score_metric(rd_ratio, 2, 12)
+    rd_healthcare_score = _score_metric(rd_ratio, 6, 18)
+
+    profile_scores: list[tuple[str, float]] = [
+        (
+            "通用质量",
+            _weighted(
+                [
+                    (fundamental, 0.40),
+                    (trend, 0.18),
+                    (profit_score, 0.12),
+                    (cash_score, 0.14),
+                    (debt_score, 0.06),
+                    (roe_score, 0.10),
+                ]
+            ),
+        )
+    ]
+    theme_names = {theme.name for theme in matches}
+    tech_themes = {
+        "AI算力硬件",
+        "半导体国产替代",
+        "港股AI互联网平台",
+        "人形机器人与高端制造",
+    }
+    energy_auto_themes = {"电力储能与能源转型", "汽车智能化与出海"}
+
+    if theme_names.intersection(tech_themes):
+        profile_scores.append(
+            (
+                "科技硬件/平台",
+                _weighted(
+                    [
+                        (innovation, 0.30),
+                        (rd_growth_score, 0.22),
+                        (trend, 0.20),
+                        (revenue_score, 0.10),
+                        (profit_score, 0.08),
+                        (capex_score, 0.10),
+                    ]
+                ),
+            )
+        )
+
+    if "创新药与医疗科技" in theme_names:
+        profile_scores.append(
+            (
+                "创新医药",
+                _weighted(
+                    [
+                        (rd_healthcare_score, 0.30),
+                        (debt_score, 0.24),
+                        (trend, 0.18),
+                        (fundamental, 0.16),
+                        (cash_score, 0.12),
+                    ]
+                ),
+            )
+        )
+
+    if "高股息央国企防御" in theme_names:
+        profile_scores.append(
+            (
+                "红利防御",
+                _weighted(
+                    [
+                        (cash_score, 0.34),
+                        (debt_score, 0.24),
+                        (roe_score, 0.20),
+                        (fundamental, 0.14),
+                        (trend, 0.08),
+                    ]
+                ),
+            )
+        )
+
+    if "资源涨价与安全资产" in theme_names:
+        profile_scores.append(
+            (
+                "资源周期",
+                _weighted(
+                    [
+                        (cash_score, 0.26),
+                        (roe_score, 0.22),
+                        (debt_score, 0.20),
+                        (capex_score, 0.16),
+                        (trend, 0.16),
+                    ]
+                ),
+            )
+        )
+
+    if theme_names.intersection(energy_auto_themes):
+        profile_scores.append(
+            (
+                "能源汽车",
+                _weighted(
+                    [
+                        (trend, 0.24),
+                        (capex_score, 0.24),
+                        (debt_score, 0.18),
+                        (revenue_score, 0.14),
+                        (profit_score, 0.10),
+                        (fundamental, 0.10),
+                    ]
+                ),
+            )
+        )
+
+    profile, score = max(profile_scores, key=lambda item: item[1])
+    notes = [f"行业化阈值={profile}:{score:.1f}"]
+    if not pd.isna(rd_ratio):
+        notes.append(f"研发费用率={rd_ratio:.1f}%")
+    if not pd.isna(capex_ocf):
+        notes.append(f"资本开支/经营现金流={capex_ocf:.2f}")
+    if not pd.isna(cash_profit):
+        notes.append(f"现金流/利润={cash_profit:.2f}")
+    return score, notes
+
+
 def run_expert_model(
     snapshots: pd.DataFrame,
     tags: pd.DataFrame,
@@ -347,6 +512,7 @@ def run_expert_model(
         fundamental_score = (
             float(fundamental_row["fundamental_score"]) if fundamental_row is not None else 50.0
         )
+        industry_fit_score, industry_fit_reasons = _industry_fit_score(fundamental_row, matches)
 
         penalty, risk_reasons = _risk_penalty(row, settings)
         if tech_row is None:
@@ -395,13 +561,14 @@ def run_expert_model(
             matches=matches,
         )
         expert_score = (
-            master_score * 0.19
-            + china_master_score * 0.27
-            + fundamental_score * 0.17
-            + theme_score * 0.17
-            + technical_score * 0.11
+            master_score * 0.18
+            + china_master_score * 0.26
+            + fundamental_score * 0.15
+            + industry_fit_score * 0.08
+            + theme_score * 0.16
+            + technical_score * 0.10
             + liquidity * 0.03
-            + peer_score * 0.06
+            + peer_score * 0.04
             - penalty
         )
         expert_score = float(np.clip(expert_score, 0, 100))
@@ -419,11 +586,13 @@ def run_expert_model(
             f"大师框架分={master_score:.1f}",
             f"中国大师框架分={china_master_score:.1f}",
             f"基本面分={fundamental_score:.1f}",
+            f"行业适配={industry_fit_score:.1f}",
             f"同类分位={peer_score:.1f}",
             f"同类组={industry_peer_group}",
             f"主题分={theme_score:.1f}",
             f"技术信号={technical_signal}",
         ]
+        reason_parts.extend(industry_fit_reasons)
         if matches:
             reason_parts.append("匹配主题=" + "、".join(theme.name for theme in matches))
         if risk_reasons:
@@ -442,6 +611,7 @@ def run_expert_model(
                 "fundamental_score": fundamental_score,
                 "industry_peer_group": industry_peer_group,
                 "peer_score": peer_score,
+                "industry_fit_score": industry_fit_score,
                 "theme_score": theme_score,
                 "technical_score": technical_score,
                 "liquidity_score": liquidity,
@@ -592,17 +762,36 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
     candidates["bucket"] = candidates["theme_list"].apply(_primary_bucket)
     candidates["style_bucket"] = candidates.apply(lambda row: _style_bucket(row, row["theme_list"]), axis=1)
     candidates["peer_group"] = candidates.apply(_peer_group, axis=1)
-    for column, default in [("peer_score", 50.0), ("industry_peer_group", "")]:
+    for column, default in [
+        ("peer_score", 50.0),
+        ("industry_fit_score", 50.0),
+        ("industry_peer_group", ""),
+    ]:
         if column not in candidates.columns:
             candidates[column] = default
     candidates = candidates.sort_values(
-        ["expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[False, False, False, False, False],
+        [
+            "expert_score",
+            "industry_fit_score",
+            "peer_score",
+            "fundamental_score",
+            "technical_score",
+            "liquidity_score",
+        ],
+        ascending=[False, False, False, False, False, False],
     ).drop_duplicates(["snapshot_date", "strategy", "peer_group"], keep="first")
 
     candidates = candidates.sort_values(
-        ["bucket", "expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[True, False, False, False, False, False],
+        [
+            "bucket",
+            "expert_score",
+            "industry_fit_score",
+            "peer_score",
+            "fundamental_score",
+            "technical_score",
+            "liquidity_score",
+        ],
+        ascending=[True, False, False, False, False, False, False],
     )
     selected_indices: list[int] = []
     for _, group in candidates.groupby("bucket", sort=True):
@@ -610,15 +799,25 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
 
     refined = candidates.loc[selected_indices].copy()
     refined = refined.sort_values(
-        ["bucket", "expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[True, False, False, False, False, False],
+        [
+            "bucket",
+            "expert_score",
+            "industry_fit_score",
+            "peer_score",
+            "fundamental_score",
+            "technical_score",
+            "liquidity_score",
+        ],
+        ascending=[True, False, False, False, False, False, False],
     )
     refined["rank_in_bucket"] = refined.groupby("bucket").cumcount() + 1
     refined["selection_note"] = refined.apply(
         lambda row: (
             f"同主题最多{max_per_bucket}只；同风格优先最多{max_per_style}只；"
-            f"A/H或同名主体只留最高分；主体={row['peer_group']}；风格={row['style_bucket']}；"
-            f"同类组={row['industry_peer_group']}；同类分位={float(row['peer_score']):.1f}"
+            f"A/H或同名主体只留最高分；主体={row['peer_group']}；"
+            f"风格={row['style_bucket']}；同类组={row['industry_peer_group']}；"
+            f"同类分位={float(row['peer_score']):.1f}；"
+            f"行业适配={float(row['industry_fit_score']):.1f}"
         ),
         axis=1,
     )
@@ -639,6 +838,7 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
             "technical_score",
             "industry_peer_group",
             "peer_score",
+            "industry_fit_score",
             "theme_matches",
             "reasons",
             "selection_note",

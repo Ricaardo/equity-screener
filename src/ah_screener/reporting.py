@@ -304,7 +304,11 @@ def generate_report(output_dir: Path | None = None) -> Path:
 
     refined_display = refined.copy()
     if not refined_display.empty:
-        for column, default in [("peer_score", pd.NA), ("industry_peer_group", "")]:
+        for column, default in [
+            ("peer_score", pd.NA),
+            ("industry_fit_score", pd.NA),
+            ("industry_peer_group", ""),
+        ]:
             if column not in refined_display.columns:
                 refined_display[column] = default
         refined_display["theme_matches_text"] = refined_display["theme_matches"].map(_json_list)
@@ -320,6 +324,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "fundamental_score": "基本面",
                 "technical_score": "技术面",
                 "peer_score": "同类分位",
+                "industry_fit_score": "行业适配",
                 "industry_peer_group": "同类组",
                 "theme_matches_text": "匹配主题",
             }
@@ -327,7 +332,11 @@ def generate_report(output_dir: Path | None = None) -> Path:
 
     core = expert[expert["decision"] == "core_candidate"].head(20).copy()
     if not core.empty:
-        for column, default in [("peer_score", pd.NA), ("industry_peer_group", "")]:
+        for column, default in [
+            ("peer_score", pd.NA),
+            ("industry_fit_score", pd.NA),
+            ("industry_peer_group", ""),
+        ]:
             if column not in core.columns:
                 core[column] = default
         core["theme_matches_text"] = core["theme_matches"].map(_json_list)
@@ -341,6 +350,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "china_master_score": "中国大师框架",
                 "technical_score": "技术面",
                 "peer_score": "同类分位",
+                "industry_fit_score": "行业适配",
                 "industry_peer_group": "同类组",
                 "theme_matches_text": "匹配主题",
             }
@@ -518,6 +528,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
                     "基本面",
                     "技术面",
                     "同类分位",
+                    "行业适配",
                     "同类组",
                     "匹配主题",
                 ],
@@ -538,6 +549,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
                     "中国大师框架",
                     "技术面",
                     "同类分位",
+                    "行业适配",
                     "同类组",
                     "匹配主题",
                 ],

@@ -558,6 +558,7 @@ def render_candidate_cards(df: pd.DataFrame, limit: int = 8) -> None:
             f'<span class="chip">基本面 {_score(row.get("fundamental_score"))}</span>'
             f'<span class="chip">技术 {_score(row.get("technical_score"))}</span>'
             f'<span class="chip">同类 {_score(row.get("peer_score"))}</span>'
+            f'<span class="chip">行业 {_score(row.get("industry_fit_score"))}</span>'
             f"{st_chip}{theme_html}"
             "</div>"
             "</div>"
@@ -569,7 +570,11 @@ def display_refined(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     df = df.copy()
-    for column, default in [("peer_score", pd.NA), ("industry_peer_group", "")]:
+    for column, default in [
+        ("peer_score", pd.NA),
+        ("industry_fit_score", pd.NA),
+        ("industry_peer_group", ""),
+    ]:
         if column not in df.columns:
             df[column] = default
     out = df[
@@ -585,6 +590,7 @@ def display_refined(df: pd.DataFrame) -> pd.DataFrame:
             "fundamental_score",
             "technical_score",
             "peer_score",
+            "industry_fit_score",
             "industry_peer_group",
             "theme_matches",
             "selection_note",
@@ -604,6 +610,7 @@ def display_refined(df: pd.DataFrame) -> pd.DataFrame:
             "fundamental_score": "基本面",
             "technical_score": "技术面",
             "peer_score": "同类分位",
+            "industry_fit_score": "行业适配",
             "industry_peer_group": "同类组",
             "theme_matches": "主题匹配",
             "selection_note": "提炼逻辑",
@@ -615,7 +622,11 @@ def display_expert(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
     df = df.copy()
-    for column, default in [("peer_score", pd.NA), ("industry_peer_group", "")]:
+    for column, default in [
+        ("peer_score", pd.NA),
+        ("industry_fit_score", pd.NA),
+        ("industry_peer_group", ""),
+    ]:
         if column not in df.columns:
             df[column] = default
     out = df[
@@ -630,6 +641,7 @@ def display_expert(df: pd.DataFrame) -> pd.DataFrame:
             "china_master_score",
             "technical_score",
             "peer_score",
+            "industry_fit_score",
             "industry_peer_group",
             "theme_matches",
             "reasons",
@@ -649,6 +661,7 @@ def display_expert(df: pd.DataFrame) -> pd.DataFrame:
             "china_master_score": "中国大师框架",
             "technical_score": "技术面",
             "peer_score": "同类分位",
+            "industry_fit_score": "行业适配",
             "industry_peer_group": "同类组",
             "theme_matches": "主题匹配",
             "reasons": "理由",
