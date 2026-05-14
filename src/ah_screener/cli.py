@@ -425,20 +425,54 @@ def candidate_changes_command() -> None:
 def backtest_command(
     initial_capital: float = typer.Option(1_000_000, help="Starting capital."),
     max_names: int = typer.Option(12, help="Maximum holdings per rebalance snapshot."),
+    rebalance: str = typer.Option("snapshot", help="snapshot, monthly, or quarterly."),
+    fee_bps: float = typer.Option(5.0, help="One-way commission/tax estimate in basis points."),
+    slippage_bps: float = typer.Option(10.0, help="One-way slippage estimate in basis points."),
+    industry_neutral: bool = typer.Option(
+        False,
+        "--industry-neutral/--no-industry-neutral",
+        help="Limit holdings per industry peer group.",
+    ),
+    max_per_group: int = typer.Option(2, help="Maximum holdings per peer group when industry-neutral."),
 ) -> None:
-    """Run a simple equal-weight backtest over stored refined snapshots."""
-    df = backtest_refined_candidates(initial_capital=initial_capital, max_names=max_names)
+    """Run an equal-weight backtest over stored refined snapshots."""
+    normalized = rebalance.lower()
+    if normalized not in {"snapshot", "monthly", "quarterly"}:
+        raise typer.BadParameter("rebalance must be snapshot, monthly, or quarterly")
+    df = backtest_refined_candidates(
+        initial_capital=initial_capital,
+        max_names=max_names,
+        rebalance=normalized,  # type: ignore[arg-type]
+        fee_bps=fee_bps,
+        slippage_bps=slippage_bps,
+        industry_neutral=industry_neutral,
+        max_per_group=max_per_group,
+    )
     if df.empty:
-        console.print("No backtest rows yet. Need daily prices plus at least one past refined snapshot.")
+        console.print("No backtest rows yet. Need daily prices plus refined snapshots with future price data.")
         return
     table = Table(show_header=True, header_style="bold")
-    for column in ["period_start", "period_end", "holdings", "period_return", "equity"]:
+    for column in [
+        "period_start",
+        "period_end",
+        "signal_date",
+        "holdings",
+        "gross_return",
+        "turnover",
+        "cost_rate",
+        "period_return",
+        "equity",
+    ]:
         table.add_column(column)
     for _, row in df.iterrows():
         table.add_row(
             str(row["period_start"]),
             str(row["period_end"]),
+            str(row["signal_date"]),
             str(row["holdings"]),
+            _fmt_optional_float(float(row["gross_return"]) * 100, digits=2, suffix="%"),
+            _fmt_optional_float(row["turnover"], digits=2),
+            _fmt_optional_float(float(row["cost_rate"]) * 100, digits=2, suffix="%"),
             _fmt_optional_float(float(row["period_return"]) * 100, digits=2, suffix="%"),
             _fmt_optional_float(row["equity"], digits=0),
         )

@@ -24,6 +24,19 @@ from ah_screener.technical import compute_technical_indicators
 
 
 MarketArg = Literal["A", "HK", "ETF", "all"]
+RebalanceMode = Literal["snapshot", "monthly", "quarterly"]
+BACKTEST_COLUMNS = [
+    "period_start",
+    "period_end",
+    "signal_date",
+    "holdings",
+    "gross_return",
+    "turnover",
+    "cost_rate",
+    "period_return",
+    "equity",
+    "holding_symbols",
+]
 
 
 def get_store() -> Store:
@@ -459,9 +472,82 @@ def candidate_changes() -> pd.DataFrame:
     ].sort_values(["status", "bucket", "latest_score"], ascending=[True, True, False])
 
 
+def _empty_backtest_frame() -> pd.DataFrame:
+    return pd.DataFrame(columns=BACKTEST_COLUMNS)
+
+
+def _rebalance_points(
+    signal_dates: list[pd.Timestamp],
+    final_price_date: pd.Timestamp,
+    mode: RebalanceMode,
+) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
+    if not signal_dates:
+        return []
+    if mode == "snapshot":
+        starts = signal_dates
+    else:
+        frequency = "MS" if mode == "monthly" else "QS"
+        calendar_starts = [
+            pd.Timestamp(value)
+            for value in pd.date_range(signal_dates[0], final_price_date, freq=frequency)
+            if pd.Timestamp(value) > signal_dates[0]
+        ]
+        starts = sorted(set([signal_dates[0], *calendar_starts]))
+
+    points: list[tuple[pd.Timestamp, pd.Timestamp]] = []
+    for start in starts:
+        eligible = [date for date in signal_dates if date <= start]
+        if eligible:
+            points.append((start, eligible[-1]))
+    return points
+
+
+def _select_backtest_picks(
+    picks: pd.DataFrame,
+    max_names: int,
+    industry_neutral: bool,
+    max_per_group: int,
+) -> pd.DataFrame:
+    if picks.empty:
+        return picks
+    picks = picks.copy()
+    for column, default in [
+        ("expert_score", 0.0),
+        ("peer_score", 50.0),
+        ("fundamental_score", 50.0),
+        ("technical_score", 50.0),
+        ("industry_peer_group", "未分类"),
+    ]:
+        if column not in picks.columns:
+            picks[column] = default
+    picks = picks.sort_values(
+        ["expert_score", "peer_score", "fundamental_score", "technical_score"],
+        ascending=False,
+    )
+    if not industry_neutral:
+        return picks.head(max_names)
+
+    selected: list[int] = []
+    group_counts: dict[str, int] = {}
+    for idx, row in picks.iterrows():
+        group = str(row.get("industry_peer_group") or row.get("bucket") or "未分类")
+        if group_counts.get(group, 0) >= max_per_group:
+            continue
+        selected.append(idx)
+        group_counts[group] = group_counts.get(group, 0) + 1
+        if len(selected) >= max_names:
+            break
+    return picks.loc[selected]
+
+
 def backtest_refined_candidates(
     initial_capital: float = 1_000_000,
     max_names: int = 12,
+    rebalance: RebalanceMode = "snapshot",
+    fee_bps: float = 5.0,
+    slippage_bps: float = 10.0,
+    industry_neutral: bool = False,
+    max_per_group: int = 2,
 ) -> pd.DataFrame:
     store = get_store()
     refined = store.query_df(
@@ -474,35 +560,37 @@ def backtest_refined_candidates(
     )
     prices = store.query_df("SELECT * FROM daily_prices")
     if refined.empty or prices.empty:
-        return pd.DataFrame(
-            columns=["period_start", "period_end", "holdings", "period_return", "equity"]
-        )
+        return _empty_backtest_frame()
 
     refined["snapshot_date"] = pd.to_datetime(refined["snapshot_date"])
     prices["trade_date"] = pd.to_datetime(prices["trade_date"])
+    prices["symbol"] = prices["symbol"].astype(str)
     dates = sorted(refined["snapshot_date"].dropna().unique())
     final_price_date = prices["trade_date"].max()
     if not dates or final_price_date <= dates[0]:
-        return pd.DataFrame(
-            columns=["period_start", "period_end", "holdings", "period_return", "equity"]
-        )
+        return _empty_backtest_frame()
 
     rows: list[dict[str, object]] = []
     equity = float(initial_capital)
-    for index, start_date in enumerate(dates):
-        end_date = dates[index + 1] if index + 1 < len(dates) else final_price_date
+    previous_weights: dict[tuple[str, str], float] = {}
+    cost_bps = max(fee_bps, 0) + max(slippage_bps, 0)
+    points = _rebalance_points([pd.Timestamp(date) for date in dates], final_price_date, rebalance)
+    for index, (start_date, signal_date) in enumerate(points):
+        end_date = points[index + 1][0] if index + 1 < len(points) else final_price_date
         if end_date <= start_date:
             continue
-        picks = (
-            refined[refined["snapshot_date"] == start_date]
-            .sort_values(["expert_score", "fundamental_score", "technical_score"], ascending=False)
-            .head(max_names)
+        picks = _select_backtest_picks(
+            refined[refined["snapshot_date"] == signal_date],
+            max_names=max_names,
+            industry_neutral=industry_neutral,
+            max_per_group=max_per_group,
         )
-        returns: list[float] = []
+        holding_returns: dict[tuple[str, str], float] = {}
         for _, pick in picks.iterrows():
+            key = (str(pick["market"]), str(pick["symbol"]))
             history = prices[
-                (prices["market"] == pick["market"])
-                & (prices["symbol"].astype(str) == str(pick["symbol"]))
+                (prices["market"] == key[0])
+                & (prices["symbol"] == key[1])
                 & (prices["trade_date"] >= start_date)
                 & (prices["trade_date"] <= end_date)
             ].sort_values("trade_date")
@@ -511,20 +599,35 @@ def backtest_refined_candidates(
             start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
             end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
             if pd.notna(start_close) and pd.notna(end_close) and float(start_close) > 0:
-                returns.append(float(end_close) / float(start_close) - 1)
-        if not returns:
+                holding_returns[key] = float(end_close) / float(start_close) - 1
+        if not holding_returns:
             continue
-        period_return = float(pd.Series(returns).mean())
+        current_weights = {key: 1 / len(holding_returns) for key in holding_returns}
+        traded_notional = sum(
+            abs(current_weights.get(key, 0.0) - previous_weights.get(key, 0.0))
+            for key in set(current_weights) | set(previous_weights)
+        )
+        gross_return = float(
+            sum(current_weights[key] * holding_returns[key] for key in holding_returns)
+        )
+        cost_rate = traded_notional * cost_bps / 10_000
+        period_return = gross_return - cost_rate
         equity *= 1 + period_return
         rows.append(
             {
                 "period_start": pd.Timestamp(start_date).date(),
                 "period_end": pd.Timestamp(end_date).date(),
-                "holdings": len(returns),
+                "signal_date": pd.Timestamp(signal_date).date(),
+                "holdings": len(holding_returns),
+                "gross_return": gross_return,
+                "turnover": traded_notional,
+                "cost_rate": cost_rate,
                 "period_return": period_return,
                 "equity": equity,
+                "holding_symbols": ",".join(f"{market}:{symbol}" for market, symbol in current_weights),
             }
         )
+        previous_weights = current_weights
     return pd.DataFrame(rows)
 
 
