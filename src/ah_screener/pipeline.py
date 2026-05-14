@@ -146,6 +146,10 @@ def run_expert_scores() -> dict[str, int]:
         latest_date = results["snapshot_date"].max()
         for strategy in results["strategy"].dropna().unique():
             store.execute(
+                "DELETE FROM expert_screening_results WHERE snapshot_date = ? AND strategy = ?",
+                [latest_date, strategy],
+            )
+            store.execute(
                 "DELETE FROM refined_candidates WHERE snapshot_date = ? AND strategy = ?",
                 [latest_date, strategy],
             )

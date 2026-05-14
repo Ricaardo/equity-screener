@@ -252,6 +252,26 @@ def _rank(series: pd.Series, ascending: bool = True) -> pd.Series:
     return (valid.rank(pct=True, ascending=ascending) * 100).fillna(50).clip(0, 100)
 
 
+def _group_rank(df: pd.DataFrame, column: str, group_columns: list[str]) -> pd.Series:
+    values = pd.to_numeric(df[column], errors="coerce")
+    if values.notna().sum() == 0:
+        return pd.Series(50.0, index=df.index)
+    peer_count = values.groupby([df[column] for column in group_columns]).transform("count")
+    peer_rank = values.groupby([df[column] for column in group_columns]).rank(pct=True)
+    market_rank = values.groupby(df["market"]).rank(pct=True)
+    rank = peer_rank.where(peer_count >= 5, market_rank)
+    return (rank * 100).fillna(50).clip(0, 100)
+
+
+def _peer_scores(df: pd.DataFrame) -> pd.Series:
+    fundamental = _group_rank(df, "fundamental_input_score", ["market", "industry_peer_group"])
+    valuation = _group_rank(df, "valuation_score", ["market", "industry_peer_group"])
+    technical = _group_rank(df, "technical_input_score", ["market", "industry_peer_group"])
+    liquidity = _group_rank(df, "liquidity_score", ["market", "industry_peer_group"])
+    score = fundamental * 0.45 + valuation * 0.25 + technical * 0.20 + liquidity * 0.10
+    return score.clip(0, 100)
+
+
 def run_expert_model(
     snapshots: pd.DataFrame,
     tags: pd.DataFrame,
@@ -272,6 +292,14 @@ def run_expert_model(
         if not tags.empty
         else pd.Series(dtype=object)
     )
+    industry_tag = (
+        tags[tags["tag_type"].eq("industry")]
+        .sort_values(["market", "symbol", "tag_name"])
+        .groupby(["market", "symbol"])["tag_name"]
+        .first()
+        if not tags.empty and "tag_type" in tags.columns
+        else pd.Series(dtype=object)
+    )
     tech = (
         technicals[technicals["snapshot_date"] == technicals["snapshot_date"].max()]
         .drop_duplicates(["market", "symbol"], keep="last")
@@ -290,6 +318,20 @@ def run_expert_model(
     df["valuation_score"] = _valuation_score(df)
     df["liquidity_score"] = _liquidity_score(df)
     df["market_cap_score"] = _rank(df["market_cap"], ascending=True)
+    df["technical_input_score"] = (
+        pd.to_numeric(tech["technical_score"], errors="coerce").reindex(df.index).fillna(42.0)
+        if not tech.empty and "technical_score" in tech.columns
+        else 42.0
+    )
+    df["fundamental_input_score"] = (
+        pd.to_numeric(fundamental["fundamental_score"], errors="coerce").reindex(df.index).fillna(50.0)
+        if not fundamental.empty and "fundamental_score" in fundamental.columns
+        else 50.0
+    )
+    board_fallback = df["board"] if "board" in df.columns else df["market"]
+    df["industry_peer_group"] = pd.Series(industry_tag, dtype=object).reindex(df.index)
+    df["industry_peer_group"] = df["industry_peer_group"].fillna(board_fallback).fillna(df["market"])
+    df["peer_score"] = _peer_scores(df)
 
     rows: list[dict[str, object]] = []
     updated_at = pd.Timestamp(datetime.now())
@@ -327,6 +369,8 @@ def run_expert_model(
         valuation = float(row["valuation_score"])
         liquidity = float(row["liquidity_score"])
         cap = float(row["market_cap_score"])
+        peer_score = float(row["peer_score"])
+        industry_peer_group = str(row["industry_peer_group"])
         risk_inverse = 100 - min(penalty, 100)
 
         graham_value = valuation * 0.75 + (100 if any(t.name == "高股息央国企防御" for t in matches) else 45) * 0.25
@@ -351,12 +395,13 @@ def run_expert_model(
             matches=matches,
         )
         expert_score = (
-            master_score * 0.20
-            + china_master_score * 0.28
-            + fundamental_score * 0.18
-            + theme_score * 0.18
-            + technical_score * 0.12
-            + liquidity * 0.04
+            master_score * 0.19
+            + china_master_score * 0.27
+            + fundamental_score * 0.17
+            + theme_score * 0.17
+            + technical_score * 0.11
+            + liquidity * 0.03
+            + peer_score * 0.06
             - penalty
         )
         expert_score = float(np.clip(expert_score, 0, 100))
@@ -374,6 +419,8 @@ def run_expert_model(
             f"大师框架分={master_score:.1f}",
             f"中国大师框架分={china_master_score:.1f}",
             f"基本面分={fundamental_score:.1f}",
+            f"同类分位={peer_score:.1f}",
+            f"同类组={industry_peer_group}",
             f"主题分={theme_score:.1f}",
             f"技术信号={technical_signal}",
         ]
@@ -393,6 +440,8 @@ def run_expert_model(
                 "master_score": float(np.clip(master_score, 0, 100)),
                 "china_master_score": float(np.clip(china_master_score, 0, 100)),
                 "fundamental_score": fundamental_score,
+                "industry_peer_group": industry_peer_group,
+                "peer_score": peer_score,
                 "theme_score": theme_score,
                 "technical_score": technical_score,
                 "liquidity_score": liquidity,
@@ -543,14 +592,17 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
     candidates["bucket"] = candidates["theme_list"].apply(_primary_bucket)
     candidates["style_bucket"] = candidates.apply(lambda row: _style_bucket(row, row["theme_list"]), axis=1)
     candidates["peer_group"] = candidates.apply(_peer_group, axis=1)
+    for column, default in [("peer_score", 50.0), ("industry_peer_group", "")]:
+        if column not in candidates.columns:
+            candidates[column] = default
     candidates = candidates.sort_values(
-        ["expert_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[False, False, False, False],
+        ["expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
+        ascending=[False, False, False, False, False],
     ).drop_duplicates(["snapshot_date", "strategy", "peer_group"], keep="first")
 
     candidates = candidates.sort_values(
-        ["bucket", "expert_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[True, False, False, False, False],
+        ["bucket", "expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
+        ascending=[True, False, False, False, False, False],
     )
     selected_indices: list[int] = []
     for _, group in candidates.groupby("bucket", sort=True):
@@ -558,14 +610,15 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
 
     refined = candidates.loc[selected_indices].copy()
     refined = refined.sort_values(
-        ["bucket", "expert_score", "fundamental_score", "technical_score", "liquidity_score"],
-        ascending=[True, False, False, False, False],
+        ["bucket", "expert_score", "peer_score", "fundamental_score", "technical_score", "liquidity_score"],
+        ascending=[True, False, False, False, False, False],
     )
     refined["rank_in_bucket"] = refined.groupby("bucket").cumcount() + 1
     refined["selection_note"] = refined.apply(
         lambda row: (
             f"同主题最多{max_per_bucket}只；同风格优先最多{max_per_style}只；"
-            f"A/H或同名主体只留最高分；主体={row['peer_group']}；风格={row['style_bucket']}"
+            f"A/H或同名主体只留最高分；主体={row['peer_group']}；风格={row['style_bucket']}；"
+            f"同类组={row['industry_peer_group']}；同类分位={float(row['peer_score']):.1f}"
         ),
         axis=1,
     )
@@ -584,6 +637,8 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
             "expert_score",
             "fundamental_score",
             "technical_score",
+            "industry_peer_group",
+            "peer_score",
             "theme_matches",
             "reasons",
             "selection_note",

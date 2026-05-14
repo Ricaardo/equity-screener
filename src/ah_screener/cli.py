@@ -261,6 +261,7 @@ def expert_export_command(
         "symbol",
         "name",
         "expert_score",
+        "peer_score",
         "decision",
         "theme_matches",
     ]:
@@ -272,6 +273,7 @@ def expert_export_command(
             str(row["symbol"]),
             str(row["name"]),
             f"{float(row['expert_score']):.1f}",
+            _fmt_optional_float(row.get("peer_score")),
             str(row["decision"]),
             str(row["theme_matches"]),
         )
@@ -299,6 +301,7 @@ def refined_export_command(
         "expert_score",
         "fundamental_score",
         "technical_score",
+        "peer_score",
         "selection_note",
     ]:
         table.add_column(column)
@@ -313,6 +316,7 @@ def refined_export_command(
             f"{float(row['expert_score']):.1f}",
             f"{float(row['fundamental_score']):.1f}",
             f"{float(row['technical_score']):.1f}",
+            _fmt_optional_float(row.get("peer_score")),
             str(row["selection_note"]),
         )
     console.print(table)

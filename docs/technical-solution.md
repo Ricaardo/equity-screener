@@ -212,6 +212,8 @@ expert_screening_results
 - master_score
 - china_master_score
 - fundamental_score
+- industry_peer_group
+- peer_score
 - theme_score
 - technical_score
 - liquidity_score
@@ -235,6 +237,8 @@ refined_candidates
 - expert_score
 - fundamental_score
 - technical_score
+- industry_peer_group
+- peer_score
 - theme_matches
 - selection_note
 - reasons
@@ -315,12 +319,15 @@ expert_score =
 - 风险扣分
 ```
 
+最新版本额外引入行业/同类分位数作为 6% 左右的校正项，并相应下调其他权重。分位数在同一市场和行业/板块内比较基本面、估值、技术面和流动性，避免银行、医药、科技、资源等行业直接横向比较造成偏差。
+
 ### 5.5 同类去重提炼
 
 专家筛选后再做二次提炼，避免同一类标的挤满候选列表。
 
 - 先按主题进入 bucket，例如 AI 算力硬件、半导体国产替代、港股 AI 互联网平台、高股息资源防御。
 - 再按风格进入 style_bucket，例如科技成长、科技成长偏估值、红利防御、资源周期、医药成长、智能汽车、能源转型。
+- 同时计算 industry_peer_group 和 peer_score，用于同主题内排序和人工复核。
 - A/H 两地上市或同名主体进入同一个 peer_group，只保留专家分最高的一只。
 - 每个主题默认最多保留 3 只；同一风格优先最多保留 2 只，不足时按总分补齐。
 - 提炼结果落库到 `refined_candidates`，保留 `selection_note` 说明为什么入选。
@@ -443,7 +450,7 @@ ah-screener install-schedule --hour 18 --minute 30
 
 - 接入年报/公告 PDF 下载和文本解析。
 - 对港股建立自建主题标签 CSV 导入。
-- 增加行业内分位数评分。
+- 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
 - 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值和稳定性，后续继续补研发费用率和资本开支效率。
 - 扩展回测模块：在当前等权区间回测骨架上加入季度调仓、行业中性、手续费和滑点。
 - 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。

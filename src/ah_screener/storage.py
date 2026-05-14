@@ -189,6 +189,8 @@ CREATE TABLE IF NOT EXISTS expert_screening_results (
     master_score DOUBLE,
     china_master_score DOUBLE,
     fundamental_score DOUBLE,
+    industry_peer_group VARCHAR,
+    peer_score DOUBLE,
     theme_score DOUBLE,
     technical_score DOUBLE,
     liquidity_score DOUBLE,
@@ -214,6 +216,8 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
     expert_score DOUBLE,
     fundamental_score DOUBLE,
     technical_score DOUBLE,
+    industry_peer_group VARCHAR,
+    peer_score DOUBLE,
     theme_matches VARCHAR,
     reasons VARCHAR,
     selection_note VARCHAR,
@@ -233,9 +237,13 @@ ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS asset_type VARCHAR DEFAULT
 ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS board VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS china_master_score DOUBLE;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS fundamental_score DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS industry_peer_group VARCHAR;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS peer_score DOUBLE;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_group VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS style_bucket VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS selection_note VARCHAR;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS industry_peer_group VARCHAR;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_score DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS revenue_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS net_profit_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_avg_3y DOUBLE;
