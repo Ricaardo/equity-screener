@@ -147,6 +147,12 @@ ah-screener uninstall-schedule
 PYTHONPATH=src python -m unittest discover -s tests -v
 ```
 
+UI 截图冒烟检查需要本机安装 `browser-use` CLI，截图默认输出到 `reports/ui-screenshots/`：
+
+```bash
+scripts/check_ui_screenshots.sh http://localhost:8501
+```
+
 ## 数据位置
 
 默认数据库：

@@ -54,8 +54,9 @@
   - 命令：`scripts/upload_release_db.sh data-YYYY-MM-DD`
 - [x] 增加最小化测试套件。
   - 覆盖：基准回测、同类去重、ETF 分类、基本面评分边界。
-- [ ] 增加 UI 截图回归。
-  - 目标：防止顶部留白、HTML 转义、移动端表格溢出等视觉问题回归。
+- [x] 增加 UI 截图回归。
+  - 命令：`scripts/check_ui_screenshots.sh http://localhost:8501`
+  - 目标：防止顶部留白、HTML 转义、关键页面空白等视觉问题回归。
 
 ## 当前使用提醒
 
