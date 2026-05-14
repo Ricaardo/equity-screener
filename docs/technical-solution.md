@@ -8,6 +8,7 @@
 
 - A 股：沪深北上市公司。
 - 港股：港交所上市普通股。
+- ETF：第一阶段接入 A 股场内 ETF。
 - 数据源：免费、可脚本化、可本地缓存。
 - 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown 报告和本地看板。
 
@@ -33,6 +34,7 @@
 | 数据类型 | 首选免费源 | 用途 |
 | --- | --- | --- |
 | 股票池 | AKShare、交易所官网 | 建立 securities 主表 |
+| ETF | AKShare 东方财富 ETF 行情 | 建立 ETF 池、成交额和主题替代工具 |
 | 实时快照/行情 | AKShare 东方财富接口 | 估值、成交额、流动性、过滤 |
 | 历史行情 | AKShare | 趋势、相对强弱、回测 |
 | 行业板块 | AKShare 东方财富行业板块 | 行业内分位数 |
@@ -45,6 +47,7 @@
 | 数据类型 | 首选免费源 | 用途 |
 | --- | --- | --- |
 | 证券列表 | HKEX Securities Lists、AKShare | 港股股票池 |
+| 港股通 | AKShare 港股通成份股、南向持股统计备用 | 标记港股通可投资范围 |
 | 实时快照/行情 | AKShare、yfinance | 估值、成交额、流动性 |
 | 历史行情 | AKShare、yfinance | 趋势、回测 |
 | 公告/年报 | HKEXnews 披露易 | 官方校验、后续文本解析 |
@@ -60,14 +63,20 @@ securities
 - market: A / HK / US
 - symbol
 - name
+- asset_type: stock / etf
+- board: 主板 / 创业板 / 科创板 / 北交所 / 港股通 / 非港股通 / ETF
 - exchange
 - currency
 - status
+- is_st
+- is_hk_connect
 - updated_at
 
 market_snapshots
 - market
 - symbol
+- asset_type
+- board
 - trade_date
 - last_price
 - pct_change
@@ -346,7 +355,10 @@ ah-screener init-db
 
 ```bash
 ah-screener sync-spot --market all
+ah-screener classify-securities
 ```
+
+`sync-spot --market all` 会同步 A 股股票、港股股票和 A 股 ETF；`classify-securities` 会回填主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF 类型。
 
 第三步：同步 A 股行业/概念标签。
 
@@ -428,15 +440,16 @@ ah-screener install-schedule --hour 18 --minute 30
 
 ## 9. 看板和自动化
 
-本地看板使用 Streamlit 实现，定位为“研究卷宗”而不是交易终端。视觉上采用羊皮纸黄色、复古红、墨绿和古典衬线字体，减少冷色金融终端感，方便个人投资者做候选复盘。
+本地看板使用 Streamlit 实现，定位为“研究台”而不是交易终端。视觉上采用暖色纸面、深墨侧栏、复古红和铜色强调，保留古典感但提高信息密度和可读性。
 
 看板分为五个主要视图：
 
-- 精选卷宗：展示同类去重后的主题候选和候选卡片。
-- 专家榜：展示 `core_candidate`、`watchlist`、`reserve`、`reject` 的完整专家评分。
-- 基本面簿：展示三表提炼后的 ROE、收入增速、利润增速、负债率和现金流质量。
-- 基础筛选：展示第一层排雷和基础评分。
-- 标签索引：展示行业、概念、主题标签覆盖。
+- 总览：展示市场覆盖、板块结构、成交额和专家决策分布。
+- 精选：展示同类去重后的主题候选和候选卡片。
+- 股票池：展示 `core_candidate`、`watchlist`、`reserve`、`reject` 的完整专家评分。
+- ETF：展示 A 股 ETF 池、成交额、涨跌幅和规模。
+- 基本面：展示三表提炼后的 ROE、收入增速、利润增速、负债率和现金流质量。
+- 标签：展示行业、概念、主题标签覆盖。
 
 自动化链路由 `ah-screener update-all` 串起：
 

@@ -1,10 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import sleep
 from typing import Literal
 
 import pandas as pd
+
+from ah_screener.classification import (
+    infer_a_board,
+    infer_a_exchange,
+    infer_board,
+    infer_status,
+    is_st_name,
+)
 
 
 Market = Literal["A", "HK"]
@@ -44,6 +52,8 @@ def normalize_a_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.D
         {
             "market": "A",
             "symbol": symbol,
+            "asset_type": "stock",
+            "board": symbol.map(lambda value: infer_a_board(value, "stock")),
             "trade_date": today,
             "name": name,
             "last_price": _number(_first_existing(raw, ["最新价", "收盘"])),
@@ -63,10 +73,14 @@ def normalize_a_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.D
         {
             "market": "A",
             "symbol": symbol,
+            "asset_type": "stock",
+            "board": symbol.map(lambda value: infer_a_board(value, "stock")),
             "name": name,
-            "exchange": symbol.map(_infer_a_exchange),
+            "exchange": symbol.map(infer_a_exchange),
             "currency": "CNY",
-            "status": name.map(_infer_a_status),
+            "status": name.map(lambda value: infer_status(value, "stock")),
+            "is_st": name.map(is_st_name),
+            "is_hk_connect": False,
             "updated_at": updated_at,
         }
     )
@@ -75,17 +89,25 @@ def normalize_a_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.D
     return securities.drop_duplicates(["market", "symbol"]), snapshots
 
 
-def normalize_hk_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def normalize_hk_spot(
+    raw: pd.DataFrame,
+    source: str,
+    hk_connect_symbols: set[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     today = pd.Timestamp.today().normalize()
     updated_at = _now()
 
     symbol = _clean_hk_symbol(_first_existing(raw, ["代码", "股票代码"]))
     name = _first_existing(raw, ["中文名称", "名称", "股票简称"]).astype(str)
+    hk_connect_symbols = hk_connect_symbols or set()
+    is_hk_connect = symbol.isin(hk_connect_symbols)
 
     snapshots = pd.DataFrame(
         {
             "market": "HK",
             "symbol": symbol,
+            "asset_type": "stock",
+            "board": is_hk_connect.map(lambda value: "港股通" if value else "非港股通"),
             "trade_date": today,
             "name": name,
             "last_price": _number(_first_existing(raw, ["最新价", "收盘"])),
@@ -105,34 +127,20 @@ def normalize_hk_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.
         {
             "market": "HK",
             "symbol": symbol,
+            "asset_type": "stock",
+            "board": is_hk_connect.map(lambda value: infer_board("HK", "", "", "stock", value)),
             "name": name,
             "exchange": "HKEX",
             "currency": "HKD",
             "status": "listed",
+            "is_st": False,
+            "is_hk_connect": is_hk_connect,
             "updated_at": updated_at,
         }
     )
 
     snapshots = snapshots.dropna(subset=["symbol"])
     return securities.drop_duplicates(["market", "symbol"]), snapshots
-
-
-def _infer_a_exchange(symbol: str) -> str:
-    if symbol.startswith(("60", "68", "90")):
-        return "SSE"
-    if symbol.startswith(("00", "30", "20")):
-        return "SZSE"
-    if symbol.startswith(("43", "83", "87", "88", "92")):
-        return "BSE"
-    return "UNKNOWN"
-
-
-def _infer_a_status(name: str) -> str:
-    if "退" in name:
-        return "delisting_risk"
-    if "ST" in name.upper():
-        return "st"
-    return "listed"
 
 
 def _a_symbol_with_exchange(symbol: str) -> str:
@@ -173,14 +181,111 @@ def fetch_spot(market: Market) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         return normalize_a_spot(raw, source)
     if market == "HK":
+        hk_connect_symbols = fetch_hk_connect_symbols()
         raw, source = _fetch_first_available(
             [
                 ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
                 ("akshare.stock_hk_spot", ak.stock_hk_spot),
             ]
         )
-        return normalize_hk_spot(raw, source)
+        return normalize_hk_spot(raw, source, hk_connect_symbols=hk_connect_symbols)
     raise ValueError(f"Unsupported market: {market}")
+
+
+def normalize_a_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    today = pd.Timestamp.today().normalize()
+    updated_at = _now()
+
+    symbol = _clean_a_symbol(_first_existing(raw, ["代码", "基金代码"]))
+    name = _first_existing(raw, ["名称", "基金简称"]).astype(str)
+    board = pd.Series(["ETF"] * len(raw), index=raw.index)
+
+    snapshots = pd.DataFrame(
+        {
+            "market": "A",
+            "symbol": symbol,
+            "asset_type": "etf",
+            "board": board,
+            "trade_date": today,
+            "name": name,
+            "last_price": _number(_first_existing(raw, ["最新价", "收盘"])),
+            "pct_change": _number(_first_existing(raw, ["涨跌幅"])),
+            "volume": _number(_first_existing(raw, ["成交量"])),
+            "amount": _number(_first_existing(raw, ["成交额"])),
+            "turnover_rate": _number(_first_existing(raw, ["换手率"])),
+            "pe_ttm": pd.NA,
+            "pb": pd.NA,
+            "market_cap": _number(_first_existing(raw, ["总市值", "流通市值"])),
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+
+    securities = pd.DataFrame(
+        {
+            "market": "A",
+            "symbol": symbol,
+            "asset_type": "etf",
+            "board": board,
+            "name": name,
+            "exchange": symbol.map(infer_a_exchange),
+            "currency": "CNY",
+            "status": "listed",
+            "is_st": False,
+            "is_hk_connect": False,
+            "updated_at": updated_at,
+        }
+    )
+
+    snapshots = snapshots.dropna(subset=["symbol"])
+    return securities.drop_duplicates(["market", "symbol"]), snapshots
+
+
+def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    import akshare as ak
+
+    raw, source = _fetch_first_available(
+        [
+            ("akshare.fund_etf_spot_em", ak.fund_etf_spot_em),
+        ]
+    )
+    return normalize_a_etf_spot(raw, source)
+
+
+def fetch_hk_connect_symbols() -> set[str]:
+    import akshare as ak
+
+    calls = [
+        ("akshare.stock_hk_ggt_components_em", ak.stock_hk_ggt_components_em),
+        ("akshare.stock_hsgt_sh_hk_spot_em", ak.stock_hsgt_sh_hk_spot_em),
+    ]
+    for _, func in calls:
+        try:
+            raw = func()
+            if raw is None or raw.empty:
+                continue
+            symbol = _clean_hk_symbol(_first_existing(raw, ["代码", "股票代码"]))
+            values = {item for item in symbol.dropna().astype(str) if item and item != "00000"}
+            if values:
+                return values
+        except Exception:
+            continue
+    end_date = datetime.now().strftime("%Y%m%d")
+    start_date = (datetime.now() - timedelta(days=10)).strftime("%Y%m%d")
+    try:
+        raw = ak.stock_hsgt_stock_statistics_em(
+            symbol="南向持股",
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if raw is not None and not raw.empty:
+            symbol = _clean_hk_symbol(_first_existing(raw, ["股票代码", "代码"]))
+            values = {item for item in symbol.dropna().astype(str) if item and item != "00000"}
+            if values:
+                return values
+    except Exception:
+        pass
+    return set()
 
 
 def _normalize_history(

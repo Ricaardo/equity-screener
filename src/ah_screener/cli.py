@@ -11,6 +11,7 @@ from rich.table import Table
 
 from ah_screener.config import get_settings
 from ah_screener.pipeline import (
+    classify_existing_securities,
     export_expert_scores,
     export_refined_candidates,
     export_scores,
@@ -42,13 +43,21 @@ def init_db_command() -> None:
 
 @app.command("sync-spot")
 def sync_spot_command(
-    market: str = typer.Option("all", help="A, HK, or all."),
+    market: str = typer.Option("all", help="A, HK, ETF, or all."),
 ) -> None:
-    """Sync A-share and/or Hong Kong market snapshots."""
+    """Sync A-share, Hong Kong, and/or ETF market snapshots."""
     normalized = market.upper()
-    if normalized not in {"A", "HK", "ALL"}:
-        raise typer.BadParameter("market must be A, HK, or all")
+    if normalized not in {"A", "HK", "ETF", "ALL"}:
+        raise typer.BadParameter("market must be A, HK, ETF, or all")
     result = sync_spot("all" if normalized == "ALL" else normalized)  # type: ignore[arg-type]
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
+@app.command("classify-securities")
+def classify_securities_command() -> None:
+    """Backfill board, asset type, ST, and HK-connect metadata."""
+    result = classify_existing_securities()
     for key, count in result.items():
         console.print(f"{key}: {count}")
 

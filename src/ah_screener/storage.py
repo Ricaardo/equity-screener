@@ -11,9 +11,13 @@ CREATE TABLE IF NOT EXISTS securities (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
     name VARCHAR,
+    asset_type VARCHAR DEFAULT 'stock',
+    board VARCHAR,
     exchange VARCHAR,
     currency VARCHAR,
     status VARCHAR,
+    is_st BOOLEAN DEFAULT false,
+    is_hk_connect BOOLEAN DEFAULT false,
     updated_at TIMESTAMP,
     PRIMARY KEY (market, symbol)
 );
@@ -21,6 +25,8 @@ CREATE TABLE IF NOT EXISTS securities (
 CREATE TABLE IF NOT EXISTS market_snapshots (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
+    asset_type VARCHAR DEFAULT 'stock',
+    board VARCHAR,
     trade_date DATE NOT NULL,
     name VARCHAR,
     last_price DOUBLE,
@@ -209,6 +215,12 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
 """
 
 MIGRATION_SQL = """
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS asset_type VARCHAR DEFAULT 'stock';
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS board VARCHAR;
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS is_st BOOLEAN DEFAULT false;
+ALTER TABLE securities ADD COLUMN IF NOT EXISTS is_hk_connect BOOLEAN DEFAULT false;
+ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS asset_type VARCHAR DEFAULT 'stock';
+ALTER TABLE market_snapshots ADD COLUMN IF NOT EXISTS board VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS china_master_score DOUBLE;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS fundamental_score DOUBLE;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_group VARCHAR;

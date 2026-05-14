@@ -6,15 +6,15 @@
 
 ## 功能
 
-- 同步 A 股和港股市场快照。
-- 建立统一证券主数据表。
+- 同步 A 股、港股和 A 股 ETF 市场快照。
+- 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF。
 - 同步 A 股行业和概念标签。
 - 基于估值、流动性、主题和风险做可解释评分。
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 内置欧美和中国投资大师框架，面向 A 股和港股做专家筛选。
 - 按主题和相似标的去重提炼，每个方向只保留最好几个候选。
 - 输出候选池、观察池、剔除池和提炼候选池。
-- 提供本地 Streamlit 看板，使用羊皮纸黄色复古卷宗风格。
+- 提供本地 Streamlit 研究台，支持按市场、类型、板块、港股通和 ST 状态筛选。
 - 生成 Markdown 研究报告。
 - 支持一键全量刷新和 macOS 定时更新。
 
@@ -37,11 +37,18 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[ui]"
 ```bash
 ah-screener init-db
 ah-screener sync-spot --market all
+ah-screener classify-securities
 ah-screener sync-a-tags --kind industry --limit 30
 ah-screener sync-a-tags --kind concept --limit 50
 ah-screener score
 ah-screener export --top 100
 streamlit run src/ah_screener/ui/streamlit_app.py
+```
+
+只刷新 ETF：
+
+```bash
+ah-screener sync-spot --market ETF
 ```
 
 ## 专家筛选

@@ -87,12 +87,14 @@ def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
     fundamentals = store.query_df("SELECT * FROM financial_metrics")
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     technicals = store.query_df("SELECT * FROM technical_indicators")
+    securities = store.query_df("SELECT * FROM securities")
     return {
         "refined": refined,
         "expert": expert,
         "fundamentals": fundamentals,
         "snapshots": snapshots,
         "technicals": technicals,
+        "securities": securities,
     }
 
 
@@ -170,6 +172,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
     fundamentals = _latest(data["fundamentals"], "snapshot_date")
     snapshots = _latest(data["snapshots"], "trade_date")
     technicals = _latest(data["technicals"], "snapshot_date")
+    securities = data["securities"]
 
     generated_at = datetime.now()
     report_date = generated_at.strftime("%Y-%m-%d")
@@ -218,6 +221,15 @@ def generate_report(output_dir: Path | None = None) -> Path:
         "专家评分": len(expert),
         "提炼候选": len(refined),
     }
+    board_counts = (
+        securities.groupby(["market", "asset_type", "board"]).size().rename("数量").reset_index()
+        if not securities.empty and {"market", "asset_type", "board"}.issubset(securities.columns)
+        else pd.DataFrame(columns=["market", "asset_type", "board", "数量"])
+    )
+    if not board_counts.empty:
+        board_counts = board_counts.rename(
+            columns={"market": "市场", "asset_type": "类型", "board": "板块"}
+        ).sort_values("数量", ascending=False)
     decision_counts = (
         expert.groupby("decision").size().rename("数量").reset_index().sort_values("数量", ascending=False)
         if not expert.empty
@@ -264,11 +276,15 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "",
             _table(decision_counts, ["决策", "数量"]) if not decision_counts.empty else "暂无数据。",
             "",
-            "## 5. 主题建议",
+            "## 5. 市场与板块覆盖",
+            "",
+            _table(board_counts, ["市场", "类型", "板块", "数量"]) if not board_counts.empty else "暂无数据。",
+            "",
+            "## 6. 主题建议",
             "",
             *_bucket_recommendations(refined),
             "",
-            "## 6. 提炼候选",
+            "## 7. 提炼候选",
             "",
             _table(
                 refined_display,
@@ -277,7 +293,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not refined_display.empty
             else "暂无数据。",
             "",
-            "## 7. 核心候选",
+            "## 8. 核心候选",
             "",
             _table(
                 core,
@@ -286,11 +302,11 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not core.empty
             else "暂无核心候选。",
             "",
-            "## 8. 操作建议",
+            "## 9. 操作建议",
             "",
             *_portfolio_notes(refined),
             "",
-            "## 9. 后续自动刷新",
+            "## 10. 后续自动刷新",
             "",
             "建议每天收盘后或每周固定运行完整刷新流程，重新同步行情、技术指标、三表基本面、专家评分和报告。",
             "本项目已提供 `ah-screener update-all` 与 `ah-screener install-schedule` 两个命令用于自动化。",

@@ -5,17 +5,18 @@ from typing import Literal
 
 import pandas as pd
 
+from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
 from ah_screener.expert_model import STRATEGY_NAME, refine_candidates, run_expert_model
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.reporting import generate_report
 from ah_screener.scoring import score_snapshot
-from ah_screener.sources.akshare_client import fetch_a_board_tags, fetch_history, fetch_spot
+from ah_screener.sources.akshare_client import fetch_a_board_tags, fetch_a_etf_spot, fetch_history, fetch_spot
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
 
 
-MarketArg = Literal["A", "HK", "all"]
+MarketArg = Literal["A", "HK", "ETF", "all"]
 
 
 def get_store() -> Store:
@@ -29,13 +30,29 @@ def init_db() -> None:
 def sync_spot(market: MarketArg) -> dict[str, int]:
     store = get_store()
     store.init_db()
-    markets = ["A", "HK"] if market == "all" else [market]
     result: dict[str, int] = {}
+    markets = ["A", "HK"] if market == "all" else ([] if market == "ETF" else [market])
     for item in markets:
         securities, snapshots = fetch_spot(item)  # type: ignore[arg-type]
         result[f"{item}_securities"] = store.upsert_dataframe("securities", securities)
         result[f"{item}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+    if market in {"A", "ETF", "all"}:
+        etf_securities, etf_snapshots = fetch_a_etf_spot()
+        result["A_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
+        result["A_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
     return result
+
+
+def classify_existing_securities() -> dict[str, int]:
+    store = get_store()
+    store.init_db()
+    securities = store.query_df("SELECT * FROM securities")
+    if securities.empty:
+        return {"securities": 0, "snapshots": 0}
+    enriched = enrich_security_metadata(securities)
+    security_rows = store.upsert_dataframe("securities", enriched)
+    snapshot_count = int(store.query_df("SELECT COUNT(*) AS count FROM market_snapshots")["count"].iloc[0])
+    return {"securities": security_rows, "snapshots": snapshot_count}
 
 
 def sync_a_tags(kind: Literal["industry", "concept"], limit: int | None) -> int:
@@ -58,6 +75,8 @@ def _latest_snapshots(store: Store) -> pd.DataFrame:
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     if snapshots.empty:
         return snapshots
+    if "asset_type" in snapshots.columns:
+        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
     latest_date = snapshots["trade_date"].max()
     return snapshots[snapshots["trade_date"] == latest_date].drop_duplicates(
         ["market", "symbol"], keep="last"
@@ -109,6 +128,8 @@ def run_expert_scores() -> dict[str, int]:
     store = get_store()
     store.init_db()
     snapshots = store.query_df("SELECT * FROM market_snapshots")
+    if "asset_type" in snapshots.columns:
+        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
     tags = store.query_df("SELECT * FROM company_tags")
     technicals = store.query_df("SELECT * FROM technical_indicators")
     fundamentals = store.query_df("SELECT * FROM financial_metrics")
