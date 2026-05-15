@@ -28,6 +28,21 @@ EXTRACTION_RULES: dict[str, tuple[str, tuple[str, ...]]] = {
     "risk_factor": ("风险提示", ("风险因素", "主要风险", "risk factor", "principal risks")),
 }
 
+DOCUMENT_RISK_RULES: dict[str, tuple[str, tuple[str, ...]]] = {
+    "frequent_corporate_action": (
+        "频繁合股/供股/配股",
+        ("合股", "股份合并", "供股", "公开发售", "配股", "股本重组", "share consolidation", "rights issue", "open offer"),
+    ),
+    "delayed_reporting": (
+        "延迟刊发财报/业绩",
+        ("延迟刊发", "延迟发表", "延期刊发", "未能刊发", "delay in publication", "delayed publication"),
+    ),
+    "abnormal_audit_opinion": (
+        "异常审计意见",
+        ("保留意见", "无法表示意见", "否定意见", "qualified opinion", "disclaimer of opinion", "adverse opinion"),
+    ),
+}
+
 
 def _normalize_symbol(market: str, symbol: str) -> str:
     if market == "A":
@@ -166,6 +181,36 @@ def build_document_records(
                 "extract_type": "theme_tag",
                 "extract_key": theme,
                 "extract_value": theme,
+                "evidence_text": evidence[0],
+                "evidence_level": "B",
+                "source": source,
+                "updated_at": updated_at,
+            }
+        )
+
+    for risk_key, (label, keywords) in DOCUMENT_RISK_RULES.items():
+        evidence = _find_evidence(text, keywords, limit=1)
+        if not evidence:
+            continue
+        tag_rows.append(
+            {
+                "market": normalized_market,
+                "symbol": normalized_symbol,
+                "tag_type": "risk",
+                "tag_name": label,
+                "evidence_level": "B",
+                "source": f"{source}:{path.name}",
+                "updated_at": updated_at,
+            }
+        )
+        extraction_rows.append(
+            {
+                "document_id": document_id,
+                "market": normalized_market,
+                "symbol": normalized_symbol,
+                "extract_type": "risk_signal",
+                "extract_key": risk_key,
+                "extract_value": label,
                 "evidence_text": evidence[0],
                 "evidence_level": "B",
                 "source": source,

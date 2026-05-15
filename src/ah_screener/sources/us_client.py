@@ -281,8 +281,36 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
     raise RuntimeError(f"All US history sources failed for {symbol}. Last error: {last_error}") from last_error
 
 
-def fetch_us_spot(symbols: list[str] | None = None, lookback_days: int = 14) -> tuple[pd.DataFrame, pd.DataFrame]:
-    master = fetch_us_security_master()
+def select_us_batch_symbols(
+    master: pd.DataFrame,
+    *,
+    offset: int = 0,
+    limit: int = 100,
+    include_etf: bool = False,
+) -> list[str]:
+    if master.empty or limit <= 0:
+        return []
+    frame = master.copy()
+    if "status" in frame.columns:
+        frame = frame[frame["status"].fillna("listed").astype(str).str.lower().eq("listed")]
+    if not include_etf and "asset_type" in frame.columns:
+        frame = frame[frame["asset_type"].fillna("stock").astype(str).str.lower().ne("etf")]
+    for column in ["asset_type", "exchange"]:
+        if column not in frame.columns:
+            frame[column] = ""
+    frame["symbol"] = frame["symbol"].map(_clean_us_symbol)
+    frame = frame[frame["symbol"].ne("")]
+    frame = frame.sort_values(["asset_type", "exchange", "symbol"], na_position="last")
+    start = max(offset, 0)
+    return frame["symbol"].drop_duplicates().iloc[start : start + limit].tolist()
+
+
+def fetch_us_spot(
+    symbols: list[str] | None = None,
+    lookback_days: int = 14,
+    master: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    master = fetch_us_security_master() if master is None else master
     selected = [_clean_us_symbol(symbol) for symbol in (symbols or list(US_DEFAULT_SYMBOLS))]
     master_index = master.set_index("symbol", drop=False)
     end = datetime.now()
@@ -352,6 +380,25 @@ def fetch_us_spot(symbols: list[str] | None = None, lookback_days: int = 14) -> 
             ignore_index=True,
         )
     return securities.drop_duplicates(["market", "symbol"]), pd.DataFrame(snapshot_rows)
+
+
+def fetch_us_spot_batch(
+    *,
+    offset: int = 0,
+    limit: int = 100,
+    include_etf: bool = False,
+    lookback_days: int = 14,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    master = fetch_us_security_master()
+    selected = select_us_batch_symbols(
+        master,
+        offset=offset,
+        limit=limit,
+        include_etf=include_etf,
+    )
+    if not selected:
+        return master.iloc[0:0].copy(), pd.DataFrame()
+    return fetch_us_spot(symbols=selected, lookback_days=lookback_days, master=master)
 
 
 def fetch_sec_company_tickers() -> dict[str, dict[str, Any]]:

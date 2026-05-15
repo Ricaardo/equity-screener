@@ -1,0 +1,4 @@
+market,symbol,detailed_industry,evidence_level,source
+A,300308,AI光模块,B,manual_industry_mapping
+HK,00700,互联网平台,A,manual_industry_mapping
+US,NVDA,AI芯片,A,manual_industry_mapping

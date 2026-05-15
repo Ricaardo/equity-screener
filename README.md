@@ -8,8 +8,8 @@
 
 - 同步 A 股、港股、美股和 A 股 ETF 市场快照。
 - 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、美股交易所、ST/退市风险和 ETF。
-- 同步 A 股行业和概念标签。
-- 支持内置策展主题标签、自建 CSV 标签和官方 PDF/公告解析标签导入，补足港股免费概念数据不足。
+- 同步 A 股行业和概念标签，支持可编辑 CSV 细分行业映射。
+- 支持内置策展主题标签、自建 CSV 标签、HKEXnews 自动公告下载和官方 PDF/公告解析标签导入，补足港股免费概念数据不足。
 - 基于估值、流动性、主题和风险做可解释评分。
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 基本面分纳入多期收入/利润 CAGR、ROE 均值、稳定性、研发费用率和资本开支效率。
@@ -18,6 +18,7 @@
 - 按主题、相似标的和 A/H/US 同主体去重提炼，每个方向只保留最好几个候选。
 - 对 ETF 做分类、工具评分和观察建议。
 - 提供全市场覆盖率、候选变化和带成本/滑点/行业分散约束的等权回测命令。
+- 区分自然生成候选快照和历史回放快照，严格点时回测可用 `--natural-only` 排除回放数据。
 - 输出候选池、观察池、剔除池和提炼候选池。
 - 提供本地 Streamlit 研究台，支持按市场、类型、板块、港股通和 ST 状态筛选。
 - 生成 Markdown 研究报告。
@@ -43,6 +44,7 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[ui]"
 ah-screener init-db
 ah-screener sync-spot --market all
 ah-screener sync-us-spot --symbols AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,BABA,SPY,QQQ
+ah-screener sync-us-batch --offset 0 --limit 100 --stocks-only
 ah-screener classify-securities
 ah-screener sync-a-tags --kind industry --limit 30
 ah-screener sync-a-tags --kind concept --limit 50
@@ -68,7 +70,9 @@ ah-screener sync-history --market all --top 120 --lookback-days 430
 ah-screener technical
 ah-screener sync-fundamentals --market all --top 120
 ah-screener import-tags --path data/custom_tags.csv
+ah-screener import-industry-map --path data/industry_mapping.csv
 ah-screener ingest-document --market HK --symbol 00700 --path /path/to/annual-report.pdf --source hkexnews_pdf
+ah-screener sync-hkex-documents --symbol 00700 --limit 5
 ah-screener fundamentals-status --top 120
 ah-screener coverage-status
 ah-screener expert-score
@@ -80,6 +84,7 @@ ah-screener etf-export --top 50
 ah-screener sync-benchmarks --lookback-days 430
 ah-screener backfill-refined-snapshots --min-snapshots 6 --rebalance quarterly
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
+ah-screener backtest --rebalance quarterly --natural-only
 ```
 
 结果会落库到：
@@ -99,7 +104,7 @@ refined_candidates
 
 `refined_candidates` 会按主题桶、风格桶和 A/H/US 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H/US 多地上市或同名主体只保留专家分最高的一只。
 
-`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放快照；该回放用于模型验证，不等同严格点时财报回测。
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放候选快照；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时回测使用 `--natural-only` 排除。
 
 ## 免费数据源
 
@@ -107,7 +112,8 @@ refined_candidates
 - 美股证券目录：Nasdaq Trader symbol directory。
 - 美股历史行情：AKShare `stock_us_daily`，Stooq CSV 作为可选备用源，使用 `STOOQ_API_KEY` 或 `AH_SCREENER_STOOQ_API_KEY`。
 - 美股基本面：SEC EDGAR Company Facts。
-- 港股主题增强：HKEXnews/公司公告 PDF 下载到本地后用 `ingest-document` 抽取业务结构、研发投入、客户集中度、审计意见、风险提示和主题标签。
+- 美股批量扩展：`sync-us-batch` 按 Nasdaq Trader 全量列表分页同步，免费源限流时调小 `--limit`。
+- 港股主题增强：`sync-hkex-documents` 自动搜索 HKEXnews、下载 PDF 并抽取业务结构、研发投入、客户集中度、审计意见、风险提示、股本动作、延迟刊发财报和主题标签；本地 PDF 仍可用 `ingest-document` 导入。
 
 ## 报告
 

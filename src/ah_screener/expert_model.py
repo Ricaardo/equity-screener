@@ -537,6 +537,13 @@ def run_expert_model(
         if not tags.empty
         else pd.Series(dtype=object)
     )
+    risk_tag_text = (
+        tags[tags["tag_type"].eq("risk")]
+        .groupby(["market", "symbol"])["tag_name"]
+        .apply(lambda values: " ".join(map(str, values)))
+        if not tags.empty and "tag_type" in tags.columns
+        else pd.Series(dtype=object)
+    )
     industry_tag = (
         tags[tags["tag_type"].eq("industry")]
         .sort_values(["market", "symbol", "tag_name"])
@@ -605,6 +612,9 @@ def run_expert_model(
         industry_fit_score, industry_fit_reasons = _industry_fit_score(fundamental_row, matches)
 
         penalty, risk_reasons = _risk_penalty(row, settings)
+        document_penalty, document_reasons = _document_risk_penalty(str(risk_tag_text.get(key, "")))
+        penalty += document_penalty
+        risk_reasons.extend(document_reasons)
         if tech_row is None:
             penalty += 6
             risk_reasons.append("缺少历史日线，技术面降权")
@@ -849,6 +859,44 @@ def _select_diverse_bucket(group: pd.DataFrame, max_per_bucket: int, max_per_sty
     return selected
 
 
+DOCUMENT_RISK_PENALTIES: tuple[tuple[tuple[str, ...], float, str], ...] = (
+    (
+        ("频繁合股", "供股", "配股", "股本融资", "share consolidation", "rights issue", "open offer"),
+        12.0,
+        "公告风险：频繁合股、供股或股本融资",
+    ),
+    (
+        ("延迟刊发", "延迟发表", "延期刊发", "未能刊发", "delay in publication", "delayed publication"),
+        16.0,
+        "公告风险：延迟刊发财报或业绩",
+    ),
+    (
+        (
+            "异常审计意见",
+            "保留意见",
+            "无法表示意见",
+            "否定意见",
+            "qualified opinion",
+            "disclaimer of opinion",
+            "adverse opinion",
+        ),
+        22.0,
+        "公告风险：审计意见异常",
+    ),
+)
+
+
+def _document_risk_penalty(risk_text: str) -> tuple[float, list[str]]:
+    text = risk_text.lower()
+    penalty = 0.0
+    reasons: list[str] = []
+    for keywords, value, reason in DOCUMENT_RISK_PENALTIES:
+        if any(keyword.lower() in text for keyword in keywords):
+            penalty += value
+            reasons.append(reason)
+    return penalty, reasons
+
+
 def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_style: int = 2) -> pd.DataFrame:
     if results.empty:
         return pd.DataFrame()
@@ -869,9 +917,13 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
         ("detailed_industry", ""),
         ("valuation_percentile", 50.0),
         ("canonical_id", None),
+        ("snapshot_source", "natural"),
+        ("is_replay", False),
     ]:
         if column not in candidates.columns:
             candidates[column] = default
+    candidates["snapshot_source"] = candidates["snapshot_source"].fillna("natural")
+    candidates["is_replay"] = candidates["is_replay"].fillna(False).astype(bool)
     candidates = candidates.sort_values(
         [
             "expert_score",
@@ -949,6 +1001,8 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
             "theme_matches",
             "reasons",
             "selection_note",
+            "snapshot_source",
+            "is_replay",
             "updated_at",
         ]
     ].reset_index(drop=True)

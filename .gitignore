@@ -11,5 +11,6 @@ reports/ui-screenshots/
 
 data/*.duckdb
 data/*.duckdb.*
+data/hkex_documents/
 
 .DS_Store

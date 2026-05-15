@@ -318,7 +318,7 @@ A 股剔除规则：
 - 成交额极低。
 - 市值过小。
 - 长期停牌或关键行情字段缺失。
-- 后续加入：频繁合股/供股、延迟刊发财报、审计意见异常。
+- HKEXnews 公告解析命中的频繁合股/供股/配股、延迟刊发财报、审计意见异常等风险标签。
 
 ### 5.2 综合评分
 
@@ -445,6 +445,12 @@ ah-screener sync-identity-mappings
 ah-screener import-tags --path data/custom_tags.csv
 ```
 
+如果需要治理细分行业口径，可复制 `data/industry_mapping.example.csv` 为 `data/industry_mapping.csv`，然后运行：
+
+```bash
+ah-screener import-industry-map --path data/industry_mapping.csv
+```
+
 第四步：运行基础评分。
 
 ```bash
@@ -471,6 +477,21 @@ ah-screener candidate-changes
 ah-screener etf-export --top 50
 ah-screener sync-benchmarks --lookback-days 430
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
+ah-screener backtest --rebalance quarterly --natural-only
+```
+
+当只有一个自然候选快照时，可先用 `backfill-refined-snapshots` 生成历史回放候选；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时口径用 `--natural-only` 排除。
+
+港股公告可自动从 HKEXnews 搜索下载，并进入同一套 PDF 解析和风险标签流程：
+
+```bash
+ah-screener sync-hkex-documents --symbol 00700 --limit 5
+```
+
+美股可按 Nasdaq Trader 全量列表分页扩展覆盖：
+
+```bash
+ah-screener sync-us-batch --offset 0 --limit 100 --stocks-only
 ```
 
 第七步：打开看板。
@@ -512,12 +533,13 @@ ah-screener install-schedule --hour 18 --minute 30
 默认每天本地时间 18:30 运行全量刷新，并把日志写到 `logs/`。
 生成的 `scripts/update_all.sh` 使用 `.update.lock` 做互斥保护；如果上一轮更新没有结束，下一轮会跳过，避免 DuckDB 写锁冲突。
 
-## 8. 后续增强
+## 8. 增强能力完成状态
 
-- 严格点时回测：继续依赖定时任务自然积累每日 `refined_candidates`，历史回放只用于先验证链路。
-- 港股公告自动下载：当前已支持本地 HKEXnews/公司 PDF 解析，后续可接披露易搜索自动下载。
-- 行业口径治理：当前已有细分行业和估值分位，后续可把人工行业映射表独立成可编辑 CSV。
-- 美股覆盖扩展：当前覆盖默认大盘和 ADR 池，后续可按 Nasdaq Trader 全量列表分批同步。
+- 严格点时回测：`refined_candidates` 已记录 `snapshot_source` 和 `is_replay`，`backtest --natural-only` 可只使用自然生成快照。
+- 港股公告自动下载：`sync-hkex-documents` 已接入 HKEXnews 官方搜索端点，自动下载 PDF 并复用 `ingest-document` 解析。
+- 行业口径治理：`import-industry-map` 已支持可编辑 CSV，把细分行业映射写入 `company_tags`。
+- 美股覆盖扩展：`sync-us-batch` 已支持按 Nasdaq Trader 全量列表分页同步，遇到免费源限流可调小批次。
+- 风险规则扩展：PDF/公告解析已识别频繁合股/供股/配股、延迟刊发财报和异常审计意见，并纳入专家模型风险扣分。
 
 ## 9. 看板和自动化
 

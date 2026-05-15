@@ -95,6 +95,97 @@ class BacktestTest(TestCase):
         self.assertEqual(result["excess_return"].round(6).tolist(), [0.08, 0.071301])
         self.assertEqual(result["benchmark_equity"].round(0).tolist(), [1_020_000.0, 1_040_000.0])
 
+    def test_natural_only_backtest_excludes_historical_replay_snapshots(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            store = Store(Path(temp_dir) / "test.duckdb")
+            store.init_db()
+            store.upsert_dataframe(
+                "refined_candidates",
+                pd.DataFrame(
+                    [
+                        {
+                            "snapshot_date": "2026-01-01",
+                            "strategy": STRATEGY_NAME,
+                            "bucket": "科技",
+                            "rank_in_bucket": 1,
+                            "market": "A",
+                            "symbol": "000001",
+                            "name": "测试股份",
+                            "expert_score": 80,
+                            "fundamental_score": 75,
+                            "technical_score": 70,
+                            "industry_peer_group": "科技",
+                            "peer_score": 70,
+                            "industry_fit_score": 70,
+                            "snapshot_source": "historical_replay",
+                            "is_replay": True,
+                        },
+                        {
+                            "snapshot_date": "2026-04-01",
+                            "strategy": STRATEGY_NAME,
+                            "bucket": "科技",
+                            "rank_in_bucket": 1,
+                            "market": "A",
+                            "symbol": "000001",
+                            "name": "测试股份",
+                            "expert_score": 80,
+                            "fundamental_score": 75,
+                            "technical_score": 70,
+                            "industry_peer_group": "科技",
+                            "peer_score": 70,
+                            "industry_fit_score": 70,
+                            "snapshot_source": "natural",
+                            "is_replay": False,
+                        },
+                    ]
+                ),
+            )
+            store.upsert_dataframe(
+                "daily_prices",
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "000001",
+                            "trade_date": trade_date,
+                            "open": close,
+                            "high": close,
+                            "low": close,
+                            "close": close,
+                            "volume": 1,
+                            "amount": 1,
+                            "adj_type": "qfq",
+                            "source": "test",
+                        }
+                        for trade_date, close in [
+                            ("2026-01-01", 10.0),
+                            ("2026-04-01", 11.0),
+                            ("2026-05-01", 12.0),
+                        ]
+                    ]
+                ),
+            )
+            original_get_store = pipeline.get_store
+            pipeline.get_store = lambda: store
+            try:
+                with_replay = pipeline.backtest_refined_candidates(
+                    rebalance="snapshot",
+                    fee_bps=0,
+                    slippage_bps=0,
+                    include_replay=True,
+                )
+                natural_only = pipeline.backtest_refined_candidates(
+                    rebalance="snapshot",
+                    fee_bps=0,
+                    slippage_bps=0,
+                    include_replay=False,
+                )
+            finally:
+                pipeline.get_store = original_get_store
+
+        self.assertEqual(with_replay["signal_date"].astype(str).tolist(), ["2026-01-01", "2026-04-01"])
+        self.assertEqual(natural_only["signal_date"].astype(str).tolist(), ["2026-04-01"])
+
     def test_backfills_historical_refined_snapshots_from_real_prices(self) -> None:
         with TemporaryDirectory() as temp_dir:
             store = Store(Path(temp_dir) / "test.duckdb")

@@ -29,7 +29,11 @@ from ah_screener.sources.akshare_client import (
     fetch_spot,
     parse_benchmark,
 )
-from ah_screener.sources.us_client import fetch_us_spot
+from ah_screener.sources.hkexnews_client import (
+    download_hkex_announcements,
+    fetch_hkex_announcements,
+)
+from ah_screener.sources.us_client import fetch_us_spot, fetch_us_spot_batch
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
 
@@ -86,6 +90,29 @@ def sync_us_spot(symbols: list[str], lookback_days: int = 14) -> dict[str, int]:
     return {
         "US_securities": store.upsert_dataframe("securities", securities),
         "US_snapshots": store.upsert_dataframe("market_snapshots", snapshots),
+    }
+
+
+def sync_us_spot_batch(
+    *,
+    offset: int = 0,
+    limit: int = 100,
+    include_etf: bool = False,
+    lookback_days: int = 14,
+) -> dict[str, int]:
+    store = get_store()
+    store.init_db()
+    securities, snapshots = fetch_us_spot_batch(
+        offset=offset,
+        limit=limit,
+        include_etf=include_etf,
+        lookback_days=lookback_days,
+    )
+    return {
+        "US_securities": store.upsert_dataframe("securities", securities),
+        "US_snapshots": store.upsert_dataframe("market_snapshots", snapshots),
+        "US_batch_offset": offset,
+        "US_batch_limit": limit,
     }
 
 
@@ -149,6 +176,24 @@ def import_custom_tags(path: Path, source: str = "custom_csv") -> int:
         raise FileNotFoundError(path)
     tags = pd.read_csv(path)
     return store.upsert_dataframe("company_tags", _prepare_custom_tags(tags, source=source))
+
+
+def import_industry_mapping(path: Path, source: str = "industry_mapping_csv") -> int:
+    store = get_store()
+    store.init_db()
+    if not path.exists():
+        raise FileNotFoundError(path)
+    frame = pd.read_csv(path)
+    if "tag_name" not in frame.columns:
+        for column in ["detailed_industry", "industry", "industry_peer_group", "sub_industry", "sector"]:
+            if column in frame.columns:
+                frame = frame.rename(columns={column: "tag_name"})
+                break
+    if "tag_type" not in frame.columns:
+        frame["tag_type"] = "industry"
+    if "evidence_level" not in frame.columns:
+        frame["evidence_level"] = "A"
+    return store.upsert_dataframe("company_tags", _prepare_custom_tags(frame, source=source))
 
 
 def sync_curated_theme_tags() -> int:
@@ -551,6 +596,54 @@ def ingest_company_document(
     }
 
 
+def sync_hkex_documents(
+    *,
+    symbol: str,
+    output_dir: Path = Path("data/hkex_documents"),
+    from_date: str | None = None,
+    to_date: str | None = None,
+    keywords: list[str] | None = None,
+    limit: int = 10,
+    lang: str = "EN",
+) -> dict[str, int]:
+    announcements = fetch_hkex_announcements(
+        symbol=symbol,
+        from_date=from_date,
+        to_date=to_date,
+        keywords=keywords,
+        limit=limit,
+        lang=lang,
+    )
+    downloads = download_hkex_announcements(announcements, output_dir=output_dir)
+    result = {
+        "hkex_announcements": len(announcements),
+        "hkex_downloaded": len(downloads),
+        "company_documents": 0,
+        "document_extractions": 0,
+        "company_tags": 0,
+        "document_ingest_failed": 0,
+    }
+    for _, row in downloads.iterrows():
+        release_datetime = pd.to_datetime(row.get("release_datetime"), errors="coerce")
+        try:
+            ingest_result = ingest_company_document(
+                market="HK",
+                symbol=symbol,
+                path=Path(str(row["local_path"])),
+                document_type=str(row.get("document_type") or "announcement"),
+                report_date=str(release_datetime.date()) if pd.notna(release_datetime) else None,
+                title=str(row.get("title") or ""),
+                source_url=str(row.get("url") or ""),
+                source="hkexnews_auto",
+            )
+        except Exception:
+            result["document_ingest_failed"] += 1
+            continue
+        for key in ["company_documents", "document_extractions", "company_tags"]:
+            result[key] += ingest_result.get(key, 0)
+    return result
+
+
 def export_etf_candidates(top: int = 100, category: str | None = None) -> pd.DataFrame:
     store = get_store()
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
@@ -863,6 +956,8 @@ def backfill_refined_candidate_snapshots(
             * 0.06
         ).clip(0, 100)
         replay["reasons"] = replay["reasons"].astype(str) + f"; historical_replay_signal={signal_date.date()}"
+        replay["snapshot_source"] = "historical_replay"
+        replay["is_replay"] = True
         refined = refine_candidates(
             replay,
             max_per_bucket=max_per_bucket,
@@ -887,6 +982,7 @@ def backtest_refined_candidates(
     industry_neutral: bool = False,
     max_per_group: int = 2,
     benchmark: str | None = None,
+    include_replay: bool = True,
 ) -> pd.DataFrame:
     store = get_store()
     refined = store.query_df(
@@ -898,6 +994,19 @@ def backtest_refined_candidates(
         [STRATEGY_NAME],
     )
     prices = store.query_df("SELECT * FROM daily_prices")
+    if not include_replay and not refined.empty:
+        if "is_replay" in refined.columns:
+            is_replay = (
+                refined["is_replay"]
+                .fillna(False)
+                .astype(str)
+                .str.lower()
+                .isin(["true", "1", "t", "yes"])
+            )
+            refined = refined[~is_replay].copy()
+        if "snapshot_source" in refined.columns:
+            source = refined["snapshot_source"].fillna("natural").astype(str)
+            refined = refined[~source.str.contains("replay", case=False, na=False)].copy()
     if refined.empty or prices.empty:
         return _empty_backtest_frame()
 

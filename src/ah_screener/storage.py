@@ -290,6 +290,8 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
     theme_matches VARCHAR,
     reasons VARCHAR,
     selection_note VARCHAR,
+    snapshot_source VARCHAR DEFAULT 'natural',
+    is_replay BOOLEAN DEFAULT false,
     updated_at TIMESTAMP,
     PRIMARY KEY (snapshot_date, strategy, bucket, rank_in_bucket)
 );
@@ -321,6 +323,14 @@ ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS industry_fit_score DOUBL
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS canonical_id VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS detailed_industry VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS valuation_percentile DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS snapshot_source VARCHAR DEFAULT 'natural';
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS is_replay BOOLEAN DEFAULT false;
+UPDATE refined_candidates
+SET snapshot_source = 'historical_replay', is_replay = true
+WHERE COALESCE(reasons, '') LIKE '%historical_replay_signal%';
+UPDATE refined_candidates
+SET snapshot_source = 'natural', is_replay = false
+WHERE snapshot_source IS NULL OR is_replay IS NULL;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS revenue_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS net_profit_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_avg_3y DOUBLE;
