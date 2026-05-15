@@ -83,7 +83,12 @@ def _risk_penalty(row: pd.Series, settings: Settings) -> tuple[float, list[str]]
         penalty += 100
         reasons.append("A股 ST/退市风险名称")
 
-    min_amount = settings.min_a_amount if market == "A" else settings.min_hk_amount
+    if market == "A":
+        min_amount = settings.min_a_amount
+    elif market == "US":
+        min_amount = settings.min_us_amount
+    else:
+        min_amount = settings.min_hk_amount
     if amount <= 0:
         penalty += 60
         reasons.append("成交额缺失或为0")
@@ -104,8 +109,9 @@ def score_snapshot(snapshots: pd.DataFrame, tags: pd.DataFrame, settings: Settin
         return pd.DataFrame()
 
     latest_date = snapshots["trade_date"].max()
-    df = snapshots[snapshots["trade_date"] == latest_date].copy()
-    df = df.drop_duplicates(["market", "symbol"], keep="last")
+    df = snapshots.copy()
+    df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+    df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
     df = df.set_index(["market", "symbol"], drop=False)
 
     df["quality_score"] = 50.0

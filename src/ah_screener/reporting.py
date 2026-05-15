@@ -117,6 +117,14 @@ def _latest(df: pd.DataFrame, date_column: str) -> pd.DataFrame:
     return df[df[date_column] == latest_date].copy()
 
 
+def _latest_by_security(df: pd.DataFrame, date_column: str) -> pd.DataFrame:
+    if df.empty or date_column not in df.columns:
+        return df
+    frame = df.copy()
+    frame[date_column] = pd.to_datetime(frame[date_column], errors="coerce")
+    return frame.sort_values(date_column).drop_duplicates(["market", "symbol"], keep="last")
+
+
 def _bucket_recommendations(refined: pd.DataFrame) -> list[str]:
     if refined.empty:
         return ["当前没有提炼候选，先检查行情、技术指标和财报同步是否完整。"]
@@ -243,11 +251,12 @@ def _candidate_changes(refined: pd.DataFrame) -> pd.DataFrame:
     latest = refined[refined["snapshot_date"] == latest_date]
     key_columns = ["bucket", "market", "symbol"]
     merged = latest.merge(
-        previous[key_columns + ["expert_score"]].rename(columns={"expert_score": "previous_score"}),
+        previous[key_columns + ["name", "expert_score"]].rename(
+            columns={"name": "name_previous", "expert_score": "previous_score"}
+        ),
         on=key_columns,
         how="outer",
         indicator=True,
-        suffixes=("", "_previous"),
     )
     merged["变化"] = merged["_merge"].map(
         {"left_only": "新增", "right_only": "移出", "both": "保留"}
@@ -292,7 +301,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
     ]:
         if column not in fundamentals.columns:
             fundamentals[column] = pd.NA
-    snapshots = _latest(data["snapshots"], "trade_date")
+    snapshots = _latest_by_security(data["snapshots"], "trade_date")
     technicals = _latest(data["technicals"], "snapshot_date")
     securities = data["securities"]
 
@@ -307,6 +316,8 @@ def generate_report(output_dir: Path | None = None) -> Path:
         for column, default in [
             ("peer_score", pd.NA),
             ("industry_fit_score", pd.NA),
+            ("valuation_percentile", pd.NA),
+            ("detailed_industry", ""),
             ("industry_peer_group", ""),
         ]:
             if column not in refined_display.columns:
@@ -323,8 +334,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "expert_score": "专家分",
                 "fundamental_score": "基本面",
                 "technical_score": "技术面",
+                "detailed_industry": "细分行业",
                 "peer_score": "同类分位",
                 "industry_fit_score": "行业适配",
+                "valuation_percentile": "估值分位",
                 "industry_peer_group": "同类组",
                 "theme_matches_text": "匹配主题",
             }
@@ -335,6 +348,8 @@ def generate_report(output_dir: Path | None = None) -> Path:
         for column, default in [
             ("peer_score", pd.NA),
             ("industry_fit_score", pd.NA),
+            ("valuation_percentile", pd.NA),
+            ("detailed_industry", ""),
             ("industry_peer_group", ""),
         ]:
             if column not in core.columns:
@@ -349,8 +364,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "fundamental_score": "基本面",
                 "china_master_score": "中国大师框架",
                 "technical_score": "技术面",
+                "detailed_industry": "细分行业",
                 "peer_score": "同类分位",
                 "industry_fit_score": "行业适配",
+                "valuation_percentile": "估值分位",
                 "industry_peer_group": "同类组",
                 "theme_matches_text": "匹配主题",
             }
@@ -440,7 +457,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
     change_display = _candidate_changes(refined_all)
 
     lines = [
-        "# A/H 股票筛选研究报告",
+        "# A/H/US 股票筛选研究报告",
         "",
         f"- 生成时间：{generated_at:%Y-%m-%d %H:%M:%S}",
         f"- 数据库：`{settings.db_path}`",
@@ -527,8 +544,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                     "专家分",
                     "基本面",
                     "技术面",
+                    "细分行业",
                     "同类分位",
                     "行业适配",
+                    "估值分位",
                     "同类组",
                     "匹配主题",
                 ],
@@ -548,8 +567,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
                     "基本面",
                     "中国大师框架",
                     "技术面",
+                    "细分行业",
                     "同类分位",
                     "行业适配",
+                    "估值分位",
                     "同类组",
                     "匹配主题",
                 ],

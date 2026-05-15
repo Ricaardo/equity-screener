@@ -28,7 +28,7 @@ class HotTheme:
 HOT_THEMES: tuple[HotTheme, ...] = (
     HotTheme(
         name="AI算力硬件",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=1.00,
         keywords=("AI", "人工智能", "算力", "CPO", "光模块", "光通信", "PCB", "服务器", "液冷", "数据中心", "存储", "GPU"),
         rationale="AI 应用扩散先拉动算力、网络、存储、散热和服务器资本开支。",
@@ -36,7 +36,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="半导体国产替代",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.90,
         keywords=("半导体", "芯片", "集成电路", "存储", "海思", "先进封装", "光刻胶", "设备", "材料", "晶圆"),
         rationale="地缘约束和产业升级使半导体设备、材料、设计和制造长期具备政策与需求双支撑。",
@@ -44,7 +44,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="人形机器人与高端制造",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.85,
         keywords=("机器人", "人形机器人", "伺服", "减速器", "传感器", "执行器", "自动化", "工业母机"),
         rationale="AI 与硬件制造结合，机器人链条处在从主题验证到产业订单验证的阶段。",
@@ -52,7 +52,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="创新药与医疗科技",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.78,
         keywords=("创新药", "CXO", "生物医药", "医疗器械", "AI医疗", "疫苗", "药明", "恒瑞", "百济", "信达"),
         rationale="创新药出海、BD 交易和医药估值修复使优质药企重新进入成长筛选池。",
@@ -60,7 +60,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="高股息央国企防御",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.72,
         keywords=("高股息", "央企", "国企", "电力", "煤炭", "银行", "公用事业", "运营商", "石油", "能源", "电信"),
         rationale="低利率和波动市场中，现金流稳定、分红率较高的央国企适合作为防御底仓候选。",
@@ -68,7 +68,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="电力储能与能源转型",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.82,
         keywords=("电力", "储能", "光伏", "风电", "电池", "电网", "新能源", "能源互联网", "钙钛矿", "充电"),
         rationale="AI 算力用电增长、能源转型和电网投资共同提升电力与储能链条关注度。",
@@ -76,7 +76,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="资源涨价与安全资产",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.76,
         keywords=("黄金", "有色", "稀土", "铜", "铝", "小金属", "石油", "煤炭", "资源"),
         rationale="通胀预期、地缘风险和供给约束使贵金属、能源和部分工业金属保持配置价值。",
@@ -92,7 +92,7 @@ HOT_THEMES: tuple[HotTheme, ...] = (
     ),
     HotTheme(
         name="汽车智能化与出海",
-        markets=("A", "HK"),
+        markets=("A", "HK", "US"),
         weight=0.75,
         keywords=("汽车", "智能驾驶", "华为汽车", "小米汽车", "比亚迪", "电动车", "零部件", "出海"),
         rationale="智能驾驶、品牌出海和供应链升级使整车与核心零部件适合做主题筛选。",
@@ -147,6 +147,25 @@ CURATED_THEME_OVERRIDES: dict[tuple[str, str], tuple[str, ...]] = {
     ("HK", "01088"): ("高股息央国企防御", "资源涨价与安全资产"),
     ("HK", "00941"): ("高股息央国企防御",),
     ("HK", "00728"): ("高股息央国企防御",),
+    ("US", "NVDA"): ("AI算力硬件", "半导体国产替代"),
+    ("US", "AMD"): ("AI算力硬件", "半导体国产替代"),
+    ("US", "AVGO"): ("AI算力硬件", "半导体国产替代"),
+    ("US", "MSFT"): ("AI算力硬件",),
+    ("US", "GOOGL"): ("AI算力硬件",),
+    ("US", "AMZN"): ("AI算力硬件",),
+    ("US", "META"): ("AI算力硬件",),
+    ("US", "TSLA"): ("汽车智能化与出海", "电力储能与能源转型"),
+    ("US", "LLY"): ("创新药与医疗科技",),
+    ("US", "MRK"): ("创新药与医疗科技",),
+    ("US", "XOM"): ("高股息央国企防御", "资源涨价与安全资产"),
+    ("US", "BABA"): ("港股AI互联网平台",),
+    ("US", "JD"): ("港股AI互联网平台",),
+    ("US", "BIDU"): ("港股AI互联网平台",),
+    ("US", "NTES"): ("港股AI互联网平台",),
+    ("US", "BILI"): ("港股AI互联网平台",),
+    ("US", "LI"): ("汽车智能化与出海",),
+    ("US", "NIO"): ("汽车智能化与出海",),
+    ("US", "XPEV"): ("汽车智能化与出海",),
 }
 
 
@@ -185,6 +204,26 @@ DUAL_LISTING_GROUPS: dict[tuple[str, str], str] = {
     ("HK", "01288"): "农业银行AH",
     ("A", "601988"): "中国银行AH",
     ("HK", "03988"): "中国银行AH",
+    ("HK", "09988"): "阿里巴巴",
+    ("US", "BABA"): "阿里巴巴",
+    ("HK", "09618"): "京东集团",
+    ("US", "JD"): "京东集团",
+    ("HK", "09888"): "百度",
+    ("US", "BIDU"): "百度",
+    ("HK", "09999"): "网易",
+    ("US", "NTES"): "网易",
+    ("HK", "09626"): "哔哩哔哩",
+    ("US", "BILI"): "哔哩哔哩",
+    ("HK", "09868"): "小鹏汽车",
+    ("US", "XPEV"): "小鹏汽车",
+    ("HK", "02015"): "理想汽车",
+    ("US", "LI"): "理想汽车",
+    ("HK", "09866"): "蔚来",
+    ("US", "NIO"): "蔚来",
+    ("HK", "02423"): "贝壳",
+    ("US", "BEKE"): "贝壳",
+    ("HK", "02057"): "中通快递",
+    ("US", "ZTO"): "中通快递",
 }
 
 
@@ -245,6 +284,42 @@ def _theme_score(matches: list[HotTheme]) -> float:
     return float(np.clip(score, 0, 100))
 
 
+def _keyword_hit(text: str, keywords: tuple[str, ...]) -> bool:
+    lower = text.lower()
+    return any(keyword.lower() in lower for keyword in keywords)
+
+
+def _detailed_industry(row: pd.Series, tag_text: str, matches: list[HotTheme]) -> str:
+    text = f"{row.get('name', '')} {tag_text} {' '.join(theme.name for theme in matches)}"
+    market = str(row.get("market") or "")
+    if _keyword_hit(text, ("半导体", "芯片", "集成电路", "晶圆", "封装", "光刻", "EDA")):
+        return "半导体与AI硬件"
+    if _keyword_hit(text, ("AI", "人工智能", "算力", "云", "数据中心", "服务器", "软件")):
+        return "AI平台与云软件"
+    if _keyword_hit(text, ("创新药", "生物", "医疗", "药", "临床", "CXO", "器械")):
+        return "创新药与医疗科技"
+    if _keyword_hit(text, ("互联网", "电商", "平台", "游戏", "广告", "本地生活", "用户")):
+        return "互联网平台"
+    if _keyword_hit(text, ("银行", "保险", "证券", "交易所", "金融")):
+        return "金融与交易基础设施"
+    if _keyword_hit(text, ("石油", "煤炭", "黄金", "有色", "铜", "铝", "矿", "资源")):
+        return "能源资源"
+    if _keyword_hit(text, ("电力", "公用", "运营商", "电信", "通信服务")):
+        return "高股息公用与运营商"
+    if _keyword_hit(text, ("储能", "光伏", "风电", "新能源", "电池", "电网")):
+        return "新能源与储能"
+    if _keyword_hit(text, ("汽车", "智能驾驶", "电动车", "整车", "零部件", "出海")):
+        return "智能汽车与出海"
+    if _keyword_hit(text, ("机器人", "自动化", "工业母机", "高端制造")):
+        return "机器人与高端制造"
+    fallback = str(row.get("industry_peer_group") or row.get("board") or market or "未分类")
+    if fallback in {"港股通", "非港股通"}:
+        return "港股综合"
+    if fallback in {"NASDAQ", "NYSE", "US Other", "US Default"}:
+        return "美股综合"
+    return fallback
+
+
 def _rank(series: pd.Series, ascending: bool = True) -> pd.Series:
     valid = pd.to_numeric(series, errors="coerce")
     if valid.notna().sum() == 0:
@@ -270,6 +345,10 @@ def _peer_scores(df: pd.DataFrame) -> pd.Series:
     liquidity = _group_rank(df, "liquidity_score", ["market", "industry_peer_group"])
     score = fundamental * 0.45 + valuation * 0.25 + technical * 0.20 + liquidity * 0.10
     return score.clip(0, 100)
+
+
+def _valuation_peer_percentile(df: pd.DataFrame) -> pd.Series:
+    return _group_rank(df, "valuation_score", ["market", "industry_peer_group"])
 
 
 def _metric(row: pd.Series | None, column: str, default: float = np.nan) -> float:
@@ -448,8 +527,9 @@ def run_expert_model(
         return pd.DataFrame(), pd.DataFrame()
 
     snapshot_date = snapshots["trade_date"].max()
-    df = snapshots[snapshots["trade_date"] == snapshot_date].copy()
-    df = df.drop_duplicates(["market", "symbol"], keep="last")
+    df = snapshots.copy()
+    df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+    df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
     df = df.set_index(["market", "symbol"], drop=False)
 
     tag_text = (
@@ -496,13 +576,23 @@ def run_expert_model(
     board_fallback = df["board"] if "board" in df.columns else df["market"]
     df["industry_peer_group"] = pd.Series(industry_tag, dtype=object).reindex(df.index)
     df["industry_peer_group"] = df["industry_peer_group"].fillna(board_fallback).fillna(df["market"])
+    detailed_industries: list[str] = []
+    precomputed_matches: dict[tuple[str, str], list[HotTheme]] = {}
+    for key, row in df.iterrows():
+        symbol_tags = str(tag_text.get(key, ""))
+        matches = _theme_matches(row, symbol_tags)
+        precomputed_matches[key] = matches
+        detailed_industries.append(_detailed_industry(row, symbol_tags, matches))
+    df["detailed_industry"] = detailed_industries
+    df["industry_peer_group"] = df["detailed_industry"].fillna(df["industry_peer_group"])
     df["peer_score"] = _peer_scores(df)
+    df["valuation_percentile"] = _valuation_peer_percentile(df)
 
     rows: list[dict[str, object]] = []
     updated_at = pd.Timestamp(datetime.now())
     for key, row in df.iterrows():
         symbol_tags = str(tag_text.get(key, ""))
-        matches = _theme_matches(row, symbol_tags)
+        matches = precomputed_matches.get(key) or _theme_matches(row, symbol_tags)
         theme_score = _theme_score(matches)
 
         tech_row = tech.loc[key] if not tech.empty and key in tech.index else None
@@ -537,6 +627,8 @@ def run_expert_model(
         cap = float(row["market_cap_score"])
         peer_score = float(row["peer_score"])
         industry_peer_group = str(row["industry_peer_group"])
+        detailed_industry = str(row["detailed_industry"])
+        valuation_percentile = float(row["valuation_percentile"])
         risk_inverse = 100 - min(penalty, 100)
 
         graham_value = valuation * 0.75 + (100 if any(t.name == "高股息央国企防御" for t in matches) else 45) * 0.25
@@ -589,6 +681,8 @@ def run_expert_model(
             f"行业适配={industry_fit_score:.1f}",
             f"同类分位={peer_score:.1f}",
             f"同类组={industry_peer_group}",
+            f"细分行业={detailed_industry}",
+            f"估值同类分位={valuation_percentile:.1f}",
             f"主题分={theme_score:.1f}",
             f"技术信号={technical_signal}",
         ]
@@ -605,13 +699,16 @@ def run_expert_model(
                 "market": row["market"],
                 "symbol": row["symbol"],
                 "name": row["name"],
+                "canonical_id": None,
                 "expert_score": expert_score,
                 "master_score": float(np.clip(master_score, 0, 100)),
                 "china_master_score": float(np.clip(china_master_score, 0, 100)),
                 "fundamental_score": fundamental_score,
+                "detailed_industry": detailed_industry,
                 "industry_peer_group": industry_peer_group,
                 "peer_score": peer_score,
                 "industry_fit_score": industry_fit_score,
+                "valuation_percentile": valuation_percentile,
                 "theme_score": theme_score,
                 "technical_score": technical_score,
                 "liquidity_score": liquidity,
@@ -718,6 +815,9 @@ def _normalized_name_key(name: object) -> str | None:
 def _peer_group(row: pd.Series) -> str:
     market = str(row["market"])
     symbol = str(row["symbol"]).zfill(5 if market == "HK" else 6)
+    canonical_id = str(row.get("canonical_id") or "").strip()
+    if canonical_id and canonical_id.lower() not in {"none", "nan"}:
+        return canonical_id
     mapped = DUAL_LISTING_GROUPS.get((market, symbol))
     if mapped:
         return mapped
@@ -766,6 +866,9 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
         ("peer_score", 50.0),
         ("industry_fit_score", 50.0),
         ("industry_peer_group", ""),
+        ("detailed_industry", ""),
+        ("valuation_percentile", 50.0),
+        ("canonical_id", None),
     ]:
         if column not in candidates.columns:
             candidates[column] = default
@@ -817,7 +920,8 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
             f"A/H或同名主体只留最高分；主体={row['peer_group']}；"
             f"风格={row['style_bucket']}；同类组={row['industry_peer_group']}；"
             f"同类分位={float(row['peer_score']):.1f}；"
-            f"行业适配={float(row['industry_fit_score']):.1f}"
+            f"行业适配={float(row['industry_fit_score']):.1f}；"
+            f"估值同类分位={float(row['valuation_percentile']):.1f}"
         ),
         axis=1,
     )
@@ -833,12 +937,15 @@ def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_st
             "market",
             "symbol",
             "name",
+            "canonical_id",
             "expert_score",
             "fundamental_score",
             "technical_score",
+            "detailed_industry",
             "industry_peer_group",
             "peer_score",
             "industry_fit_score",
+            "valuation_percentile",
             "theme_matches",
             "reasons",
             "selection_note",

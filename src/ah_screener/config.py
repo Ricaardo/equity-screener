@@ -15,6 +15,7 @@ class Settings:
     db_path: Path
     min_a_amount: float = 20_000_000
     min_hk_amount: float = 5_000_000
+    min_us_amount: float = 3_000_000
 
 
 def get_settings() -> Settings:

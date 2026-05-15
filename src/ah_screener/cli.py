@@ -12,15 +12,18 @@ from rich.table import Table
 
 from ah_screener.config import get_settings
 from ah_screener.pipeline import (
+    backfill_refined_candidate_snapshots,
     backtest_refined_candidates,
     candidate_changes,
     classify_existing_securities,
+    compute_industry_valuation_stats,
     coverage_status,
     export_etf_candidates,
     export_expert_scores,
     export_refined_candidates,
     export_scores,
     fundamentals_status,
+    ingest_company_document,
     import_custom_tags,
     init_db,
     run_full_update,
@@ -32,13 +35,15 @@ from ah_screener.pipeline import (
     sync_curated_theme_tags,
     sync_fundamentals,
     sync_history,
+    sync_identity_mappings,
     sync_spot,
+    sync_us_spot,
 )
 from ah_screener.reporting import generate_report
 from ah_screener.scheduler import install_launchd_schedule, uninstall_launchd_schedule
 
 
-app = typer.Typer(help="A/H stock screener built on free data sources.")
+app = typer.Typer(help="A/H/US stock screener built on free data sources.")
 console = Console()
 
 
@@ -69,13 +74,28 @@ def init_db_command() -> None:
 
 @app.command("sync-spot")
 def sync_spot_command(
-    market: str = typer.Option("all", help="A, HK, ETF, or all."),
+    market: str = typer.Option("all", help="A, HK, US, ETF, or all."),
 ) -> None:
-    """Sync A-share, Hong Kong, and/or ETF market snapshots."""
+    """Sync A-share, Hong Kong, US, and/or ETF market snapshots."""
     normalized = market.upper()
-    if normalized not in {"A", "HK", "ETF", "ALL"}:
-        raise typer.BadParameter("market must be A, HK, ETF, or all")
+    if normalized not in {"A", "HK", "US", "ETF", "ALL"}:
+        raise typer.BadParameter("market must be A, HK, US, ETF, or all")
     result = sync_spot("all" if normalized == "ALL" else normalized)  # type: ignore[arg-type]
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
+@app.command("sync-us-spot")
+def sync_us_spot_command(
+    symbols: str = typer.Option(
+        "AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,BABA,SPY,QQQ",
+        help="Comma-separated US symbols for a focused free-source sync.",
+    ),
+    lookback_days: int = typer.Option(14, help="Recent calendar days used to find latest close."),
+) -> None:
+    """Sync a focused US symbol set from Nasdaq Trader metadata and free daily prices."""
+    items = [item.strip().upper() for item in symbols.split(",") if item.strip()]
+    result = sync_us_spot(items, lookback_days=lookback_days)
     for key, count in result.items():
         console.print(f"{key}: {count}")
 
@@ -108,6 +128,13 @@ def sync_curated_tags_command() -> None:
     console.print(f"Curated theme tags: {count}")
 
 
+@app.command("sync-identity-mappings")
+def sync_identity_mappings_command() -> None:
+    """Write curated A/H/US same-company mappings into company_identity_mappings."""
+    count = sync_identity_mappings()
+    console.print(f"Identity mappings: {count}")
+
+
 @app.command("import-tags")
 def import_tags_command(
     path: Path = typer.Option(Path("data/custom_tags.csv"), help="CSV path with market,symbol,tag_name columns."),
@@ -127,14 +154,14 @@ def score_command() -> None:
 
 @app.command("sync-history")
 def sync_history_command(
-    market: str = typer.Option("all", help="A, HK, or all."),
+    market: str = typer.Option("all", help="A, HK, US, or all."),
     top: int = typer.Option(150, help="Top liquid names per market to fetch."),
     lookback_days: int = typer.Option(420, help="Calendar lookback days."),
 ) -> None:
     """Sync historical daily prices for the most liquid names."""
     normalized = market.upper()
-    if normalized not in {"A", "HK", "ALL"}:
-        raise typer.BadParameter("market must be A, HK, or all")
+    if normalized not in {"A", "HK", "US", "ALL"}:
+        raise typer.BadParameter("market must be A, HK, US, or all")
     result = sync_history(
         "all" if normalized == "ALL" else normalized,  # type: ignore[arg-type]
         top=top,
@@ -148,7 +175,7 @@ def sync_history_command(
 def sync_benchmarks_command(
     benchmarks: Optional[str] = typer.Option(
         None,
-        help="Comma-separated benchmarks, for example A:000300,HK:HSI. Defaults to common A/H indexes.",
+        help="Comma-separated benchmarks, for example A:000300,HK:HSI,US:SPY.",
     ),
     lookback_days: int = typer.Option(430, help="Calendar lookback days."),
 ) -> None:
@@ -168,13 +195,13 @@ def technical_command() -> None:
 
 @app.command("sync-fundamentals")
 def sync_fundamentals_command(
-    market: str = typer.Option("all", help="A, HK, or all."),
+    market: str = typer.Option("all", help="A, HK, US, or all."),
     top: int = typer.Option(120, help="Top liquid names per market to fetch fundamentals."),
 ) -> None:
     """Sync financial statements and standardized fundamental metrics."""
     normalized = market.upper()
-    if normalized not in {"A", "HK", "ALL"}:
-        raise typer.BadParameter("market must be A, HK, or all")
+    if normalized not in {"A", "HK", "US", "ALL"}:
+        raise typer.BadParameter("market must be A, HK, US, or all")
     result = sync_fundamentals(
         "all" if normalized == "ALL" else normalized,  # type: ignore[arg-type]
         top=top,
@@ -302,6 +329,8 @@ def expert_export_command(
         "symbol",
         "name",
         "expert_score",
+        "detailed_industry",
+        "valuation_percentile",
         "peer_score",
         "industry_fit_score",
         "decision",
@@ -315,6 +344,8 @@ def expert_export_command(
             str(row["symbol"]),
             str(row["name"]),
             f"{float(row['expert_score']):.1f}",
+            str(row.get("detailed_industry") or ""),
+            _fmt_optional_float(row.get("valuation_percentile")),
             _fmt_optional_float(row.get("peer_score")),
             _fmt_optional_float(row.get("industry_fit_score")),
             str(row["decision"]),
@@ -344,6 +375,8 @@ def refined_export_command(
         "expert_score",
         "fundamental_score",
         "technical_score",
+        "detailed_industry",
+        "valuation_percentile",
         "peer_score",
         "industry_fit_score",
         "selection_note",
@@ -360,6 +393,8 @@ def refined_export_command(
             f"{float(row['expert_score']):.1f}",
             f"{float(row['fundamental_score']):.1f}",
             f"{float(row['technical_score']):.1f}",
+            str(row.get("detailed_industry") or ""),
+            _fmt_optional_float(row.get("valuation_percentile")),
             _fmt_optional_float(row.get("peer_score")),
             _fmt_optional_float(row.get("industry_fit_score")),
             str(row["selection_note"]),
@@ -447,6 +482,62 @@ def candidate_changes_command() -> None:
     console.print(table)
 
 
+@app.command("industry-valuation-stats")
+def industry_valuation_stats_command() -> None:
+    """Compute latest fine-grained industry valuation percentile summary."""
+    count = compute_industry_valuation_stats()
+    console.print(f"Industry valuation stats: {count}")
+
+
+@app.command("ingest-document")
+def ingest_document_command(
+    market: str = typer.Option(..., help="A, HK, or US."),
+    symbol: str = typer.Option(..., help="Security symbol."),
+    path: Path = typer.Option(..., help="Local PDF/TXT/MD annual report or announcement path."),
+    document_type: str = typer.Option("annual_report", help="annual_report, announcement, filing, etc."),
+    report_date: Optional[str] = typer.Option(None, help="Report date in YYYY-MM-DD format."),
+    title: Optional[str] = typer.Option(None, help="Document title."),
+    source_url: Optional[str] = typer.Option(None, help="Official source URL, such as HKEXnews."),
+    source: str = typer.Option("official_pdf", help="Source label stored with extracted evidence."),
+) -> None:
+    """Parse an official PDF/announcement and write evidence tags plus extracted signals."""
+    normalized = market.upper()
+    if normalized not in {"A", "HK", "US"}:
+        raise typer.BadParameter("market must be A, HK, or US")
+    result = ingest_company_document(
+        market=normalized,
+        symbol=symbol,
+        path=path,
+        document_type=document_type,
+        report_date=report_date,
+        title=title,
+        source_url=source_url,
+        source=source,
+    )
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
+@app.command("backfill-refined-snapshots")
+def backfill_refined_snapshots_command(
+    min_snapshots: int = typer.Option(6, help="Minimum refined snapshots to keep for backtests."),
+    rebalance: str = typer.Option("quarterly", help="snapshot, monthly, or quarterly."),
+    max_per_bucket: int = typer.Option(3, help="Maximum candidates per theme bucket."),
+    max_per_style: int = typer.Option(2, help="Maximum candidates per style bucket before fill."),
+) -> None:
+    """Create historical replay refined snapshots from stored real daily prices."""
+    normalized = rebalance.lower()
+    if normalized not in {"snapshot", "monthly", "quarterly"}:
+        raise typer.BadParameter("rebalance must be snapshot, monthly, or quarterly")
+    count = backfill_refined_candidate_snapshots(
+        min_snapshots=min_snapshots,
+        rebalance=normalized,  # type: ignore[arg-type]
+        max_per_bucket=max_per_bucket,
+        max_per_style=max_per_style,
+    )
+    console.print(f"Backfilled refined candidate rows: {count}")
+
+
 @app.command("backtest")
 def backtest_command(
     initial_capital: float = typer.Option(1_000_000, help="Starting capital."),
@@ -462,7 +553,7 @@ def backtest_command(
     max_per_group: int = typer.Option(2, help="Maximum holdings per peer group when industry-neutral."),
     benchmark: Optional[str] = typer.Option(
         None,
-        help="Optional benchmark in MARKET:SYMBOL format, for example A:000300 or HK:HSI.",
+        help="Optional benchmark in MARKET:SYMBOL format, for example A:000300, HK:HSI, or US:SPY.",
     ),
 ) -> None:
     """Run an equal-weight backtest over stored refined snapshots."""

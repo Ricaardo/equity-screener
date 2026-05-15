@@ -13,9 +13,10 @@ from ah_screener.classification import (
     infer_status,
     is_st_name,
 )
+from ah_screener.sources.us_client import fetch_us_history, fetch_us_spot
 
 
-Market = Literal["A", "HK"]
+Market = Literal["A", "HK", "US"]
 DEFAULT_BENCHMARKS = [
     "A:000300",  # 沪深 300
     "A:000905",  # 中证 500
@@ -25,6 +26,8 @@ DEFAULT_BENCHMARKS = [
     "HK:HSI",  # 恒生指数
     "HK:HSCEI",  # 恒生中国企业指数
     "HK:HSTECH",  # 恒生科技指数
+    "US:SPY",  # S&P 500 ETF proxy
+    "US:QQQ",  # Nasdaq 100 ETF proxy
 ]
 
 
@@ -51,11 +54,17 @@ def _clean_hk_symbol(series: pd.Series) -> pd.Series:
     return series.astype(str).str.lower().str.replace(r"^hk", "", regex=True).str.zfill(5)
 
 
+def _clean_us_symbol(series: pd.Series) -> pd.Series:
+    return series.astype(str).str.strip().str.upper().str.replace("/", ".", regex=False)
+
+
 def _clean_benchmark_symbol(market: Market, symbol: str) -> str:
     raw = str(symbol).strip()
     if market == "A":
         return raw.lower().replace("sh", "").replace("sz", "").replace("bj", "").zfill(6)
-    return raw.upper().removeprefix("HK")
+    if market == "HK":
+        return raw.upper().removeprefix("HK")
+    return raw.upper().replace("/", ".")
 
 
 def parse_benchmark(benchmark: str) -> tuple[Market, str]:
@@ -63,8 +72,8 @@ def parse_benchmark(benchmark: str) -> tuple[Market, str]:
         raise ValueError("Benchmark must use MARKET:SYMBOL format, such as A:000300 or HK:HSI.")
     market_raw, symbol_raw = benchmark.split(":", 1)
     market = market_raw.upper().strip()
-    if market not in {"A", "HK"}:
-        raise ValueError("Benchmark market must be A or HK.")
+    if market not in {"A", "HK", "US"}:
+        raise ValueError("Benchmark market must be A, HK, or US.")
     symbol = _clean_benchmark_symbol(market, symbol_raw)
     return market, symbol  # type: ignore[return-value]
 
@@ -229,6 +238,8 @@ def fetch_spot(market: Market) -> tuple[pd.DataFrame, pd.DataFrame]:
             hk_connect_source=hk_connect_source,
             hk_connect_confidence=hk_connect_confidence,
         )
+    if market == "US":
+        return fetch_us_spot()
     raise ValueError(f"Unsupported market: {market}")
 
 
@@ -352,7 +363,9 @@ def _normalize_history(
             "market": market,
             "symbol": _clean_a_symbol(pd.Series([symbol])).iloc[0]
             if market == "A"
-            else _clean_hk_symbol(pd.Series([symbol])).iloc[0],
+            else _clean_hk_symbol(pd.Series([symbol])).iloc[0]
+            if market == "HK"
+            else _clean_us_symbol(pd.Series([symbol])).iloc[0],
             "trade_date": date_series,
             "open": _number(_first_existing(raw, ["开盘", "open"])),
             "high": _number(_first_existing(raw, ["最高", "high"])),
@@ -466,6 +479,8 @@ def fetch_history(
                 ),
             ),
         ]
+    elif market == "US":
+        return fetch_us_history(symbol=symbol, start_date=start_date, end_date=end_date, adjust=adjust)
     else:
         raise ValueError(f"Unsupported market: {market}")
 
@@ -506,12 +521,18 @@ def fetch_benchmark_history(benchmark: str, start_date: str, end_date: str) -> p
                 lambda: ak.stock_zh_index_daily(symbol=_a_index_symbol(clean)),
             ),
         ]
-    else:
+    elif market == "HK":
         clean = _clean_benchmark_symbol(market, symbol)
         calls = [
             ("akshare.stock_hk_index_daily_em", lambda: ak.stock_hk_index_daily_em(symbol=clean)),
             ("akshare.stock_hk_index_daily_sina", lambda: ak.stock_hk_index_daily_sina(symbol=clean)),
         ]
+    else:
+        history = fetch_us_history(symbol=symbol, start_date=start_date, end_date=end_date)
+        history = history.copy()
+        history["adj_type"] = "benchmark"
+        history["source"] = history["source"].astype(str) + ".benchmark"
+        return history
 
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)

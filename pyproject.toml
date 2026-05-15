@@ -10,14 +10,21 @@ readme = "README.md"
 requires-python = ">=3.10,<3.14"
 dependencies = [
   "akshare>=1.16.0,<2",
+  "beautifulsoup4>=4.12.0,<5",
   "duckdb>=1.1.0,<2",
+  "lxml>=5.0.0,<7",
   "pandas>=2.2.0,<3",
+  "pypdf>=5.0.0,<7",
+  "requests>=2.31.0,<3",
   "rich>=13.7.0,<15",
   "tabulate>=0.9.0,<1",
   "typer>=0.12.0,<0.20",
 ]
 
 [project.optional-dependencies]
+pdf = [
+  "pdfplumber>=0.11.0,<1",
+]
 ui = [
   "streamlit==1.51.0",
 ]

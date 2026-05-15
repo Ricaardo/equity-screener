@@ -22,9 +22,12 @@ def _candidate(
         "market": market,
         "symbol": symbol,
         "name": name,
+        "canonical_id": None,
         "expert_score": score,
         "fundamental_score": 75,
         "technical_score": 70,
+        "detailed_industry": "测试行业",
+        "valuation_percentile": 70,
         "liquidity_score": 70,
         "valuation_score": style_value,
         "peer_score": 70,
@@ -57,3 +60,23 @@ class RefineCandidatesTest(TestCase):
         self.assertEqual(byd.iloc[0]["market"], "HK")
         self.assertEqual(len(high_dividend), 2)
         self.assertTrue(refined["selection_note"].str.contains("A/H或同名主体只留最高分").all())
+
+    def test_deduplicates_by_canonical_id_across_hk_and_us(self) -> None:
+        results = pd.DataFrame(
+            [
+                {
+                    **_candidate("HK", "09988", "阿里巴巴-W", 78, "港股AI互联网平台"),
+                    "canonical_id": "阿里巴巴",
+                },
+                {
+                    **_candidate("US", "BABA", "Alibaba", 82, "港股AI互联网平台"),
+                    "canonical_id": "阿里巴巴",
+                },
+            ]
+        )
+
+        refined = refine_candidates(results, max_per_bucket=3)
+
+        self.assertEqual(len(refined), 1)
+        self.assertEqual(refined.iloc[0]["market"], "US")
+        self.assertEqual(refined.iloc[0]["peer_group"], "阿里巴巴")

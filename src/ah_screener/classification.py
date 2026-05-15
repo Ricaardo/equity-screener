@@ -30,6 +30,21 @@ def infer_a_exchange(symbol: object) -> str:
     return "UNKNOWN"
 
 
+def infer_us_exchange(value: object) -> str:
+    text = str(value or "").strip().upper()
+    mapping = {
+        "Q": "NASDAQ",
+        "G": "NASDAQ",
+        "S": "NASDAQ",
+        "N": "NYSE",
+        "A": "NYSE_AMERICAN",
+        "P": "NYSE_ARCA",
+        "Z": "CBOE_BZX",
+        "V": "INVESTORS_EXCHANGE",
+    }
+    return mapping.get(text, text or "UNKNOWN")
+
+
 def infer_a_board(symbol: object, asset_type: object = "stock") -> str:
     clean = str(symbol or "").zfill(6)
     if normalize_asset_type(asset_type) == "etf":
@@ -47,6 +62,15 @@ def infer_a_board(symbol: object, asset_type: object = "stock") -> str:
     return "其他A股"
 
 
+def infer_us_board(exchange: object, asset_type: object = "stock") -> str:
+    if normalize_asset_type(asset_type) == "etf":
+        return "US ETF"
+    normalized = infer_us_exchange(exchange)
+    if normalized in {"NASDAQ", "NYSE", "NYSE_ARCA", "NYSE_AMERICAN", "CBOE_BZX"}:
+        return normalized
+    return "US Other"
+
+
 def infer_board(market: object, symbol: object, name: object, asset_type: object, is_hk_connect: object = False) -> str:
     normalized_market = str(market or "").upper()
     normalized_asset_type = normalize_asset_type(asset_type)
@@ -56,6 +80,8 @@ def infer_board(market: object, symbol: object, name: object, asset_type: object
         return infer_a_board(symbol, normalized_asset_type)
     if normalized_market == "HK":
         return "港股通" if bool(is_hk_connect) else "非港股通"
+    if normalized_market == "US":
+        return infer_us_board("", normalized_asset_type)
     return "其他"
 
 
@@ -92,7 +118,9 @@ def enrich_security_metadata(df: pd.DataFrame) -> pd.DataFrame:
         axis=1,
     )
     enriched["board"] = enriched.apply(
-        lambda row: infer_board(
+        lambda row: infer_us_board(row.get("exchange"), row.get("asset_type"))
+        if str(row.get("market") or "").upper() == "US"
+        else infer_board(
             row.get("market"),
             row.get("symbol"),
             row.get("name"),

@@ -4,13 +4,15 @@ import math
 import json
 from datetime import datetime
 from time import sleep
-from typing import Literal
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
 
+from ah_screener.sources.us_client import fetch_sec_companyfacts
 
-Market = Literal["A", "HK"]
+
+Market = Literal["A", "HK", "US"]
 
 
 STATEMENTS = ("income", "balance", "cashflow")
@@ -81,6 +83,10 @@ def _clean_a_symbol(symbol: str) -> str:
 
 def _clean_hk_symbol(symbol: str) -> str:
     return str(symbol).lower().replace("hk", "").zfill(5)
+
+
+def _clean_us_symbol(symbol: str) -> str:
+    return str(symbol).strip().upper().replace("/", ".")
 
 
 def _a_report_symbol(symbol: str) -> str:
@@ -635,6 +641,213 @@ def _hk_metric_row(
     )
 
 
+SEC_FACT_TAGS: dict[str, tuple[str, ...]] = {
+    "revenue": (
+        "Revenues",
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "SalesRevenueNet",
+    ),
+    "gross_profit": ("GrossProfit",),
+    "parent_net_profit": ("NetIncomeLoss", "ProfitLoss"),
+    "operating_cashflow": ("NetCashProvidedByUsedInOperatingActivities",),
+    "total_assets": ("Assets",),
+    "total_liabilities": ("Liabilities",),
+    "total_equity": ("StockholdersEquity", "StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest"),
+    "rd_expense": ("ResearchAndDevelopmentExpense", "ResearchAndDevelopmentExpenseExcludingAcquiredInProcessCost"),
+    "capex": ("PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"),
+}
+
+
+def _sec_fact_rows(companyfacts: dict[str, Any], tags: tuple[str, ...]) -> pd.DataFrame:
+    facts = companyfacts.get("facts", {}).get("us-gaap", {})
+    rows: list[dict[str, object]] = []
+    for tag in tags:
+        concept = facts.get(tag)
+        if not concept:
+            continue
+        units = concept.get("units", {})
+        unit_rows = units.get("USD") or units.get("USD/shares") or []
+        for item in unit_rows:
+            value = _num(item.get("val"))
+            end = pd.to_datetime(item.get("end"), errors="coerce")
+            if math.isnan(value) or pd.isna(end):
+                continue
+            rows.append(
+                {
+                    "tag": tag,
+                    "REPORT_DATE": end,
+                    "REPORT_TYPE": item.get("form"),
+                    "FISCAL_YEAR": item.get("fy"),
+                    "FISCAL_PERIOD": item.get("fp"),
+                    "FILED": item.get("filed"),
+                    "AMOUNT": value,
+                }
+            )
+    if not rows:
+        return pd.DataFrame()
+    frame = pd.DataFrame(rows)
+    frame["FILED"] = pd.to_datetime(frame["FILED"], errors="coerce")
+    return frame.sort_values(["REPORT_DATE", "FILED"], ascending=[False, False])
+
+
+def _latest_annual_fact(companyfacts: dict[str, Any], tags: tuple[str, ...]) -> pd.Series | None:
+    rows = _sec_fact_rows(companyfacts, tags)
+    if rows.empty:
+        return None
+    annual = rows[
+        rows["REPORT_TYPE"].astype(str).str.upper().isin(["10-K", "20-F", "40-F"])
+        | rows["FISCAL_PERIOD"].astype(str).str.upper().eq("FY")
+    ]
+    selected = annual if not annual.empty else rows
+    selected = selected.drop_duplicates(["REPORT_DATE"], keep="first")
+    return selected.iloc[0] if not selected.empty else None
+
+
+def _annual_fact_history(companyfacts: dict[str, Any], tags: tuple[str, ...], column: str) -> pd.DataFrame:
+    rows = _sec_fact_rows(companyfacts, tags)
+    if rows.empty:
+        return pd.DataFrame(columns=["REPORT_DATE", column])
+    annual = rows[
+        rows["REPORT_TYPE"].astype(str).str.upper().isin(["10-K", "20-F", "40-F"])
+        | rows["FISCAL_PERIOD"].astype(str).str.upper().eq("FY")
+    ]
+    selected = annual if not annual.empty else rows
+    selected = selected.drop_duplicates(["REPORT_DATE"], keep="first").copy()
+    return selected.rename(columns={"AMOUNT": column})[["REPORT_DATE", column]]
+
+
+def _sec_items(
+    symbol: str,
+    companyfacts: dict[str, Any],
+    source: str,
+) -> pd.DataFrame:
+    rows: list[dict[str, object]] = []
+    updated_at = _now()
+    for item_code, tags in SEC_FACT_TAGS.items():
+        facts = _sec_fact_rows(companyfacts, tags).head(8)
+        for _, row in facts.iterrows():
+            rows.append(
+                {
+                    "market": "US",
+                    "symbol": _clean_us_symbol(symbol),
+                    "statement_type": "sec_companyfacts",
+                    "report_date": row["REPORT_DATE"],
+                    "report_type": row.get("REPORT_TYPE"),
+                    "item_code": str(row["tag"]),
+                    "item_name": item_code,
+                    "amount": row["AMOUNT"],
+                    "currency": "USD",
+                    "source": source,
+                    "updated_at": updated_at,
+                }
+            )
+    return pd.DataFrame(rows)
+
+
+def _us_metric_row(
+    symbol: str,
+    meta: dict[str, Any],
+    companyfacts: dict[str, Any],
+    snapshot_date: pd.Timestamp,
+) -> pd.DataFrame:
+    values: dict[str, float] = {}
+    report_dates: list[pd.Timestamp] = []
+    for metric, tags in SEC_FACT_TAGS.items():
+        latest = _latest_annual_fact(companyfacts, tags)
+        values[metric] = _num(latest["AMOUNT"]) if latest is not None else np.nan
+        if latest is not None:
+            report_dates.append(pd.to_datetime(latest["REPORT_DATE"]))
+
+    report_date = max(report_dates) if report_dates else pd.NaT
+    revenue = values["revenue"]
+    parent_profit = values["parent_net_profit"]
+    gross_profit = values["gross_profit"]
+    total_assets = values["total_assets"]
+    total_liabilities = values["total_liabilities"]
+    total_equity = values["total_equity"]
+    operating_cashflow = values["operating_cashflow"]
+    rd_expense = values["rd_expense"]
+    capex = abs(values["capex"]) if not math.isnan(values["capex"]) else np.nan
+
+    revenue_history = _annual_fact_history(companyfacts, SEC_FACT_TAGS["revenue"], "TOTALOPERATEREVE")
+    profit_history = _annual_fact_history(companyfacts, SEC_FACT_TAGS["parent_net_profit"], "PARENTNETPROFIT")
+    indicators = revenue_history.merge(profit_history, on="REPORT_DATE", how="outer")
+    if not indicators.empty:
+        indicators["ROE_YEARLY"] = parent_profit / total_equity * 100 if total_equity and total_equity > 0 else np.nan
+        indicators["NET_PROFIT_RATIO"] = parent_profit / revenue * 100 if revenue and revenue > 0 else np.nan
+    trend = _fundamental_trend_metrics(
+        indicators,
+        revenue_names=["TOTALOPERATEREVE"],
+        profit_names=["PARENTNETPROFIT"],
+        roe_names=["ROE_YEARLY"],
+        margin_names=["NET_PROFIT_RATIO"],
+    )
+
+    history_sorted = revenue_history.sort_values("REPORT_DATE", ascending=False)
+    revenue_yoy = np.nan
+    if len(history_sorted) >= 2 and _num(history_sorted.iloc[1]["TOTALOPERATEREVE"]) > 0:
+        revenue_yoy = (
+            revenue / _num(history_sorted.iloc[1]["TOTALOPERATEREVE"]) - 1
+        ) * 100
+    profit_sorted = profit_history.sort_values("REPORT_DATE", ascending=False)
+    net_profit_yoy = np.nan
+    if len(profit_sorted) >= 2 and _num(profit_sorted.iloc[1]["PARENTNETPROFIT"]) != 0:
+        previous_profit = _num(profit_sorted.iloc[1]["PARENTNETPROFIT"])
+        net_profit_yoy = (parent_profit / abs(previous_profit) - 1) * 100
+
+    roe = parent_profit / total_equity * 100 if total_equity and total_equity > 0 else np.nan
+    roa = parent_profit / total_assets * 100 if total_assets and total_assets > 0 else np.nan
+    gross_margin = gross_profit / revenue * 100 if revenue and revenue > 0 else np.nan
+    net_margin = parent_profit / revenue * 100 if revenue and revenue > 0 else np.nan
+    debt_asset_ratio = (
+        total_liabilities / total_assets * 100 if total_assets and total_assets > 0 else np.nan
+    )
+    cashflow_to_profit = (
+        operating_cashflow / parent_profit if parent_profit and parent_profit > 0 else np.nan
+    )
+    ocf_to_revenue = operating_cashflow / revenue * 100 if revenue and revenue > 0 else np.nan
+
+    scores = _quality_scores(
+        roe=roe,
+        gross_margin=gross_margin,
+        net_margin=net_margin,
+        debt_asset_ratio=debt_asset_ratio,
+        cashflow_to_profit=cashflow_to_profit,
+        revenue_yoy=revenue_yoy,
+        net_profit_yoy=net_profit_yoy,
+    )
+    return _metric_frame(
+        snapshot_date,
+        "US",
+        _clean_us_symbol(symbol),
+        meta.get("title", symbol),
+        report_date,
+        "10-K/20-F",
+        revenue,
+        revenue_yoy,
+        gross_profit,
+        parent_profit,
+        net_profit_yoy,
+        np.nan,
+        operating_cashflow,
+        total_assets,
+        total_liabilities,
+        total_equity,
+        roe,
+        roa,
+        gross_margin,
+        net_margin,
+        debt_asset_ratio,
+        np.nan,
+        cashflow_to_profit,
+        ocf_to_revenue,
+        rd_expense,
+        capex,
+        scores,
+        trend,
+    )
+
+
 def fetch_fundamentals(market: Market, symbol: str, snapshot_date: pd.Timestamp) -> tuple[pd.DataFrame, pd.DataFrame]:
     import akshare as ak
 
@@ -674,6 +887,11 @@ def fetch_fundamentals(market: Market, symbol: str, snapshot_date: pd.Timestamp)
             ]
         )
         metrics = _hk_metric_row(clean, indicators, income, balance, cashflow, snapshot_date)
+    elif market == "US":
+        meta, companyfacts = fetch_sec_companyfacts(symbol)
+        source = "sec.edgar.companyfacts"
+        items.append(_sec_items(symbol, companyfacts, source))
+        metrics = _us_metric_row(symbol, meta, companyfacts, snapshot_date)
     else:
         raise ValueError(f"Unsupported market: {market}")
 

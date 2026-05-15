@@ -1,22 +1,22 @@
-# A 股 + 港股免费数据筛选系统技术方案
+# A 股 + 港股 + 美股免费数据筛选系统技术方案
 
 ## 1. 目标
 
 面向个人投资者，建立一个本地运行、免费数据源优先、可解释、可扩展的股票筛选系统。
 
-第一阶段覆盖：
+当前阶段覆盖：
 
 - A 股：沪深北上市公司。
 - 港股：港交所上市普通股。
+- 美股：以 Nasdaq Trader、AKShare/Stooq 和 SEC EDGAR 为免费源。
 - ETF：第一阶段接入 A 股场内 ETF。
 - 数据源：免费、可脚本化、可本地缓存。
 - 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown 报告和本地看板。
 
-第二阶段扩展：
+已增强能力：
 
-- 美股：接入 SEC EDGAR、Nasdaq Trader、yfinance、FRED 等。
-- 年报文本解析：从年报和公告中抽取主营业务、风险和主题标签。
-- 回测：验证筛选规则在历史区间中的有效性。
+- 年报文本解析：从官方 PDF 或文本中抽取主营业务、风险、审计意见和主题标签。
+- 回测：支持真实日线上的多期历史回放候选快照。
 
 ## 2. 设计原则
 
@@ -24,7 +24,7 @@
 - 先排雷，再排序，最后人工研究。
 - 所有外部数据先落本地库，避免重复抓取和接口波动。
 - 每个标签和评分都保留来源，方便追溯。
-- A 股和港股使用统一数据模型，美股后续作为新 market 接入。
+- A 股、港股和美股使用统一数据模型。
 - 港股免费概念数据弱，因此行业和主题标签必须支持自建、覆盖和证据等级。
 
 ## 3. 免费数据源
@@ -53,6 +53,15 @@
 | 公告/年报 | HKEXnews 披露易 | 官方校验、后续文本解析 |
 | 行业/主题 | AKShare、yfinance、自建标签 | 初始分类和人工增强 |
 | 三表与财务指标 | AKShare 东方财富港股财务接口 | 利润表、资产负债表、现金流量表、ROE、利润率、负债率、现金流质量 |
+
+### 美股
+
+| 数据类型 | 首选免费源 | 用途 |
+| --- | --- | --- |
+| 证券列表 | Nasdaq Trader symbol directory | 建立 `market = US` 主表、交易所和 ETF 标识 |
+| 历史行情/快照 | AKShare `stock_us_daily`，Stooq CSV 备用 | 趋势、回测、最新收盘快照 |
+| 基本面 | SEC EDGAR Company Facts | 美元收入、利润、资产负债、现金流、研发和资本开支 |
+| 同主体映射 | 内置策展映射表 | A/H/US ADR 或多地上市主体去重 |
 
 ## 4. 数据模型
 
@@ -108,6 +117,40 @@ company_tags
 - tag_type: industry / concept / theme / risk
 - tag_name
 - evidence_level: A / B / C
+- source
+- updated_at
+
+company_identity_mappings
+- canonical_id
+- market
+- symbol
+- listing_type
+- source
+- confidence
+- updated_at
+
+company_documents
+- document_id
+- market
+- symbol
+- document_type
+- report_date
+- title
+- source_url
+- local_path
+- file_sha256
+- source
+- updated_at
+
+document_extractions
+- document_id
+- market
+- symbol
+- extract_type
+- extract_key
+- extract_value
+- evidence_text
+- evidence_level
 - source
 - updated_at
 
@@ -214,13 +257,16 @@ expert_screening_results
 - market
 - symbol
 - name
+- canonical_id
 - expert_score
 - master_score
 - china_master_score
 - fundamental_score
+- detailed_industry
 - industry_peer_group
 - peer_score
 - industry_fit_score
+- valuation_percentile
 - theme_score
 - technical_score
 - liquidity_score
@@ -241,12 +287,15 @@ refined_candidates
 - market
 - symbol
 - name
+- canonical_id
 - expert_score
 - fundamental_score
 - technical_score
+- detailed_industry
 - industry_peer_group
 - peer_score
 - industry_fit_score
+- valuation_percentile
 - theme_matches
 - selection_note
 - reasons
@@ -335,8 +384,8 @@ expert_score =
 
 - 先按主题进入 bucket，例如 AI 算力硬件、半导体国产替代、港股 AI 互联网平台、高股息资源防御。
 - 再按风格进入 style_bucket，例如科技成长、科技成长偏估值、红利防御、资源周期、医药成长、智能汽车、能源转型。
-- 同时计算 industry_peer_group、peer_score 和 industry_fit_score，用于同主题内排序和人工复核。
-- A/H 两地上市或同名主体进入同一个 peer_group，只保留专家分最高的一只。
+- 同时计算 detailed_industry、industry_peer_group、peer_score、valuation_percentile 和 industry_fit_score，用于同主题内排序和人工复核。
+- A/H/US 多地上市或同名主体进入同一个 peer_group，只保留专家分最高的一只。
 - 每个主题默认最多保留 3 只；同一风格优先最多保留 2 只，不足时按总分补齐。
 - 提炼结果落库到 `refined_candidates`，保留 `selection_note` 说明为什么入选。
 
@@ -372,14 +421,14 @@ ah-stock-screener/
 ah-screener init-db
 ```
 
-第二步：同步 A 股和港股快照。
+第二步：同步 A 股、港股和美股快照。
 
 ```bash
 ah-screener sync-spot --market all
 ah-screener classify-securities
 ```
 
-`sync-spot --market all` 会同步 A 股股票、港股股票和 A 股 ETF；`classify-securities` 会回填主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF 类型。
+`sync-spot --market all` 会同步 A 股股票、港股股票、美股默认池和 A 股 ETF；`classify-securities` 会回填主板、创业板、科创板、北交所、港股通、美股交易所、ST/退市风险和 ETF 类型。
 
 第三步：同步 A 股行业/概念标签，并写入内置策展主题标签。
 
@@ -387,6 +436,7 @@ ah-screener classify-securities
 ah-screener sync-a-tags --kind industry --limit 50
 ah-screener sync-a-tags --kind concept --limit 100
 ah-screener sync-curated-tags
+ah-screener sync-identity-mappings
 ```
 
 如果需要自建标签，可复制 `data/custom_tags.example.csv` 为 `data/custom_tags.csv`，然后运行：
@@ -464,12 +514,10 @@ ah-screener install-schedule --hour 18 --minute 30
 
 ## 8. 后续增强
 
-- 接入年报/公告 PDF 下载和文本解析。
-- 扩展港股自建主题标签：当前已支持 CSV 导入和内置策展主题落库，后续补更多可验证来源。
-- 扩展行业内分位数评分：当前已纳入专家模型，后续补充更多港股细分行业和行业估值分位。
-- 扩展多期财务质量评分：当前已纳入收入/利润 CAGR、ROE 均值、稳定性、研发费用率、资本开支效率和行业化阈值，后续补更多细分行业口径。
-- 扩展回测模块：当前已支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费、滑点和 A/H 免费指数基准对比，后续补更长历史样本。
-- 接入美股：SEC EDGAR + Nasdaq Trader + yfinance。
+- 严格点时回测：继续依赖定时任务自然积累每日 `refined_candidates`，历史回放只用于先验证链路。
+- 港股公告自动下载：当前已支持本地 HKEXnews/公司 PDF 解析，后续可接披露易搜索自动下载。
+- 行业口径治理：当前已有细分行业和估值分位，后续可把人工行业映射表独立成可编辑 CSV。
+- 美股覆盖扩展：当前覆盖默认大盘和 ADR 池，后续可按 Nasdaq Trader 全量列表分批同步。
 
 ## 9. 看板和自动化
 
@@ -487,7 +535,7 @@ ah-screener install-schedule --hour 18 --minute 30
 
 自动化链路由 `ah-screener update-all` 串起：
 
-- 同步 A 股和港股行情快照。
+- 同步 A 股、港股和美股行情快照。
 - 更新 A 股行业和概念标签。
 - 计算基础评分。
 - 同步历史行情并计算技术指标。

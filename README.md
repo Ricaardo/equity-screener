@@ -1,21 +1,21 @@
-# A/H Stock Screener
+# A/H/US Stock Screener
 
-本项目是一个面向个人投资者的 A 股 + 港股免费数据筛选工具。第一版以 AKShare 为主要结构化数据入口，使用 DuckDB 做本地缓存，提供 CLI 和 Streamlit 看板。
+本项目是一个面向个人投资者的 A 股 + 港股 + 美股免费数据筛选工具。第一版以 AKShare、Nasdaq Trader、SEC EDGAR 等免费/公开数据入口为主，使用 DuckDB 做本地缓存，提供 CLI 和 Streamlit 看板。
 
 完整技术方案见 [docs/technical-solution.md](docs/technical-solution.md)。
 
 ## 功能
 
-- 同步 A 股、港股和 A 股 ETF 市场快照。
-- 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、ST/退市风险和 ETF。
+- 同步 A 股、港股、美股和 A 股 ETF 市场快照。
+- 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、美股交易所、ST/退市风险和 ETF。
 - 同步 A 股行业和概念标签。
-- 支持内置策展主题标签和自建 CSV 标签导入，补足港股免费概念数据不足。
+- 支持内置策展主题标签、自建 CSV 标签和官方 PDF/公告解析标签导入，补足港股免费概念数据不足。
 - 基于估值、流动性、主题和风险做可解释评分。
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 基本面分纳入多期收入/利润 CAGR、ROE 均值、稳定性、研发费用率和资本开支效率。
-- 专家模型加入行业/同类分位数和行业化基本面阈值，降低跨行业直接比较的偏差。
-- 内置欧美和中国投资大师框架，面向 A 股和港股做专家筛选。
-- 按主题和相似标的去重提炼，每个方向只保留最好几个候选。
+- 专家模型加入细分行业、行业/同类估值分位数和行业化基本面阈值，降低跨行业直接比较的偏差。
+- 内置欧美和中国投资大师框架，面向 A 股、港股和美股做专家筛选。
+- 按主题、相似标的和 A/H/US 同主体去重提炼，每个方向只保留最好几个候选。
 - 对 ETF 做分类、工具评分和观察建议。
 - 提供全市场覆盖率、候选变化和带成本/滑点/行业分散约束的等权回测命令。
 - 输出候选池、观察池、剔除池和提炼候选池。
@@ -42,10 +42,12 @@ pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[ui]"
 ```bash
 ah-screener init-db
 ah-screener sync-spot --market all
+ah-screener sync-us-spot --symbols AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,BABA,SPY,QQQ
 ah-screener classify-securities
 ah-screener sync-a-tags --kind industry --limit 30
 ah-screener sync-a-tags --kind concept --limit 50
 ah-screener sync-curated-tags
+ah-screener sync-identity-mappings
 ah-screener score
 ah-screener export --top 100
 streamlit run src/ah_screener/ui/streamlit_app.py
@@ -66,14 +68,17 @@ ah-screener sync-history --market all --top 120 --lookback-days 430
 ah-screener technical
 ah-screener sync-fundamentals --market all --top 120
 ah-screener import-tags --path data/custom_tags.csv
+ah-screener ingest-document --market HK --symbol 00700 --path /path/to/annual-report.pdf --source hkexnews_pdf
 ah-screener fundamentals-status --top 120
 ah-screener coverage-status
 ah-screener expert-score
+ah-screener industry-valuation-stats
 ah-screener expert-export --top 50
 ah-screener refined-export --top 50
 ah-screener candidate-changes
 ah-screener etf-export --top 50
 ah-screener sync-benchmarks --lookback-days 430
+ah-screener backfill-refined-snapshots --min-snapshots 6 --rebalance quarterly
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
 ```
 
@@ -85,12 +90,24 @@ technical_indicators
 financial_statement_items
 financial_metrics
 expert_screening_results
+industry_valuation_stats
+company_identity_mappings
+company_documents
+document_extractions
 refined_candidates
 ```
 
-`refined_candidates` 会按主题桶、风格桶和 A/H 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H 两地上市或同名主体只保留专家分最高的一只。
+`refined_candidates` 会按主题桶、风格桶和 A/H/US 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H/US 多地上市或同名主体只保留专家分最高的一只。
 
-`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H 免费指数基准对比。
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放快照；该回放用于模型验证，不等同严格点时财报回测。
+
+## 免费数据源
+
+- A 股/港股行情、板块、财务：AKShare 免费接口。
+- 美股证券目录：Nasdaq Trader symbol directory。
+- 美股历史行情：AKShare `stock_us_daily`，Stooq CSV 作为可选备用源，使用 `STOOQ_API_KEY` 或 `AH_SCREENER_STOOQ_API_KEY`。
+- 美股基本面：SEC EDGAR Company Facts。
+- 港股主题增强：HKEXnews/公司公告 PDF 下载到本地后用 `ingest-document` 抽取业务结构、研发投入、客户集中度、审计意见、风险提示和主题标签。
 
 ## 报告
 

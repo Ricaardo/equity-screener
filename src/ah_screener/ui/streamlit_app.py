@@ -14,7 +14,7 @@ from ah_screener.pipeline import coverage_status
 from ah_screener.storage import Store
 
 
-st.set_page_config(page_title="A/H Research Desk", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="A/H/US Research Desk", layout="wide", initial_sidebar_state="expanded")
 
 
 DESK_CSS = """
@@ -495,8 +495,8 @@ def render_hero(snapshot_text: str, universe_count: int, refined_count: int) -> 
         f"""
         <div class="desk-hero">
           <div class="desk-title">
-            <div class="eyebrow">A/H Research Desk</div>
-            <h1>A/H 股票与 ETF 研究台</h1>
+            <div class="eyebrow">A/H/US Research Desk</div>
+            <h1>A/H/US 股票与 ETF 研究台</h1>
             <div class="desk-subtitle">
               A 股按主板、创业板、科创板、北交所、ST/退市风险拆分；港股标记港股通；ETF 单独成池。
             </div>

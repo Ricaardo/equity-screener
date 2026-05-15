@@ -19,11 +19,12 @@
 - 回测增强：支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费、滑点和 A/H 免费指数基准对比。
 - GitHub 数据发布：DuckDB 数据库已通过 GitHub Release 上传。
 
-## P0：需要数据积累后确认
+## P0：回测确认
 
-- [ ] 等第二个及以上 `refined_candidates` 快照生成后，跑真实库回测并确认输出表。
-  - 触发条件：定时更新至少跨过一个新的交易日，且有后续日线价格。
+- [x] 等第二个及以上 `refined_candidates` 快照生成后，跑真实库回测并确认输出表。
+  - 结果：新增 `backfill-refined-snapshots`，可基于已存真实日线生成历史回放候选快照；当前本地库已生成 2025-04-01、2025-07-01、2025-09-30、2025-12-31、2026-04-01、2026-05-14 共 6 个候选快照。
   - 命令：`ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300`
+  - 当前验证：5 个季度区间输出正常，最终权益 2,522,064.33，基准权益 1,222,496.30。
 - [x] 确认自动刷新日志和 DuckDB 写锁情况。
   - 结果：LaunchAgent 已运行；`logs/` 中未见 DuckDB 写锁异常，主要为 AkShare 进度条输出。
 
@@ -32,21 +33,24 @@
 - [x] 扩展更长历史样本。
   - 结果：A/H 股票和常用 A/H 基准指数已回填到约 3 年窗口，起始日期为 2023-05-15。
   - 约束：后续继续使用免费数据源，遇到接口限流时分批同步。
-- [ ] 扩展港股主题标签的可验证来源。
+- [x] 扩展港股主题标签的可验证来源。
   - 目标：减少港股只依赖名称和少量策展标签造成的主题覆盖不足。
-  - 候选来源：HKEX 披露易、公司公告、交易所行业分类、免费新闻摘要。
-- [ ] 扩展行业估值分位和细分行业口径。
+  - 结果：新增 `ingest-document`，支持 HKEXnews/公司公告 PDF 或文本，抽取业务结构、研发投入、客户集中度、审计意见、风险提示，并把主题证据写入 `company_tags`。
+- [x] 扩展行业估值分位和细分行业口径。
   - 目标：同类公司比较更贴近 A/H 行业结构，例如半导体、创新药、互联网平台、高股息央国企。
-- [ ] 增强年报/公告 PDF 解析。
+  - 结果：专家模型新增 `detailed_industry` 和 `valuation_percentile`，并新增 `industry_valuation_stats` 统计表与 `industry-valuation-stats` 命令。
+- [x] 增强年报/公告 PDF 解析。
   - 目标：从官方公告中提取业务结构、研发投入、客户集中度、审计意见和风险提示。
+  - 结果：新增 `company_documents`、`document_extractions` 和 PDF/TXT/MD 解析流程，PDF 优先使用 `pdfplumber`，备用 `pypdf`。
 
 ## P2：市场扩展
 
-- [ ] 接入美股市场。
+- [x] 接入美股市场。
   - 免费数据候选：SEC EDGAR、Nasdaq Trader、Stooq、Yahoo Finance/yfinance。
-  - 需要新增：`market = US`、美元财报字段映射、美股行业分类、美股 ETF 识别。
-- [ ] 增加跨市场同主体映射。
+  - 结果：新增 `market = US`，证券目录使用 Nasdaq Trader，行情使用 AKShare 美股日线并预留 Stooq API key 备用，基本面使用 SEC EDGAR Company Facts，支持美元财报字段和美股 ETF 识别。
+- [x] 增加跨市场同主体映射。
   - 目标：A/H/US 多地上市公司只保留更优交易标的，或在报告中合并展示。
+  - 结果：新增 `company_identity_mappings` 表和 `sync-identity-mappings` 命令，`refined_candidates` 优先按 `canonical_id` 去重。
 
 ## P3：工程自动化
 
@@ -61,5 +65,5 @@
 ## 当前使用提醒
 
 - 筛选结果是研究辅助，不构成投资建议。
-- 当前真实回测需要多期快照；只有一个快照时命令会提示暂无回测行，这是正常状态。
+- 严格点时真实回测仍依赖未来定时任务自然积累；`backfill-refined-snapshots` 是基于真实日线的历史回放，用于先验证模型和回测链路。
 - 免费数据源存在限流、字段变化和短期不可用风险，定时任务失败时优先查看 `logs/`。

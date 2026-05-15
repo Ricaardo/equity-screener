@@ -105,6 +105,47 @@ CREATE TABLE IF NOT EXISTS company_tags (
     PRIMARY KEY (market, symbol, tag_type, tag_name, source)
 );
 
+CREATE TABLE IF NOT EXISTS company_identity_mappings (
+    canonical_id VARCHAR NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    name VARCHAR,
+    listing_type VARCHAR,
+    source VARCHAR NOT NULL,
+    confidence VARCHAR,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (market, symbol, source)
+);
+
+CREATE TABLE IF NOT EXISTS company_documents (
+    document_id VARCHAR NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    document_type VARCHAR,
+    report_date DATE,
+    title VARCHAR,
+    source_url VARCHAR,
+    local_path VARCHAR,
+    file_sha256 VARCHAR,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (document_id)
+);
+
+CREATE TABLE IF NOT EXISTS document_extractions (
+    document_id VARCHAR NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    extract_type VARCHAR NOT NULL,
+    extract_key VARCHAR NOT NULL,
+    extract_value VARCHAR,
+    evidence_text VARCHAR,
+    evidence_level VARCHAR NOT NULL,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (document_id, extract_type, extract_key, source)
+);
+
 CREATE TABLE IF NOT EXISTS financial_statement_items (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
@@ -191,13 +232,16 @@ CREATE TABLE IF NOT EXISTS expert_screening_results (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
     name VARCHAR,
+    canonical_id VARCHAR,
     expert_score DOUBLE,
     master_score DOUBLE,
     china_master_score DOUBLE,
     fundamental_score DOUBLE,
+    detailed_industry VARCHAR,
     industry_peer_group VARCHAR,
     peer_score DOUBLE,
     industry_fit_score DOUBLE,
+    valuation_percentile DOUBLE,
     theme_score DOUBLE,
     technical_score DOUBLE,
     liquidity_score DOUBLE,
@@ -210,6 +254,20 @@ CREATE TABLE IF NOT EXISTS expert_screening_results (
     PRIMARY KEY (snapshot_date, strategy, market, symbol)
 );
 
+CREATE TABLE IF NOT EXISTS industry_valuation_stats (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    detailed_industry VARCHAR NOT NULL,
+    securities INTEGER,
+    pe_median DOUBLE,
+    pb_median DOUBLE,
+    valuation_percentile_median DOUBLE,
+    valuation_percentile_top_quartile DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, detailed_industry, source)
+);
+
 CREATE TABLE IF NOT EXISTS refined_candidates (
     snapshot_date DATE NOT NULL,
     strategy VARCHAR NOT NULL,
@@ -220,12 +278,15 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
     name VARCHAR,
+    canonical_id VARCHAR,
     expert_score DOUBLE,
     fundamental_score DOUBLE,
     technical_score DOUBLE,
+    detailed_industry VARCHAR,
     industry_peer_group VARCHAR,
     peer_score DOUBLE,
     industry_fit_score DOUBLE,
+    valuation_percentile DOUBLE,
     theme_matches VARCHAR,
     reasons VARCHAR,
     selection_note VARCHAR,
@@ -248,12 +309,18 @@ ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS fundamental_score 
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS industry_peer_group VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS peer_score DOUBLE;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS industry_fit_score DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS canonical_id VARCHAR;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS detailed_industry VARCHAR;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS valuation_percentile DOUBLE;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_group VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS style_bucket VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS selection_note VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS industry_peer_group VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_score DOUBLE;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS industry_fit_score DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS canonical_id VARCHAR;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS detailed_industry VARCHAR;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS valuation_percentile DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS revenue_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS net_profit_cagr_3y DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS roe_avg_3y DOUBLE;
