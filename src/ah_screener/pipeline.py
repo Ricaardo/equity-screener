@@ -135,9 +135,23 @@ def classify_existing_securities() -> dict[str, int]:
     return {"securities": security_rows, "snapshots": snapshot_count}
 
 
-def sync_a_tags(kind: Literal["industry", "concept"], limit: int | None) -> int:
+def sync_a_tags(
+    kind: Literal["industry", "concept"], limit: int | None, force: bool = False, max_age_days: int = 7
+) -> int:
+    """Sync A-share board membership; skip if already refreshed within max_age_days.
+
+    Board membership changes slowly, so the daily refresh skips re-fetching unless
+    stale (or ``force``). Returns 0 when skipped.
+    """
     store = get_store()
     store.init_db()
+    if not force:
+        existing = store.query_df(
+            "SELECT MAX(updated_at) AS last FROM company_tags WHERE tag_type = ?", [kind]
+        )
+        last = pd.to_datetime(existing["last"].iloc[0], errors="coerce") if not existing.empty else pd.NaT
+        if pd.notna(last) and last >= pd.Timestamp.now() - pd.Timedelta(days=max_age_days):
+            return 0
     tags = fetch_a_board_tags(kind=kind, limit=limit)
     return store.upsert_dataframe("company_tags", tags)
 

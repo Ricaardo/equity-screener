@@ -366,6 +366,16 @@ def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
 def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
     import akshare as ak
 
+    from ah_screener.sources.futu_client import fetch_futu_hk_etf_spot
+
+    # Futu OpenD lists HK ETFs reliably; AKShare's HK ETF spot often returns nothing.
+    try:
+        securities, snapshots = fetch_futu_hk_etf_spot()
+    except Exception:
+        securities, snapshots = pd.DataFrame(), pd.DataFrame()
+    if not snapshots.empty:
+        return securities, snapshots
+
     raw, source = _fetch_first_available(
         [
             ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
