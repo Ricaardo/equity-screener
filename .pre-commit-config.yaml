@@ -1,0 +1,14 @@
+exclude: ^(data/|reports/|logs/)
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-check
+        name: ruff check
+        entry: uv run --extra dev ruff check
+        language: system
+        types_or: [python, pyi]
+      - id: compileall
+        name: python compileall
+        entry: uv run python -m compileall -q src tests
+        language: system
+        pass_filenames: false

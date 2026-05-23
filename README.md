@@ -26,39 +26,58 @@
 
 ## 安装
 
+推荐使用 `uv` 管理本地虚拟环境和依赖：
+
 ```bash
-/Users/bilibili/.local/bin/python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e .
+uv sync
 ```
 
 如果需要 Streamlit 看板：
 
 ```bash
-pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -e ".[ui]"
+uv sync --extra ui
+```
+
+如果要做本地开发：
+
+```bash
+make install-dev
+```
+
+常用命令统一放在 `Makefile`：
+
+```bash
+make format        # 格式化 src/ 和 tests/
+make format-check  # 检查是否需要格式化
+make lint          # 静态检查
+make typecheck     # Python 语法/字节码检查
+make test          # 运行 unittest 测试
+make validate      # 提交前核心本地检查
+make hooks         # 安装本仓库 pre-commit hook
+make pre-commit    # 对全仓库手动跑 hook
 ```
 
 ## 快速开始
 
 ```bash
-ah-screener init-db
-ah-screener sync-spot --market all
-ah-screener sync-us-spot --symbols AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,BABA,SPY,QQQ
-ah-screener sync-us-batch --offset 0 --limit 100 --stocks-only
-ah-screener classify-securities
-ah-screener sync-a-tags --kind industry --limit 30
-ah-screener sync-a-tags --kind concept --limit 50
-ah-screener sync-curated-tags
-ah-screener sync-identity-mappings
-ah-screener score
-ah-screener export --top 100
-streamlit run src/ah_screener/ui/streamlit_app.py
+uv run ah-screener init-db
+uv run ah-screener sync-spot --market all
+uv run ah-screener sync-us-spot --symbols AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,BABA,SPY,QQQ
+uv run ah-screener sync-us-batch --offset 0 --limit 100 --stocks-only
+uv run ah-screener classify-securities
+uv run ah-screener sync-a-tags --kind industry --limit 30
+uv run ah-screener sync-a-tags --kind concept --limit 50
+uv run ah-screener sync-curated-tags
+uv run ah-screener sync-identity-mappings
+uv run ah-screener score
+uv run ah-screener export --top 100
+uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
 ```
 
 只刷新 ETF：
 
 ```bash
-ah-screener sync-spot --market ETF
+uv run ah-screener sync-spot --market ETF
 ```
 
 ## 专家筛选
@@ -164,11 +183,13 @@ ah-screener uninstall-schedule
 
 ## 本地测试
 
-最小测试套件覆盖基准回测、同类去重、ETF 分类和基本面评分边界：
+个人开发时优先跑统一验证入口：
 
 ```bash
-PYTHONPATH=src python -m unittest discover -s tests -v
+make validate
 ```
+
+最小测试套件覆盖基准回测、同类去重、ETF 分类和基本面评分边界；只跑测试时使用 `make test`。
 
 UI 截图冒烟检查需要本机安装 `browser-use` CLI，截图默认输出到 `reports/ui-screenshots/`：
 

@@ -900,12 +900,10 @@ def fetch_fundamentals(market: Market, symbol: str, snapshot_date: pd.Timestamp)
 
 
 def _try(func):
-    last_error: Exception | None = None
     for _ in range(2):
         try:
             value = func()
             return value if value is not None else pd.DataFrame()
-        except Exception as exc:
-            last_error = exc
+        except Exception:
             sleep(0.5)
     return pd.DataFrame()
