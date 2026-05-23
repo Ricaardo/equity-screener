@@ -917,21 +917,30 @@ def run_full_update(
     include_report: bool = True,
 ) -> dict[str, object]:
     result: dict[str, object] = {}
-    result["sync_spot"] = sync_spot("all")
+
+    def _step(name: str, fn) -> None:
+        # One flaky free-data source must not abort the whole refresh: record and continue,
+        # so downstream compute (technical/expert/potential/report) still runs on stored data.
+        try:
+            result[name] = fn()
+        except Exception as exc:  # noqa: BLE001
+            result[name] = {"failed": str(exc)[:200]}
+
+    _step("sync_spot", lambda: sync_spot("all"))
     if industry_limit is not None:
-        result["a_industry_tags"] = sync_a_tags("industry", limit=industry_limit)
+        _step("a_industry_tags", lambda: sync_a_tags("industry", limit=industry_limit))
     if concept_limit is not None:
-        result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
-    result["curated_theme_tags"] = sync_curated_theme_tags()
-    result["identity_mappings"] = sync_identity_mappings()
-    result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
-    result["benchmarks"] = sync_benchmarks(lookback_days=lookback_days)
-    result["technical_rows"] = run_technical_indicators()
+        _step("a_concept_tags", lambda: sync_a_tags("concept", limit=concept_limit))
+    _step("curated_theme_tags", sync_curated_theme_tags)
+    _step("identity_mappings", sync_identity_mappings)
+    _step("history", lambda: sync_history("all", top=top, lookback_days=lookback_days))
+    _step("benchmarks", lambda: sync_benchmarks(lookback_days=lookback_days))
+    _step("technical_rows", run_technical_indicators)
     if include_fundamentals:
-        result["fundamentals"] = sync_fundamentals("all", top=top)
-    result["expert_scores"] = run_expert_scores()
-    result["industry_valuation_stats"] = compute_industry_valuation_stats()
-    result["potential_scan"] = run_potential_scan()
+        _step("fundamentals", lambda: sync_fundamentals("all", top=top))
+    _step("expert_scores", run_expert_scores)
+    _step("industry_valuation_stats", compute_industry_valuation_stats)
+    _step("potential_scan", run_potential_scan)
     if include_report:
-        result["report"] = str(generate_report())
+        _step("report", lambda: str(generate_report()))
     return result

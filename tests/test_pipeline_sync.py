@@ -123,6 +123,32 @@ class SyncSpotResilienceTest(TestCase):
         self.assertEqual(result.get("A_history_skipped"), 1)
         self.assertEqual(result.get("A_history_rows"), 0)
 
+    def test_run_full_update_continues_when_a_step_fails(self) -> None:
+        # A flaky step (e.g. board tags) must not abort the refresh — later steps still run.
+        names = [
+            "sync_spot", "sync_a_tags", "sync_curated_theme_tags", "sync_identity_mappings",
+            "sync_history", "sync_benchmarks", "run_technical_indicators", "sync_fundamentals",
+            "run_expert_scores", "compute_industry_valuation_stats", "run_potential_scan",
+            "generate_report",
+        ]
+        originals = {n: getattr(pipeline, n) for n in names}
+        try:
+            for n in names:
+                setattr(pipeline, n, lambda *a, **k: {})
+
+            def boom(*a, **k):
+                raise RuntimeError("akshare board tags down")
+
+            pipeline.sync_a_tags = boom
+            result = pipeline.run_full_update(include_fundamentals=True, include_report=True)
+        finally:
+            for n, fn in originals.items():
+                setattr(pipeline, n, fn)
+
+        self.assertIn("failed", result["a_industry_tags"])
+        self.assertIn("report", result)  # downstream step still ran despite the tags failure
+        self.assertIn("expert_scores", result)
+
     def test_sync_spot_single_market_still_raises(self) -> None:
         originals = (pipeline.fetch_spot, pipeline.get_store)
         with TemporaryDirectory() as tmp:
