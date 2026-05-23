@@ -58,6 +58,71 @@ class SyncSpotResilienceTest(TestCase):
         self.assertEqual(result.get("A_snapshots"), 1)
         self.assertEqual(result.get("US_snapshots"), 1)
 
+    def test_sync_fundamentals_carries_forward_fresh(self) -> None:
+        originals = (pipeline.fetch_fundamentals, pipeline.get_store)
+        with TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "t.duckdb")
+            store.init_db()
+            # Current spot at a new date; a fresh prior fundamentals row at an older date.
+            store.upsert_dataframe(
+                "market_snapshots",
+                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
+                               "asset_type": "stock", "amount": 1e9, "source": "t", "name": "n"}]),
+            )
+            store.upsert_dataframe(
+                "financial_metrics",
+                pd.DataFrame([{"market": "A", "symbol": "600000", "snapshot_date": "2026-02-01",
+                               "report_date": "2025-12-31", "name": "n", "roe": 12.0,
+                               "updated_at": pd.Timestamp.now()}]),
+            )
+
+            def boom(*a, **k):
+                raise AssertionError("fetch_fundamentals must not be called for a fresh name")
+
+            pipeline.fetch_fundamentals = boom
+            pipeline.get_store = lambda: store
+            try:
+                result = pipeline.sync_fundamentals("A", top=10)
+                rows = store.query_df(
+                    "SELECT * FROM financial_metrics WHERE snapshot_date = DATE '2026-05-23'"
+                )
+            finally:
+                pipeline.fetch_fundamentals, pipeline.get_store = originals
+
+        self.assertEqual(result.get("A_fundamentals_carried"), 1)
+        self.assertEqual(result.get("A_fundamentals_fetched"), 0)
+        self.assertEqual(len(rows), 1)  # carried forward to the new snapshot_date
+        self.assertEqual(float(rows.iloc[0]["roe"]), 12.0)
+
+    def test_sync_history_skips_names_already_current(self) -> None:
+        originals = (pipeline.fetch_history, pipeline.get_store)
+        with TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "t.duckdb")
+            store.init_db()
+            store.upsert_dataframe(
+                "market_snapshots",
+                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
+                               "asset_type": "stock", "amount": 1e9, "source": "t", "name": "n"}]),
+            )
+            store.upsert_dataframe(
+                "daily_prices",
+                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
+                               "close": 10.0, "adj_type": "qfq", "source": "t"}]),
+            )
+
+            def boom(*a, **k):
+                raise AssertionError("fetch_history must not be called for a current name")
+
+            pipeline.fetch_history = boom
+            pipeline.get_store = lambda: store
+            try:
+                result = pipeline.sync_history("A", top=10, include_etf=False)
+            finally:
+                pipeline.fetch_history, pipeline.get_store = originals
+
+        self.assertEqual(result.get("A_history_skipped"), 1)
+        self.assertEqual(result.get("A_history_rows"), 0)
+
     def test_sync_spot_single_market_still_raises(self) -> None:
         originals = (pipeline.fetch_spot, pipeline.get_store)
         with TemporaryDirectory() as tmp:

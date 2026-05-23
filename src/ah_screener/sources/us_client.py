@@ -4,6 +4,7 @@ import importlib
 import importlib.util
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
 from io import StringIO
 from time import sleep
 from typing import Any
@@ -429,7 +430,10 @@ def fetch_us_spot_batch(
     return fetch_us_spot(symbols=selected, lookback_days=lookback_days, master=master)
 
 
+@lru_cache(maxsize=1)
 def fetch_sec_company_tickers() -> dict[str, dict[str, Any]]:
+    # Cached for the process: the full SEC ticker→CIK map was previously re-downloaded
+    # once per US symbol during a fundamentals batch (incremental fetching, stage).
     response = requests.get(SEC_TICKERS_URL, headers=_sec_headers(), timeout=20)
     response.raise_for_status()
     raw = response.json()
