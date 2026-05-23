@@ -64,19 +64,27 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
     store = get_store()
     store.init_db()
     result: dict[str, int] = {}
+    tolerant = market == "all"  # a single transient endpoint failure must not abort a full refresh
+
+    def _ingest(label: str, fetch) -> None:
+        try:
+            securities, snapshots = fetch()
+        except Exception as exc:  # noqa: BLE001 - record and continue across markets
+            result[f"{label}_failed"] = 1
+            result[f"{label}_error"] = str(exc)[:200]
+            if not tolerant:
+                raise
+            return
+        result[f"{label}_securities"] = store.upsert_dataframe("securities", securities)
+        result[f"{label}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+
     markets = ["A", "HK", "US"] if market == "all" else ([] if market == "ETF" else [market])
     for item in markets:
-        securities, snapshots = fetch_spot(item)  # type: ignore[arg-type]
-        result[f"{item}_securities"] = store.upsert_dataframe("securities", securities)
-        result[f"{item}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+        _ingest(item, lambda item=item: fetch_spot(item))  # type: ignore[arg-type]
     if market in {"A", "ETF", "all"}:
-        etf_securities, etf_snapshots = fetch_a_etf_spot()
-        result["A_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
-        result["A_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+        _ingest("A_etf", fetch_a_etf_spot)
     if market in {"HK", "ETF", "all"}:
-        etf_securities, etf_snapshots = fetch_hk_etf_spot()
-        result["HK_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
-        result["HK_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+        _ingest("HK_etf", fetch_hk_etf_spot)
     return result
 
 
