@@ -763,7 +763,8 @@ def sync_hkex_documents(
 def run_potential_validation() -> pd.DataFrame:
     store = get_store()
     prices = store.query_df("SELECT * FROM daily_prices")
-    return validate_potential_signals(prices)
+    items = store.query_df("SELECT * FROM financial_statement_items")
+    return validate_potential_signals(prices, items=items)
 
 
 def run_potential_threshold_sweep() -> pd.DataFrame:
