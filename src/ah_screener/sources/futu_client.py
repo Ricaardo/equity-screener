@@ -116,10 +116,11 @@ def _normalize_hk_etf(basics: pd.DataFrame, snapshot: pd.DataFrame) -> tuple[pd.
         return pd.DataFrame(), pd.DataFrame()
     b = basics.copy()
     b["symbol"] = b["code"].astype(str).str.split(".").str[-1].str.zfill(5)
+    b = b.drop_duplicates("symbol", keep="first")  # Futu can list a code more than once
     snap = snapshot.copy() if snapshot is not None and not snapshot.empty else pd.DataFrame()
     if not snap.empty:
         snap["symbol"] = snap["code"].astype(str).str.split(".").str[-1].str.zfill(5)
-        snap = snap.set_index("symbol")
+        snap = snap.drop_duplicates("symbol", keep="first").set_index("symbol")
 
     def _col(sym: str, name: str):
         return snap.loc[sym, name] if (not snap.empty and sym in snap.index and name in snap.columns) else pd.NA

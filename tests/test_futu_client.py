@@ -59,3 +59,21 @@ class FutuHkEtfNormalizeTest(TestCase):
 
         sec, snap = _normalize_hk_etf(pd.DataFrame(), pd.DataFrame())
         self.assertTrue(sec.empty and snap.empty)
+
+
+class FutuHkEtfDedupTest(TestCase):
+    def test_normalize_hk_etf_dedups_codes(self) -> None:
+        import pandas as pd
+
+        from ah_screener.sources.futu_client import _normalize_hk_etf
+
+        basics = pd.DataFrame([{"code": "HK.02800", "name": "盈富"}, {"code": "HK.02800", "name": "盈富"}])
+        snap = pd.DataFrame(
+            [
+                {"code": "HK.02800", "last_price": 25.0, "prev_close_price": 24.0},
+                {"code": "HK.02800", "last_price": 25.0, "prev_close_price": 24.0},
+            ]
+        )
+        sec, snaps = _normalize_hk_etf(basics, snap)
+        self.assertEqual(len(sec), 1)
+        self.assertEqual(len(snaps), 1)

@@ -67,16 +67,16 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
     tolerant = market == "all"  # a single transient endpoint failure must not abort a full refresh
 
     def _ingest(label: str, fetch) -> None:
+        # Wrap fetch AND upsert: a constraint/IO error on one market must not abort the rest.
         try:
             securities, snapshots = fetch()
+            result[f"{label}_securities"] = store.upsert_dataframe("securities", securities)
+            result[f"{label}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
         except Exception as exc:  # noqa: BLE001 - record and continue across markets
             result[f"{label}_failed"] = 1
             result[f"{label}_error"] = str(exc)[:200]
             if not tolerant:
                 raise
-            return
-        result[f"{label}_securities"] = store.upsert_dataframe("securities", securities)
-        result[f"{label}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
 
     markets = ["A", "HK", "US"] if market == "all" else ([] if market == "ETF" else [market])
     for item in markets:
