@@ -156,20 +156,42 @@ def _excess_stats(excess: pd.Series) -> dict[str, float]:
     }
 
 
-def validate_potential_signals(prices: pd.DataFrame) -> pd.DataFrame:
-    """Validate setup signals using forward 8-week excess return vs same-date universe median."""
+def validate_potential_signals(
+    prices: pd.DataFrame, items: pd.DataFrame | None = None, fund_cut: float = 55.0
+) -> pd.DataFrame:
+    """Validate setup signals using forward 8-week excess return vs same-date universe median.
+
+    When ``items`` (financial_statement_items) is supplied, also evaluates an
+    ``rs_quiet_fundamental`` signal that further requires a positive *point-in-time*
+    fundamental score (as-of growth, no look-ahead — master-plan R1), so we can see
+    whether fundamentals add edge before wiring them into the live scanner.
+    """
     sampled = _sampled_setups(prices)
     if sampled.empty:
         return pd.DataFrame()
 
+    rs_quiet = (
+        sampled["quiet_setup"]
+        & sampled["return_60d_rank"].ge(60)
+        & sampled["return_60d"].fillna(0).lt(0.35)
+    )
     signal_masks = {
         "technical_base": sampled["quiet_setup"],
-        "rs_quiet": sampled["quiet_setup"]
-        & sampled["return_60d_rank"].ge(60)
-        & sampled["return_60d"].fillna(0).lt(0.35),
+        "rs_quiet": rs_quiet,
         "near_pivot": sampled["pct_from_120d_high"].between(-0.25, -0.03)
         & sampled["return_20d"].fillna(0).lt(0.15),
     }
+    if items is not None and not items.empty:
+        from ah_screener.point_in_time import as_of_score_from_index, build_income_index
+
+        index = build_income_index(items)
+        fund = [
+            as_of_score_from_index(index, m, s, d)
+            for m, s, d in zip(sampled["market"], sampled["symbol"], sampled["trade_date"])
+        ]
+        sampled = sampled.assign(as_of_fund_score=fund)
+        signal_masks["rs_quiet_fundamental"] = rs_quiet & sampled["as_of_fund_score"].ge(fund_cut)
+
     rows = []
     for signal, mask in signal_masks.items():
         group = sampled[mask]
