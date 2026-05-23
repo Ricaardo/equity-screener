@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -69,6 +71,49 @@ def _fmt_optional_pct(value: object, digits: int = 2) -> str:
     if value is None or pd.isna(value):
         return ""
     return f"{float(value) * 100:.{digits}f}%"
+
+
+def _is_na(value: object) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return value is None
+
+
+def _text(value: object) -> str:
+    return "" if _is_na(value) else str(value)
+
+
+def _int(value: object) -> str:
+    return "" if _is_na(value) else str(int(value))
+
+
+def _yi(value: object) -> str:
+    """Format a raw amount/market-cap as 亿 (hundred-millions)."""
+    return "" if _is_na(value) else f"{float(value) / 100_000_000:.2f}亿"
+
+
+@dataclass
+class Col:
+    """One rendered column: header, source row key, and a cell formatter."""
+
+    header: str
+    key: str
+    fmt: Callable[[object], str] = field(default=_text)
+
+
+def _print_df(df: pd.DataFrame, cols: list[Col], *, empty_msg: str = "No rows.") -> None:
+    """Render a DataFrame as a rich table — replaces the per-command boilerplate."""
+    if df is None or df.empty:
+        if empty_msg:
+            console.print(empty_msg)
+        return
+    table = Table(show_header=True, header_style="bold")
+    for col in cols:
+        table.add_column(col.header)
+    for _, row in df.iterrows():
+        table.add_row(*[col.fmt(row.get(col.key)) for col in cols])
+    console.print(table)
 
 
 @app.command("init-db")
@@ -258,26 +303,17 @@ def fundamentals_status_command(
 ) -> None:
     """Show estimated fundamentals sync progress from rows already stored."""
     df = fundamentals_status(top=top)
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "market",
-        "metric_rows",
-        "target",
-        "remaining_estimate",
-        "progress_pct",
-        "statement_items",
-    ]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["market"]),
-            str(row["metric_rows"]),
-            str(row["target"]),
-            str(row["remaining_estimate"]),
-            f"{float(row['progress_pct']):.1f}%",
-            str(row["statement_items"]),
-        )
-    console.print(table)
+    _print_df(
+        df,
+        [
+            Col("market", "market"),
+            Col("metric_rows", "metric_rows"),
+            Col("target", "target"),
+            Col("remaining_estimate", "remaining_estimate"),
+            Col("progress_pct", "progress_pct", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("statement_items", "statement_items"),
+        ],
+    )
 
 
 @app.command("coverage-status")
@@ -287,34 +323,22 @@ def coverage_status_command() -> None:
     if df.empty:
         console.print("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
         return
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "market",
-        "asset_type",
-        "board",
-        "universe",
-        "technical_covered",
-        "technical_pct",
-        "fundamental_covered",
-        "fundamental_pct",
-        "expert_covered",
-        "expert_pct",
-    ]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["market"]),
-            str(row["asset_type"]),
-            str(row["board"]),
-            str(row["universe"]),
-            str(row["technical_covered"]),
-            f"{float(row['technical_pct']):.1f}%",
-            str(row["fundamental_covered"]),
-            f"{float(row['fundamental_pct']):.1f}%",
-            str(row["expert_covered"]),
-            f"{float(row['expert_pct']):.1f}%",
-        )
-    console.print(table)
+    pct = lambda v: _fmt_optional_float(v, 1, "%")  # noqa: E731
+    _print_df(
+        df,
+        [
+            Col("market", "market"),
+            Col("asset_type", "asset_type"),
+            Col("board", "board"),
+            Col("universe", "universe"),
+            Col("technical_covered", "technical_covered"),
+            Col("technical_pct", "technical_pct", pct),
+            Col("fundamental_covered", "fundamental_covered"),
+            Col("fundamental_pct", "fundamental_pct", pct),
+            Col("expert_covered", "expert_covered"),
+            Col("expert_pct", "expert_pct", pct),
+        ],
+    )
 
 
 @app.command("expert-score")
@@ -338,36 +362,22 @@ def expert_export_command(
         console.print("No expert scores found. Run `ah-screener expert-score` first.")
         return
 
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "snapshot_date",
-        "market",
-        "symbol",
-        "name",
-        "expert_score",
-        "detailed_industry",
-        "valuation_percentile",
-        "peer_score",
-        "industry_fit_score",
-        "decision",
-        "theme_matches",
-    ]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["snapshot_date"]),
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row["name"]),
-            f"{float(row['expert_score']):.1f}",
-            str(row.get("detailed_industry") or ""),
-            _fmt_optional_float(row.get("valuation_percentile")),
-            _fmt_optional_float(row.get("peer_score")),
-            _fmt_optional_float(row.get("industry_fit_score")),
-            str(row["decision"]),
-            str(row["theme_matches"]),
-        )
-    console.print(table)
+    _print_df(
+        df,
+        [
+            Col("snapshot_date", "snapshot_date"),
+            Col("market", "market"),
+            Col("symbol", "symbol"),
+            Col("name", "name"),
+            Col("expert_score", "expert_score", _fmt_optional_float),
+            Col("detailed_industry", "detailed_industry"),
+            Col("valuation_percentile", "valuation_percentile", _fmt_optional_float),
+            Col("peer_score", "peer_score", _fmt_optional_float),
+            Col("industry_fit_score", "industry_fit_score", _fmt_optional_float),
+            Col("decision", "decision"),
+            Col("theme_matches", "theme_matches"),
+        ],
+    )
 
 
 @app.command("refined-export")
@@ -380,42 +390,25 @@ def refined_export_command(
         console.print("No refined candidates found. Run `ah-screener expert-score` first.")
         return
 
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "bucket",
-        "rank_in_bucket",
-        "style_bucket",
-        "market",
-        "symbol",
-        "name",
-        "expert_score",
-        "fundamental_score",
-        "technical_score",
-        "detailed_industry",
-        "valuation_percentile",
-        "peer_score",
-        "industry_fit_score",
-        "selection_note",
-    ]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["bucket"]),
-            str(row["rank_in_bucket"]),
-            str(row["style_bucket"]),
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row["name"]),
-            f"{float(row['expert_score']):.1f}",
-            f"{float(row['fundamental_score']):.1f}",
-            f"{float(row['technical_score']):.1f}",
-            str(row.get("detailed_industry") or ""),
-            _fmt_optional_float(row.get("valuation_percentile")),
-            _fmt_optional_float(row.get("peer_score")),
-            _fmt_optional_float(row.get("industry_fit_score")),
-            str(row["selection_note"]),
-        )
-    console.print(table)
+    _print_df(
+        df,
+        [
+            Col("bucket", "bucket"),
+            Col("rank_in_bucket", "rank_in_bucket"),
+            Col("style_bucket", "style_bucket"),
+            Col("market", "market"),
+            Col("symbol", "symbol"),
+            Col("name", "name"),
+            Col("expert_score", "expert_score", _fmt_optional_float),
+            Col("fundamental_score", "fundamental_score", _fmt_optional_float),
+            Col("technical_score", "technical_score", _fmt_optional_float),
+            Col("detailed_industry", "detailed_industry"),
+            Col("valuation_percentile", "valuation_percentile", _fmt_optional_float),
+            Col("peer_score", "peer_score", _fmt_optional_float),
+            Col("industry_fit_score", "industry_fit_score", _fmt_optional_float),
+            Col("selection_note", "selection_note"),
+        ],
+    )
 
 
 @app.command("etf-export")
@@ -443,109 +436,65 @@ def etf_export_command(
         console.print("No ETF rows found. Run `uv run ah-screener sync-spot --market ETF` first.")
         return
 
-    table = Table(show_header=True, header_style="bold")
-    columns = [
-        "market",
-        "symbol",
-        "name",
-        "etf_category",
-        "etf_track",
-        "etf_peer_group",
-        "etf_score",
-        "etf_recommendation",
+    cols = [
+        Col("market", "market"),
+        Col("symbol", "symbol"),
+        Col("name", "name"),
+        Col("etf_category", "etf_category"),
+        Col("etf_track", "etf_track"),
+        Col("etf_peer_group", "etf_peer_group"),
+        Col("etf_score", "etf_score", _fmt_optional_float),
+        Col("etf_recommendation", "etf_recommendation"),
     ]
     if grouped:
-        columns.extend(["peer_count", "peer_alternatives"])
-    columns.extend(
-        [
-            "pct_change",
-            "amount",
-            "market_cap",
+        cols += [
+            Col("peer_count", "peer_count", lambda v: str(int(v or 1))),
+            Col("peer_alternatives", "peer_alternatives"),
         ]
-    )
-    for column in columns:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        values = [
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row["name"]),
-            str(row["etf_category"]),
-            str(row.get("etf_track") or ""),
-            str(row.get("etf_peer_group") or ""),
-            f"{float(row['etf_score']):.1f}",
-            str(row["etf_recommendation"]),
-        ]
-        if grouped:
-            values.extend(
-                [
-                    str(int(row.get("peer_count") or 1)),
-                    str(row.get("peer_alternatives") or ""),
-                ]
-            )
-        values.extend(
-            [
-                _fmt_optional_float(row.get("pct_change"), digits=2, suffix="%"),
-                _fmt_optional_float(
-                    float(row["amount"]) / 100_000_000 if pd.notna(row.get("amount")) else None,
-                    digits=2,
-                    suffix="亿",
-                ),
-                _fmt_optional_float(
-                    float(row["market_cap"]) / 100_000_000 if pd.notna(row.get("market_cap")) else None,
-                    digits=2,
-                    suffix="亿",
-                ),
-            ]
-        )
-        table.add_row(*values)
-    console.print(table)
+    cols += [
+        Col("pct_change", "pct_change", lambda v: _fmt_optional_float(v, 2, "%")),
+        Col("amount", "amount", _yi),
+        Col("market_cap", "market_cap", _yi),
+    ]
+    _print_df(df, cols)
 
 
 @app.command("potential-validate")
 def potential_validate_command() -> None:
     """Validate price-only potential setup signals on stored history."""
-    df = run_potential_validation()
-    if df.empty:
-        console.print("No validation rows. Run sync-history first.")
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in ["signal", "sample_count", "win_rate", "median_excess_40d", "p25_excess_40d", "p75_excess_40d", "bias_note"]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["signal"]),
-            str(int(row["sample_count"])),
-            _fmt_optional_float(row["win_rate"], digits=1, suffix="%"),
-            _fmt_optional_float(row["median_excess_40d"], digits=3),
-            _fmt_optional_float(row["p25_excess_40d"], digits=3),
-            _fmt_optional_float(row["p75_excess_40d"], digits=3),
-            str(row["bias_note"]),
-        )
-    console.print(table)
+    f3 = lambda v: _fmt_optional_float(v, 3)  # noqa: E731
+    _print_df(
+        run_potential_validation(),
+        [
+            Col("signal", "signal"),
+            Col("sample_count", "sample_count", _int),
+            Col("win_rate", "win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("median_excess_40d", "median_excess_40d", f3),
+            Col("p25_excess_40d", "p25_excess_40d", f3),
+            Col("p75_excess_40d", "p75_excess_40d", f3),
+            Col("bias_note", "bias_note"),
+        ],
+        empty_msg="No validation rows. Run sync-history first.",
+    )
 
 
 @app.command("potential-sweep")
 def potential_sweep_command() -> None:
     """Grid-search rs_quiet thresholds over history (stage 9 calibration)."""
-    df = run_potential_threshold_sweep()
-    if df.empty:
-        console.print("No sweep rows. Run sync-history first.")
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in ["rs_rank_cut", "ret_60d_cap", "sample_count", "win_rate", "median_excess_40d", "p25_excess_40d", "p75_excess_40d"]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            f"{float(row['rs_rank_cut']):.0f}",
-            f"{float(row['ret_60d_cap']):.2f}",
-            str(int(row["sample_count"])),
-            _fmt_optional_float(row["win_rate"], digits=1, suffix="%"),
-            _fmt_optional_float(row["median_excess_40d"], digits=3),
-            _fmt_optional_float(row["p25_excess_40d"], digits=3),
-            _fmt_optional_float(row["p75_excess_40d"], digits=3),
-        )
-    console.print(table)
+    f3 = lambda v: _fmt_optional_float(v, 3)  # noqa: E731
+    _print_df(
+        run_potential_threshold_sweep(),
+        [
+            Col("rs_rank_cut", "rs_rank_cut", lambda v: _fmt_optional_float(v, 0)),
+            Col("ret_60d_cap", "ret_60d_cap", lambda v: _fmt_optional_float(v, 2)),
+            Col("sample_count", "sample_count", _int),
+            Col("win_rate", "win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("median_excess_40d", "median_excess_40d", f3),
+            Col("p25_excess_40d", "p25_excess_40d", f3),
+            Col("p75_excess_40d", "p75_excess_40d", f3),
+        ],
+        empty_msg="No sweep rows. Run sync-history first.",
+    )
 
 
 @app.command("potential-scan")
@@ -553,27 +502,23 @@ def potential_scan_command(top: int = typer.Option(80, help="Rows to persist and
     """Run potential-stock scan and persist scenario cards."""
     result = run_potential_scan(top=top)
     console.print(f"potential_candidates: {result.get('potential_candidates', 0)}")
-    df = export_potential_candidates(top=top)
-    if df.empty:
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in ["market", "symbol", "name", "potential_score", "technical_setup_score", "relative_strength_score", "pivot_price", "target_price", "stop_price", "rr_ratio", "hist_win_rate"]:
-        table.add_column(column)
-    for _, row in df.head(top).iterrows():
-        table.add_row(
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row.get("name") or ""),
-            _fmt_optional_float(row["potential_score"]),
-            _fmt_optional_float(row["technical_setup_score"]),
-            _fmt_optional_float(row["relative_strength_score"]),
-            _fmt_optional_float(row["pivot_price"]),
-            _fmt_optional_float(row["target_price"]),
-            _fmt_optional_float(row["stop_price"]),
-            _fmt_optional_float(row["rr_ratio"]),
-            _fmt_optional_float(row["hist_win_rate"], digits=1, suffix="%"),
-        )
-    console.print(table)
+    _print_df(
+        export_potential_candidates(top=top).head(top),
+        [
+            Col("market", "market"),
+            Col("symbol", "symbol"),
+            Col("name", "name"),
+            Col("potential_score", "potential_score", _fmt_optional_float),
+            Col("technical_setup_score", "technical_setup_score", _fmt_optional_float),
+            Col("relative_strength_score", "relative_strength_score", _fmt_optional_float),
+            Col("pivot_price", "pivot_price", _fmt_optional_float),
+            Col("target_price", "target_price", _fmt_optional_float),
+            Col("stop_price", "stop_price", _fmt_optional_float),
+            Col("rr_ratio", "rr_ratio", _fmt_optional_float),
+            Col("hist_win_rate", "hist_win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+        ],
+        empty_msg="",
+    )
 
 
 @app.command("etf-cluster-validate")
@@ -581,57 +526,38 @@ def etf_cluster_validate_command(
     min_corr: float = typer.Option(0.9, help="Correlation threshold for fold/merge flags."),
 ) -> None:
     """Empirically validate the ETF cluster table against return correlations (stage 9)."""
-    df = validate_etf_cluster_table(min_corr=min_corr)
-    if df.empty:
-        console.print("No cluster flags — manual grouping agrees with correlations (or no history).")
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in ["track_a", "track_b", "cluster_a", "cluster_b", "corr", "overlap_days", "relation"]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["track_a"]),
-            str(row["track_b"]),
-            str(row["cluster_a"]),
-            str(row["cluster_b"]),
-            f"{float(row['corr']):.3f}",
-            str(int(row["overlap_days"])),
-            str(row["relation"]),
-        )
-    console.print(table)
+    _print_df(
+        validate_etf_cluster_table(min_corr=min_corr),
+        [
+            Col("track_a", "track_a"),
+            Col("track_b", "track_b"),
+            Col("cluster_a", "cluster_a"),
+            Col("cluster_b", "cluster_b"),
+            Col("corr", "corr", lambda v: _fmt_optional_float(v, 3)),
+            Col("overlap_days", "overlap_days", _int),
+            Col("relation", "relation"),
+        ],
+        empty_msg="No cluster flags — manual grouping agrees with correlations (or no history).",
+    )
 
 
 @app.command("candidate-changes")
 def candidate_changes_command() -> None:
     """Compare latest refined candidates with the previous snapshot."""
-    df = candidate_changes()
-    if df.empty:
-        console.print("No previous refined snapshot found yet.")
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "status",
-        "bucket",
-        "market",
-        "symbol",
-        "name",
-        "latest_score",
-        "previous_score",
-        "score_delta",
-    ]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["status"]),
-            str(row["bucket"]),
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row["name"]),
-            _fmt_optional_float(row["latest_score"]),
-            _fmt_optional_float(row["previous_score"]),
-            _fmt_signed_float(row["score_delta"]),
-        )
-    console.print(table)
+    _print_df(
+        candidate_changes(),
+        [
+            Col("status", "status"),
+            Col("bucket", "bucket"),
+            Col("market", "market"),
+            Col("symbol", "symbol"),
+            Col("name", "name"),
+            Col("latest_score", "latest_score", _fmt_optional_float),
+            Col("previous_score", "previous_score", _fmt_optional_float),
+            Col("score_delta", "score_delta", _fmt_signed_float),
+        ],
+        empty_msg="No previous refined snapshot found yet.",
+    )
 
 
 @app.command("industry-valuation-stats")
@@ -756,55 +682,31 @@ def backtest_command(
         benchmark=benchmark,
         include_replay=include_replay,
     )
-    if df.empty:
-        console.print("No backtest rows yet. Need daily prices plus refined snapshots with future price data.")
-        return
-    table = Table(show_header=True, header_style="bold")
-    for column in [
-        "period_start",
-        "period_end",
-        "signal_date",
-        "holdings",
-        "gross_return",
-        "turnover",
-        "cost_rate",
-        "period_return",
-        "equity",
-    ]:
-        table.add_column(column)
+    f0 = lambda v: _fmt_optional_float(v, 0)  # noqa: E731
+    cols = [
+        Col("period_start", "period_start"),
+        Col("period_end", "period_end"),
+        Col("signal_date", "signal_date"),
+        Col("holdings", "holdings"),
+        Col("gross_return", "gross_return", _fmt_optional_pct),
+        Col("turnover", "turnover", lambda v: _fmt_optional_float(v, 2)),
+        Col("cost_rate", "cost_rate", _fmt_optional_pct),
+        Col("period_return", "period_return", _fmt_optional_pct),
+        Col("equity", "equity", f0),
+    ]
     if benchmark:
-        for column in [
-            "benchmark",
-            "benchmark_return",
-            "benchmark_equity",
-            "excess_return",
-            "excess_equity",
-        ]:
-            table.add_column(column)
-    for _, row in df.iterrows():
-        values = [
-            str(row["period_start"]),
-            str(row["period_end"]),
-            str(row["signal_date"]),
-            str(row["holdings"]),
-            _fmt_optional_pct(row["gross_return"]),
-            _fmt_optional_float(row["turnover"], digits=2),
-            _fmt_optional_pct(row["cost_rate"]),
-            _fmt_optional_pct(row["period_return"]),
-            _fmt_optional_float(row["equity"], digits=0),
+        cols += [
+            Col("benchmark", "benchmark"),
+            Col("benchmark_return", "benchmark_return", _fmt_optional_pct),
+            Col("benchmark_equity", "benchmark_equity", f0),
+            Col("excess_return", "excess_return", _fmt_optional_pct),
+            Col("excess_equity", "excess_equity", f0),
         ]
-        if benchmark:
-            values.extend(
-                [
-                    str(row["benchmark"] or ""),
-                    _fmt_optional_pct(row["benchmark_return"]),
-                    _fmt_optional_float(row["benchmark_equity"], digits=0),
-                    _fmt_optional_pct(row["excess_return"]),
-                    _fmt_optional_float(row["excess_equity"], digits=0),
-                ]
-            )
-        table.add_row(*values)
-    console.print(table)
+    _print_df(
+        df,
+        cols,
+        empty_msg="No backtest rows yet. Need daily prices plus refined snapshots with future price data.",
+    )
 
 
 @app.command("report")
