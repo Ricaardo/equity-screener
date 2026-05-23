@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from importlib import resources
 
 import pandas as pd
 
@@ -30,173 +32,29 @@ class EtfClusterRule:
     tracks: tuple[str, ...]
 
 
-ETF_RULES: tuple[EtfRule, ...] = (
-    EtfRule("货币ETF", ("货币", "现金", "添利", "保证金", "快线", "收益", "日利")),
-    EtfRule("债券ETF", ("债", "国债", "政金债", "信用债", "城投", "可转债", "地方债")),
-    EtfRule("商品ETF", ("黄金", "有色", "豆粕", "能源化工", "商品", "原油", "油气", "铜", "铝")),
-    EtfRule(
-        "跨境ETF",
-        (
-            "恒生",
-            "港股",
-            "香港",
-            "中概",
-            "纳指",
-            "标普",
-            "美国",
-            "日经",
-            "德国",
-            "法国",
-            "韩国",
-            "印度",
-            "东南亚",
-            "qdii",
-        ),
-    ),
-    EtfRule("红利/策略ETF", ("红利", "高股息", "价值", "成长", "质量", "低波", "增强", "优选")),
-    EtfRule(
-        "主题ETF",
-        (
-            "ai",
-            "人工智能",
-            "算力",
-            "机器人",
-            "低空",
-            "数字经济",
-            "云计算",
-            "数据",
-            "央企",
-            "国企",
-            "esg",
-            "碳中和",
-            "创新药",
-            "生物科技",
-            "智能驾驶",
-            "出海",
-            "稀土",
-            "卫星",
-            "光模块",
-        ),
-    ),
-    EtfRule(
-        "行业ETF",
-        (
-            "银行",
-            "证券",
-            "券商",
-            "保险",
-            "地产",
-            "房地产",
-            "医药",
-            "医疗",
-            "消费",
-            "食品饮料",
-            "白酒",
-            "军工",
-            "传媒",
-            "游戏",
-            "通信",
-            "计算机",
-            "软件",
-            "新能源",
-            "电池",
-            "光伏",
-            "半导体",
-            "芯片",
-            "电子",
-            "汽车",
-            "有色",
-            "煤炭",
-            "钢铁",
-            "农业",
-            "养殖",
-            "物流",
-            "基建",
-            "建材",
-            "家电",
-        ),
-    ),
-    EtfRule(
-        "宽基指数ETF",
-        (
-            "沪深300",
-            "中证500",
-            "中证1000",
-            "中证2000",
-            "上证50",
-            "科创50",
-            "创业板50",
-            "创业板",
-            "深证100",
-            "a500",
-            "a50",
-            "msci中国a50",
-            "上证指数",
-            "s&p 500",
-            "s&p500",
-            "spdr s&p",
-            "nasdaq 100",
-            "nasdaq-100",
-            "qqq",
-            "russell 2000",
-            "dow jones",
-            "dia",
-            "iwm",
-        ),
-    ),
-)
+ETF_RULES: tuple[EtfRule, ...]
+ETF_TRACK_RULES: tuple[EtfTrackRule, ...]
+ETF_CLUSTER_RULES: tuple[EtfClusterRule, ...]
 
-ETF_TRACK_RULES: tuple[EtfTrackRule, ...] = (
-    EtfTrackRule("沪深300", ("沪深300", "csi300", "csi 300")),
-    EtfTrackRule("中证A500", ("中证a500", "a500")),
-    EtfTrackRule("中证500", ("中证500", "csi500", "csi 500")),
-    EtfTrackRule("中证1000", ("中证1000", "csi1000", "csi 1000")),
-    EtfTrackRule("中证2000", ("中证2000", "csi2000", "csi 2000")),
-    # Specific "...50" tracks must be matched before 上证50, whose greedy "50etf"
-    # keyword would otherwise swallow 科创50ETF / 创业板50ETF.
-    EtfTrackRule("科创50", ("科创50", "科创板50")),
-    EtfTrackRule("创业板50", ("创业板50",)),
-    EtfTrackRule("创业板指", ("创业板", "创业板指")),
-    EtfTrackRule("深证100", ("深证100", "深100")),
-    EtfTrackRule("上证50", ("上证50", "50etf")),
-    EtfTrackRule("MSCI中国A50", ("msci中国a50", "中国a50", "a50中国")),
-    EtfTrackRule("恒生指数", ("恒生指数", "恒指", "hsi", "tracker fund", "盈富")),
-    EtfTrackRule("恒生科技", ("恒生科技", "hstech", "hang seng tech")),
-    EtfTrackRule("恒生中国企业", ("恒生中国企业", "国企指数", "hscei", "h股指数")),
-    EtfTrackRule("恒生高股息", ("恒生高股息", "恒生股息", "高股息")),
-    EtfTrackRule("纳斯达克100", ("纳斯达克100", "纳指100", "纳指", "nasdaq 100", "nasdaq100", "nasdaq-100", "qqq")),
-    EtfTrackRule("标普500", ("标普500", "s&p500", "s&p 500", "sp500", "spdr s&p", "spy")),
-    EtfTrackRule("罗素2000", ("russell 2000", "russell2000", "iwm")),
-    EtfTrackRule("道琼斯工业", ("dow jones", "dia")),
-    EtfTrackRule("日经225", ("日经225", "日经", "nikkei 225")),
-    EtfTrackRule("德国DAX", ("德国dax", "dax")),
-    EtfTrackRule("黄金", ("黄金", "gold")),
-    EtfTrackRule("原油", ("原油", "油气", "oil")),
-    EtfTrackRule("中证红利", ("中证红利", "红利低波", "红利")),
-    EtfTrackRule("证券", ("证券", "券商")),
-    EtfTrackRule("银行", ("银行",)),
-    EtfTrackRule("医药医疗", ("医药", "医疗", "创新药")),
-    EtfTrackRule("消费", ("消费", "食品饮料", "白酒")),
-    EtfTrackRule("新能源", ("新能源", "电池", "光伏")),
-    EtfTrackRule("半导体芯片", ("半导体", "芯片")),
-    EtfTrackRule("人工智能", ("人工智能", "ai", "算力", "机器人")),
-    EtfTrackRule("军工", ("军工",)),
-    EtfTrackRule("传媒游戏", ("传媒", "游戏")),
-    EtfTrackRule("有色金属", ("有色", "稀土", "铜", "铝")),
-    EtfTrackRule("煤炭", ("煤炭",)),
-)
 
-# Conservative correlation clusters: only near-substitute tracks are folded.
-# Anything not listed keeps its own track as the cluster (no over-folding).
-ETF_CLUSTER_RULES: tuple[EtfClusterRule, ...] = (
-    EtfClusterRule("大盘宽基", ("沪深300", "上证50", "中证A500", "MSCI中国A50", "深证100")),
-    EtfClusterRule("中小盘宽基", ("中证500", "中证1000", "中证2000")),
-    EtfClusterRule("成长科创宽基", ("创业板指", "创业板50", "科创50")),
-    EtfClusterRule("中国互联网科技", ("恒生科技", "恒生", "中概")),
-    EtfClusterRule("港股核心宽基", ("恒生指数", "恒生中国企业")),
-    EtfClusterRule("美股大盘", ("纳斯达克100", "标普500", "道琼斯工业")),
-    EtfClusterRule("美股小盘", ("罗素2000",)),
-)
+def _load_etf_rules() -> tuple[
+    tuple[EtfRule, ...], tuple[EtfTrackRule, ...], tuple[EtfClusterRule, ...]
+]:
+    """Load ETF classification rules from the packaged data file (stage 8: rules externalized).
+
+    Edit ``src/ah_screener/data/etf_rules.json`` to change classification without code
+    edits. Track list order is significant (first-match wins) and is preserved.
+    """
+    raw = json.loads(
+        resources.files("ah_screener").joinpath("data", "etf_rules.json").read_text("utf-8")
+    )
+    categories = tuple(EtfRule(item["category"], tuple(item["keywords"])) for item in raw["categories"])
+    tracks = tuple(EtfTrackRule(item["track"], tuple(item["keywords"])) for item in raw["tracks"])
+    clusters = tuple(EtfClusterRule(item["cluster"], tuple(item["tracks"])) for item in raw["clusters"])
+    return categories, tracks, clusters
+
+
+ETF_RULES, ETF_TRACK_RULES, ETF_CLUSTER_RULES = _load_etf_rules()
 
 _TRACK_TO_CLUSTER: dict[str, str] = {
     track: rule.cluster for rule in ETF_CLUSTER_RULES for track in rule.tracks

@@ -122,6 +122,15 @@ class EtfModelTest(TestCase):
         self.assertEqual(hs300["peer_count"], 2)
         self.assertIn("159919", hs300["peer_alternatives"])
 
+    def test_rules_loaded_from_json_preserve_significant_order(self) -> None:
+        from ah_screener.etf_model import ETF_CLUSTER_RULES, ETF_RULES, ETF_TRACK_RULES
+
+        self.assertTrue(ETF_RULES and ETF_TRACK_RULES and ETF_CLUSTER_RULES)
+        tracks = [r.track for r in ETF_TRACK_RULES]
+        # First-match matters: specific "...50" tracks must precede 上证50.
+        self.assertLess(tracks.index("科创50"), tracks.index("上证50"))
+        self.assertLess(tracks.index("创业板50"), tracks.index("上证50"))
+
     def test_infer_cluster_folds_substitutes_and_defaults_to_track(self) -> None:
         self.assertEqual(infer_etf_cluster("沪深300"), "大盘宽基")
         self.assertEqual(infer_etf_cluster("上证50"), "大盘宽基")

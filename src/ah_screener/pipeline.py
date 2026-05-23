@@ -18,7 +18,11 @@ from ah_screener.expert_model import (
 )
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.identity import default_identity_mappings
-from ah_screener.potential import scan_potential_candidates, validate_potential_signals
+from ah_screener.potential import (
+    scan_potential_candidates,
+    sweep_potential_thresholds,
+    validate_potential_signals,
+)
 from ah_screener.selection import validate_etf_clusters
 from ah_screener.reporting import generate_report
 from ah_screener.sources.akshare_client import (
@@ -657,6 +661,12 @@ def run_potential_validation() -> pd.DataFrame:
     return validate_potential_signals(prices)
 
 
+def run_potential_threshold_sweep() -> pd.DataFrame:
+    store = get_store()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    return sweep_potential_thresholds(prices)
+
+
 def run_potential_scan(top: int = 80) -> dict[str, int]:
     store = get_store()
     store.init_db()
@@ -664,6 +674,8 @@ def run_potential_scan(top: int = 80) -> dict[str, int]:
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
     validation = validate_potential_signals(prices)
     candidates = scan_potential_candidates(prices, snapshots, validation=validation, top=top)
+    # Replace prior rows for this strategy so a stricter scan doesn't leave stale picks.
+    store.execute("DELETE FROM potential_candidates WHERE strategy = ?", ["potential_v1"])
     if not candidates.empty:
         candidates["updated_at"] = pd.Timestamp(datetime.now())
     return {"potential_candidates": store.upsert_dataframe("potential_candidates", candidates)}

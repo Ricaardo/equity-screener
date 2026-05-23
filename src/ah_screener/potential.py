@@ -17,6 +17,10 @@ import pandas as pd
 SNAPSHOT_SOURCE = "potential_v1_price_only"
 FORWARD_DAYS = 40  # ~8 trading weeks
 SETUP_STEP_DAYS = 20
+# Calibrated by sweep_potential_thresholds on real history (stage 9): rank>=70 gave
+# ~76% win / +10.7% median 8w excess vs ~57% at 60. In-sample, price-only.
+RS_RANK_CUT = 70.0
+RET_60D_CAP = 0.35
 
 
 def _rank_pct(series: pd.Series, ascending: bool = True) -> pd.Series:
@@ -88,8 +92,12 @@ def _setup_scores(features: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def validate_potential_signals(prices: pd.DataFrame) -> pd.DataFrame:
-    """Validate setup signals using forward 8-week excess return vs same-date universe median."""
+def _sampled_setups(prices: pd.DataFrame) -> pd.DataFrame:
+    """Non-overlapping historical setup samples with forward excess return (no look-ahead).
+
+    Shared by validation and the threshold sweep. Forward return is the label only;
+    it is never used to define a setup.
+    """
     features = _setup_scores(_price_features(prices))
     if features.empty:
         return pd.DataFrame()
@@ -101,10 +109,29 @@ def validate_potential_signals(prices: pd.DataFrame) -> pd.DataFrame:
     ]
     sampled = sampled.dropna(subset=["forward_40d_return"])
     if sampled.empty:
-        return pd.DataFrame()
+        return sampled
     sampled["return_60d_rank"] = sampled.groupby("trade_date")["return_60d"].rank(pct=True) * 100
     sampled["forward_median"] = sampled.groupby("trade_date")["forward_40d_return"].transform("median")
     sampled["excess_40d_return"] = sampled["forward_40d_return"] - sampled["forward_median"]
+    return sampled
+
+
+def _excess_stats(excess: pd.Series) -> dict[str, float]:
+    excess = excess.dropna()
+    return {
+        "sample_count": int(len(excess)),
+        "win_rate": float((excess > 0).mean() * 100) if len(excess) else np.nan,
+        "median_excess_40d": float(excess.median()) if len(excess) else np.nan,
+        "p25_excess_40d": float(excess.quantile(0.25)) if len(excess) else np.nan,
+        "p75_excess_40d": float(excess.quantile(0.75)) if len(excess) else np.nan,
+    }
+
+
+def validate_potential_signals(prices: pd.DataFrame) -> pd.DataFrame:
+    """Validate setup signals using forward 8-week excess return vs same-date universe median."""
+    sampled = _sampled_setups(prices)
+    if sampled.empty:
+        return pd.DataFrame()
 
     signal_masks = {
         "technical_base": sampled["quiet_setup"],
@@ -116,22 +143,54 @@ def validate_potential_signals(prices: pd.DataFrame) -> pd.DataFrame:
     }
     rows = []
     for signal, mask in signal_masks.items():
-        group = sampled[mask].copy()
+        group = sampled[mask]
         if group.empty:
             continue
-        excess = group["excess_40d_return"].dropna()
         rows.append(
             {
                 "signal": signal,
-                "sample_count": int(len(excess)),
-                "win_rate": float((excess > 0).mean() * 100) if len(excess) else np.nan,
-                "median_excess_40d": float(excess.median()) if len(excess) else np.nan,
-                "p25_excess_40d": float(excess.quantile(0.25)) if len(excess) else np.nan,
-                "p75_excess_40d": float(excess.quantile(0.75)) if len(excess) else np.nan,
+                **_excess_stats(group["excess_40d_return"]),
                 "bias_note": "price-only; current-listed universe; survivorship bias remains",
             }
         )
     return pd.DataFrame(rows).sort_values("median_excess_40d", ascending=False)
+
+
+def sweep_potential_thresholds(
+    prices: pd.DataFrame,
+    rank_cuts: tuple[float, ...] = (50.0, 60.0, 70.0),
+    ret_caps: tuple[float, ...] = (0.25, 0.35, 0.45),
+) -> pd.DataFrame:
+    """Grid-search the rs_quiet thresholds over historical setups (stage 9 calibration).
+
+    For each (RS-rank cutoff, 60d-return cap) it reports the forward-8w excess-return
+    distribution. In-sample / price-only — same survivorship caveat as validation;
+    use to compare relative threshold choices, not as a live edge guarantee.
+    """
+    sampled = _sampled_setups(prices)
+    if sampled.empty:
+        return pd.DataFrame()
+    rows = []
+    for rank_cut in rank_cuts:
+        for ret_cap in ret_caps:
+            mask = (
+                sampled["quiet_setup"]
+                & sampled["return_60d_rank"].ge(rank_cut)
+                & sampled["return_60d"].fillna(0).lt(ret_cap)
+            )
+            group = sampled[mask]
+            if group.empty:
+                continue
+            rows.append(
+                {
+                    "rs_rank_cut": rank_cut,
+                    "ret_60d_cap": ret_cap,
+                    **_excess_stats(group["excess_40d_return"]),
+                }
+            )
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows).sort_values("median_excess_40d", ascending=False).reset_index(drop=True)
 
 
 def scan_potential_candidates(
@@ -149,8 +208,8 @@ def scan_potential_candidates(
     latest["return_60d_rank"] = latest.groupby("market")["return_60d"].rank(pct=True) * 100
     latest["validated_setup"] = (
         latest["quiet_setup"]
-        & latest["return_60d_rank"].ge(60)
-        & latest["return_60d"].fillna(0).lt(0.35)
+        & latest["return_60d_rank"].ge(RS_RANK_CUT)
+        & latest["return_60d"].fillna(0).lt(RET_60D_CAP)
     )
     latest["technical_setup_score"] = latest["base_setup"].fillna(50).clip(0, 100)
     latest["relative_strength_score"] = latest["return_60d_rank"].fillna(50).clip(0, 100)

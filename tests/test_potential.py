@@ -8,6 +8,7 @@ from ah_screener.potential import (
     _price_features,
     _setup_scores,
     scan_potential_candidates,
+    sweep_potential_thresholds,
     validate_potential_signals,
 )
 
@@ -73,6 +74,17 @@ class PotentialScannerTest(TestCase):
         b = f_base[f_base["trade_date"].eq(anchor)]["base_setup"].iloc[0]
         s = f_spiked[f_spiked["trade_date"].eq(anchor)]["base_setup"].iloc[0]
         self.assertAlmostEqual(float(b), float(s), places=6)
+
+    def test_threshold_sweep_returns_grid_with_stats(self) -> None:
+        prices = pd.concat(
+            [_make_prices(f"S{i}", 10 + i, 0.02 + i * 0.001, 210) for i in range(6)],
+            ignore_index=True,
+        )
+        sweep = sweep_potential_thresholds(prices, rank_cuts=(50.0, 70.0), ret_caps=(0.35,))
+        if not sweep.empty:
+            self.assertIn("rs_rank_cut", sweep.columns)
+            self.assertIn("median_excess_40d", sweep.columns)
+            self.assertTrue((sweep["rs_rank_cut"].isin([50.0, 70.0])).all())
 
     def test_scan_potential_candidates_respects_stock_asset_type(self) -> None:
         prices = pd.concat(

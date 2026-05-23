@@ -30,6 +30,7 @@ from ah_screener.pipeline import (
     run_full_update,
     run_expert_scores,
     run_potential_scan,
+    run_potential_threshold_sweep,
     run_potential_validation,
     run_technical_indicators,
     sync_a_tags,
@@ -520,6 +521,29 @@ def potential_validate_command() -> None:
             _fmt_optional_float(row["p25_excess_40d"], digits=3),
             _fmt_optional_float(row["p75_excess_40d"], digits=3),
             str(row["bias_note"]),
+        )
+    console.print(table)
+
+
+@app.command("potential-sweep")
+def potential_sweep_command() -> None:
+    """Grid-search rs_quiet thresholds over history (stage 9 calibration)."""
+    df = run_potential_threshold_sweep()
+    if df.empty:
+        console.print("No sweep rows. Run sync-history first.")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in ["rs_rank_cut", "ret_60d_cap", "sample_count", "win_rate", "median_excess_40d", "p25_excess_40d", "p75_excess_40d"]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            f"{float(row['rs_rank_cut']):.0f}",
+            f"{float(row['ret_60d_cap']):.2f}",
+            str(int(row["sample_count"])),
+            _fmt_optional_float(row["win_rate"], digits=1, suffix="%"),
+            _fmt_optional_float(row["median_excess_40d"], digits=3),
+            _fmt_optional_float(row["p25_excess_40d"], digits=3),
+            _fmt_optional_float(row["p75_excess_40d"], digits=3),
         )
     console.print(table)
 

@@ -42,6 +42,9 @@ ah-screener = "ah_screener.cli:app"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+ah_screener = ["data/*.json"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
