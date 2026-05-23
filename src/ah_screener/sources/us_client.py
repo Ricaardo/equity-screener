@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import os
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -13,15 +11,13 @@ import pandas as pd
 import requests
 
 from ah_screener.classification import infer_us_board, infer_us_exchange
+from ah_screener.sources.futu_client import fetch_futu_history
 
 
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
-FUTU_HOST = os.getenv("AH_SCREENER_FUTU_HOST", "127.0.0.1")
-FUTU_PORT = int(os.getenv("AH_SCREENER_FUTU_PORT", "11111"))
-USE_FUTU = os.getenv("AH_SCREENER_USE_FUTU", "1").lower() not in {"0", "false", "no"}
 
 US_DEFAULT_SYMBOLS: tuple[str, ...] = (
     "AAPL",
@@ -238,51 +234,8 @@ def _fetch_us_history_akshare(symbol: str, adjust: str) -> pd.DataFrame:
 
 
 def _fetch_us_history_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
-    """Fetch US daily K-lines from local Futu OpenD when available.
-
-    Optional dependency by design: if ``futu-api`` is not installed or OpenD is not
-    reachable, callers catch the exception and fall back to AkShare.
-    """
-    if not USE_FUTU or importlib.util.find_spec("futu") is None:
-        return pd.DataFrame()
-    futu = importlib.import_module("futu")
-    quote_ctx = futu.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
-    try:
-        code = f"US.{_clean_us_symbol(symbol).replace('.', '-')}"
-        autype = getattr(futu, "AuType", None)
-        autype_value = getattr(autype, "QFQ", None) if adjust else getattr(autype, "NONE", None)
-        if autype_value is None:
-            autype_value = "qfq" if adjust else None
-        ret, raw = quote_ctx.request_history_kline(
-            code,
-            start=pd.to_datetime(start_date).strftime("%Y-%m-%d"),
-            end=pd.to_datetime(end_date).strftime("%Y-%m-%d"),
-            ktype=futu.KLType.K_DAY,
-            autype=autype_value,
-        )
-        if ret != getattr(futu, "RET_OK", 0):
-            raise RuntimeError(str(raw))
-        if raw is None or raw.empty:
-            return pd.DataFrame()
-        frame = raw.rename(
-            columns={
-                "time_key": "date",
-                "data_date": "date",
-                "open_price": "open",
-                "high_price": "high",
-                "low_price": "low",
-                "close_price": "close",
-                "turnover": "amount",
-            }
-        )
-        normalized = _normalize_us_history(
-            frame, symbol=symbol, source="futu.opend.history_kline", adj_type=adjust or "raw"
-        )
-        if "amount" in frame.columns:
-            normalized["amount"] = _number(frame["amount"]).to_numpy()
-        return normalized
-    finally:
-        quote_ctx.close()
+    """US daily K-lines via the shared Futu OpenD client (empty when unavailable)."""
+    return fetch_futu_history("US", symbol, start_date, end_date, adjust=adjust)
 
 
 def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = "") -> pd.DataFrame:
