@@ -131,7 +131,7 @@ refined_candidates
 
 - A 股/港股行情、板块、财务：AKShare 免费接口。
 - 美股证券目录：Nasdaq Trader symbol directory。
-- 美股历史行情：AKShare `stock_us_daily`，Stooq CSV 作为可选备用源，使用 `STOOQ_API_KEY` 或 `AH_SCREENER_STOOQ_API_KEY`。
+- 美股历史行情：本地 Futu OpenD 优先（可选依赖 `futu-api`，连不上自动回退），其次 AKShare `stock_us_daily`。（Stooq 已移除——其免费 CSV 端点现需人工 captcha 获取的 apikey，无法自动化。）
 - 美股基本面：SEC EDGAR Company Facts。
 - 美股批量扩展：`sync-us-batch` 按 Nasdaq Trader 全量列表分页同步，免费源限流时调小 `--limit`。
 - 港股主题增强：`sync-hkex-documents` 自动搜索 HKEXnews、下载 PDF 并抽取业务结构、研发投入、客户集中度、审计意见、风险提示、股本动作、延迟刊发财报和主题标签；本地 PDF 仍可用 `ingest-document` 导入。

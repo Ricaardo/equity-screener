@@ -41,7 +41,6 @@ class UsClientTest(TestCase):
         calls: list[str] = []
         original_futu = us_client._fetch_us_history_futu
         original_akshare = us_client._fetch_us_history_akshare
-        original_stooq = us_client._fetch_us_history_stooq
         try:
             def fake_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
                 calls.append("futu")
@@ -68,11 +67,9 @@ class UsClientTest(TestCase):
 
             us_client._fetch_us_history_futu = fake_futu
             us_client._fetch_us_history_akshare = fail
-            us_client._fetch_us_history_stooq = fail
             out = us_client.fetch_us_history("SPY", "20260101", "20260103")
             self.assertEqual(calls, ["futu"])
             self.assertEqual(out.iloc[0]["source"], "futu.opend.history_kline")
         finally:
             us_client._fetch_us_history_futu = original_futu
             us_client._fetch_us_history_akshare = original_akshare
-            us_client._fetch_us_history_stooq = original_stooq

@@ -18,7 +18,6 @@ NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.tx
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
-STOOQ_DAILY_URL = "https://stooq.com/q/d/l/"
 FUTU_HOST = os.getenv("AH_SCREENER_FUTU_HOST", "127.0.0.1")
 FUTU_PORT = int(os.getenv("AH_SCREENER_FUTU_PORT", "11111"))
 USE_FUTU = os.getenv("AH_SCREENER_USE_FUTU", "1").lower() not in {"0", "false", "no"}
@@ -237,40 +236,11 @@ def _fetch_us_history_akshare(symbol: str, adjust: str) -> pd.DataFrame:
     return _normalize_us_history(raw, symbol=symbol, source="akshare.stock_us_daily", adj_type=adjust or "raw")
 
 
-def _fetch_us_history_stooq(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-    api_key = os.getenv("STOOQ_API_KEY") or os.getenv("AH_SCREENER_STOOQ_API_KEY")
-    if not api_key:
-        return pd.DataFrame()
-    params = {
-        "s": f"{_clean_us_symbol(symbol).lower()}.us",
-        "i": "d",
-        "d1": start_date,
-        "d2": end_date,
-        "apikey": api_key,
-    }
-    response = requests.get(STOOQ_DAILY_URL, params=params, timeout=20)
-    response.raise_for_status()
-    raw = pd.read_csv(StringIO(response.text))
-    if raw.empty or "No data" in response.text:
-        return pd.DataFrame()
-    raw = raw.rename(
-        columns={
-            "Date": "date",
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Volume": "volume",
-        }
-    )
-    return _normalize_us_history(raw, symbol=symbol, source="stooq.daily_csv", adj_type="raw")
-
-
 def _fetch_us_history_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
     """Fetch US daily K-lines from local Futu OpenD when available.
 
     Optional dependency by design: if ``futu-api`` is not installed or OpenD is not
-    reachable, callers catch the exception and fall back to AkShare/Stooq.
+    reachable, callers catch the exception and fall back to AkShare.
     """
     if not USE_FUTU or importlib.util.find_spec("futu") is None:
         return pd.DataFrame()
@@ -321,7 +291,6 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
     calls = [
         lambda: _fetch_us_history_futu(symbol, start_date=start_date, end_date=end_date, adjust=adjust),
         lambda: _fetch_us_history_akshare(symbol, adjust=adjust),
-        lambda: _fetch_us_history_stooq(symbol, start_date=start_date, end_date=end_date),
     ]
     for func in calls:
         try:
