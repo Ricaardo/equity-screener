@@ -32,6 +32,9 @@ pdf = [
 ui = [
   "streamlit==1.51.0",
 ]
+futu = [
+  "futu-api>=9.4.0,<10",
+]
 
 [project.scripts]
 ah-screener = "ah_screener.cli:app"

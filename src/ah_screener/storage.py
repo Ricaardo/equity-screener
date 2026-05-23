@@ -208,24 +208,6 @@ CREATE TABLE IF NOT EXISTS financial_metrics (
     PRIMARY KEY (snapshot_date, market, symbol)
 );
 
-CREATE TABLE IF NOT EXISTS screening_scores (
-    snapshot_date DATE NOT NULL,
-    market VARCHAR NOT NULL,
-    symbol VARCHAR NOT NULL,
-    name VARCHAR,
-    quality_score DOUBLE,
-    growth_score DOUBLE,
-    valuation_score DOUBLE,
-    liquidity_score DOUBLE,
-    theme_score DOUBLE,
-    risk_score DOUBLE,
-    total_score DOUBLE,
-    decision VARCHAR,
-    reasons VARCHAR,
-    updated_at TIMESTAMP,
-    PRIMARY KEY (snapshot_date, market, symbol)
-);
-
 CREATE TABLE IF NOT EXISTS expert_screening_results (
     snapshot_date DATE NOT NULL,
     strategy VARCHAR NOT NULL,
@@ -294,6 +276,30 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
     is_replay BOOLEAN DEFAULT false,
     updated_at TIMESTAMP,
     PRIMARY KEY (snapshot_date, strategy, bucket, rank_in_bucket)
+);
+
+CREATE TABLE IF NOT EXISTS potential_candidates (
+    snapshot_date DATE NOT NULL,
+    strategy VARCHAR NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    name VARCHAR,
+    potential_score DOUBLE,
+    technical_setup_score DOUBLE,
+    relative_strength_score DOUBLE,
+    fundamental_turn_score DOUBLE,
+    theme_early_score DOUBLE,
+    pivot_price DOUBLE,
+    target_price DOUBLE,
+    stop_price DOUBLE,
+    rr_ratio DOUBLE,
+    time_stop_days INTEGER,
+    hist_win_rate DOUBLE,
+    hist_median_excess_40d DOUBLE,
+    bias_note VARCHAR,
+    scenario_json VARCHAR,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, strategy, market, symbol)
 );
 """
 

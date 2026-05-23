@@ -20,8 +20,8 @@ from ah_screener.pipeline import (
     coverage_status,
     export_etf_candidates,
     export_expert_scores,
+    export_potential_candidates,
     export_refined_candidates,
-    export_scores,
     fundamentals_status,
     ingest_company_document,
     import_custom_tags,
@@ -29,7 +29,8 @@ from ah_screener.pipeline import (
     init_db,
     run_full_update,
     run_expert_scores,
-    run_scores,
+    run_potential_scan,
+    run_potential_validation,
     run_technical_indicators,
     sync_a_tags,
     sync_benchmarks,
@@ -79,7 +80,7 @@ def init_db_command() -> None:
 def sync_spot_command(
     market: str = typer.Option("all", help="A, HK, US, ETF, or all."),
 ) -> None:
-    """Sync A-share, Hong Kong, US, and/or ETF market snapshots."""
+    """Sync A-share, Hong Kong, US, and/or A/HK ETF market snapshots."""
     normalized = market.upper()
     if normalized not in {"A", "HK", "US", "ETF", "ALL"}:
         raise typer.BadParameter("market must be A, HK, US, ETF, or all")
@@ -112,14 +113,16 @@ def sync_us_batch_command(
         "--include-etf/--stocks-only",
         help="Include US ETFs in the batch.",
     ),
+    etf_only: bool = typer.Option(False, "--etf-only", help="Sync only US ETFs."),
     lookback_days: int = typer.Option(14, help="Recent calendar days used to find latest close."),
 ) -> None:
-    """Sync a Nasdaq Trader full-list batch using free daily prices."""
+    """Sync a Nasdaq Trader full-list batch using Futu/OpenD first, then free fallbacks."""
     result = sync_us_spot_batch(
         offset=offset,
         limit=limit,
-        include_etf=include_etf,
+        include_etf=True if etf_only else include_etf,
         lookback_days=lookback_days,
+        asset_type="etf" if etf_only else None,
     )
     for key, count in result.items():
         console.print(f"{key}: {count}")
@@ -183,20 +186,17 @@ def import_industry_map_command(
     console.print(f"Imported industry mappings: {count}")
 
 
-@app.command("score")
-def score_command() -> None:
-    """Run the screening score model on the latest snapshot."""
-    count = run_scores()
-    console.print(f"Scored securities: {count}")
-
-
 @app.command("sync-history")
 def sync_history_command(
     market: str = typer.Option("all", help="A, HK, US, or all."),
-    top: int = typer.Option(150, help="Top liquid names per market to fetch."),
+    top: int = typer.Option(150, help="Top liquid stocks per market to fetch."),
     lookback_days: int = typer.Option(420, help="Calendar lookback days."),
+    include_etf: bool = typer.Option(
+        True, "--include-etf/--stocks-only", help="Also fetch top ETF daily history."
+    ),
+    etf_top: int = typer.Option(120, help="Top liquid ETFs per market to fetch."),
 ) -> None:
-    """Sync historical daily prices for the most liquid names."""
+    """Sync historical daily prices for the most liquid names (stocks + ETFs)."""
     normalized = market.upper()
     if normalized not in {"A", "HK", "US", "ALL"}:
         raise typer.BadParameter("market must be A, HK, US, or all")
@@ -204,6 +204,8 @@ def sync_history_command(
         "all" if normalized == "ALL" else normalized,  # type: ignore[arg-type]
         top=top,
         lookback_days=lookback_days,
+        include_etf=include_etf,
+        etf_top=etf_top,
     )
     for key, count in result.items():
         console.print(f"{key}: {count}")
@@ -321,32 +323,6 @@ def expert_score_command() -> None:
         console.print(f"{key}: {count}")
 
 
-@app.command("export")
-def export_command(
-    top: int = typer.Option(100, help="Rows to show."),
-    decision: Optional[str] = typer.Option(None, help="Filter by keep, watch, or reject."),
-) -> None:
-    """Print top screening results."""
-    df = export_scores(top=top, decision=decision)
-    if df.empty:
-        console.print("No scores found. Run `ah-screener score` first.")
-        return
-
-    table = Table(show_header=True, header_style="bold")
-    for column in ["snapshot_date", "market", "symbol", "name", "total_score", "decision"]:
-        table.add_column(column)
-    for _, row in df.iterrows():
-        table.add_row(
-            str(row["snapshot_date"]),
-            str(row["market"]),
-            str(row["symbol"]),
-            str(row["name"]),
-            f"{float(row['total_score']):.1f}",
-            str(row["decision"]),
-        )
-    console.print(table)
-
-
 @app.command("expert-export")
 def expert_export_command(
     top: int = typer.Option(100, help="Rows to show."),
@@ -444,45 +420,133 @@ def refined_export_command(
 def etf_export_command(
     top: int = typer.Option(100, help="Rows to show."),
     category: Optional[str] = typer.Option(None, help="Filter by ETF category."),
+    market: str = typer.Option("all", help="A, HK, or all."),
+    grouped: bool = typer.Option(
+        True,
+        "--grouped/--raw",
+        help="Merge same-index or same-theme ETFs and show the best candidate per group.",
+    ),
 ) -> None:
     """Print classified and scored ETF candidates."""
-    df = export_etf_candidates(top=top, category=category)
+    normalized_market = market.upper()
+    if normalized_market not in {"A", "HK", "ALL"}:
+        raise typer.BadParameter("market must be A, HK, or all")
+    df = export_etf_candidates(
+        top=top,
+        category=category,
+        grouped=grouped,
+        market=normalized_market,
+    )
     if df.empty:
-        console.print("No ETF rows found. Run `ah-screener sync-spot --market ETF` first.")
+        console.print("No ETF rows found. Run `uv run ah-screener sync-spot --market ETF` first.")
         return
 
     table = Table(show_header=True, header_style="bold")
-    for column in [
+    columns = [
         "market",
         "symbol",
         "name",
         "etf_category",
+        "etf_track",
+        "etf_peer_group",
         "etf_score",
         "etf_recommendation",
-        "pct_change",
-        "amount",
-        "market_cap",
-    ]:
+    ]
+    if grouped:
+        columns.extend(["peer_count", "peer_alternatives"])
+    columns.extend(
+        [
+            "pct_change",
+            "amount",
+            "market_cap",
+        ]
+    )
+    for column in columns:
         table.add_column(column)
     for _, row in df.iterrows():
-        table.add_row(
+        values = [
             str(row["market"]),
             str(row["symbol"]),
             str(row["name"]),
             str(row["etf_category"]),
+            str(row.get("etf_track") or ""),
+            str(row.get("etf_peer_group") or ""),
             f"{float(row['etf_score']):.1f}",
             str(row["etf_recommendation"]),
-            _fmt_optional_float(row.get("pct_change"), digits=2, suffix="%"),
-            _fmt_optional_float(
-                float(row["amount"]) / 100_000_000 if pd.notna(row.get("amount")) else None,
-                digits=2,
-                suffix="亿",
-            ),
-            _fmt_optional_float(
-                float(row["market_cap"]) / 100_000_000 if pd.notna(row.get("market_cap")) else None,
-                digits=2,
-                suffix="亿",
-            ),
+        ]
+        if grouped:
+            values.extend(
+                [
+                    str(int(row.get("peer_count") or 1)),
+                    str(row.get("peer_alternatives") or ""),
+                ]
+            )
+        values.extend(
+            [
+                _fmt_optional_float(row.get("pct_change"), digits=2, suffix="%"),
+                _fmt_optional_float(
+                    float(row["amount"]) / 100_000_000 if pd.notna(row.get("amount")) else None,
+                    digits=2,
+                    suffix="亿",
+                ),
+                _fmt_optional_float(
+                    float(row["market_cap"]) / 100_000_000 if pd.notna(row.get("market_cap")) else None,
+                    digits=2,
+                    suffix="亿",
+                ),
+            ]
+        )
+        table.add_row(*values)
+    console.print(table)
+
+
+@app.command("potential-validate")
+def potential_validate_command() -> None:
+    """Validate price-only potential setup signals on stored history."""
+    df = run_potential_validation()
+    if df.empty:
+        console.print("No validation rows. Run sync-history first.")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in ["signal", "sample_count", "win_rate", "median_excess_40d", "p25_excess_40d", "p75_excess_40d", "bias_note"]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["signal"]),
+            str(int(row["sample_count"])),
+            _fmt_optional_float(row["win_rate"], digits=1, suffix="%"),
+            _fmt_optional_float(row["median_excess_40d"], digits=3),
+            _fmt_optional_float(row["p25_excess_40d"], digits=3),
+            _fmt_optional_float(row["p75_excess_40d"], digits=3),
+            str(row["bias_note"]),
+        )
+    console.print(table)
+
+
+@app.command("potential-scan")
+def potential_scan_command(top: int = typer.Option(80, help="Rows to persist and show.")) -> None:
+    """Run potential-stock scan and persist scenario cards."""
+    result = run_potential_scan(top=top)
+    console.print(f"potential_candidates: {result.get('potential_candidates', 0)}")
+    df = export_potential_candidates(top=top)
+    if df.empty:
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in ["market", "symbol", "name", "potential_score", "technical_setup_score", "relative_strength_score", "pivot_price", "target_price", "stop_price", "rr_ratio", "hist_win_rate"]:
+        table.add_column(column)
+    for _, row in df.head(top).iterrows():
+        table.add_row(
+            str(row["market"]),
+            str(row["symbol"]),
+            str(row.get("name") or ""),
+            _fmt_optional_float(row["potential_score"]),
+            _fmt_optional_float(row["technical_setup_score"]),
+            _fmt_optional_float(row["relative_strength_score"]),
+            _fmt_optional_float(row["pivot_price"]),
+            _fmt_optional_float(row["target_price"]),
+            _fmt_optional_float(row["stop_price"]),
+            _fmt_optional_float(row["rr_ratio"]),
+            _fmt_optional_float(row["hist_win_rate"], digits=1, suffix="%"),
         )
     console.print(table)
 

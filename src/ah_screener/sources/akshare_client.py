@@ -13,6 +13,7 @@ from ah_screener.classification import (
     infer_status,
     is_st_name,
 )
+from ah_screener.etf_model import is_hk_listed_etf
 from ah_screener.sources.us_client import fetch_us_history, fetch_us_spot
 
 
@@ -188,9 +189,10 @@ def normalize_hk_spot(
 
 def _a_symbol_with_exchange(symbol: str) -> str:
     clean = _clean_a_symbol(pd.Series([symbol])).iloc[0]
-    if clean.startswith(("60", "68", "90")):
+    # Stocks: 60/68/90 SH, 00/30/20 SZ. ETFs/funds: 51/56/58/50 SH, 15/16 SZ.
+    if clean.startswith(("60", "68", "90", "51", "56", "58", "50")):
         return f"sh{clean}"
-    if clean.startswith(("00", "30", "20")):
+    if clean.startswith(("00", "30", "20", "15", "16")):
         return f"sz{clean}"
     if clean.startswith(("43", "83", "87", "88", "92")):
         return f"bj{clean}"
@@ -294,6 +296,61 @@ def normalize_a_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, 
     return securities.drop_duplicates(["market", "symbol"]), snapshots
 
 
+def normalize_hk_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    today = pd.Timestamp.today().normalize()
+    updated_at = _now()
+
+    symbol = _clean_hk_symbol(_first_existing(raw, ["代码", "股票代码"]))
+    name = _first_existing(raw, ["中文名称", "名称", "股票简称"]).astype(str)
+    mask = [is_hk_listed_etf(code, title) for code, title in zip(symbol, name, strict=False)]
+    filtered = raw.loc[mask].copy()
+    symbol = symbol.loc[filtered.index]
+    name = name.loc[filtered.index]
+    board = pd.Series(["ETF"] * len(filtered), index=filtered.index)
+
+    snapshots = pd.DataFrame(
+        {
+            "market": "HK",
+            "symbol": symbol,
+            "asset_type": "etf",
+            "board": board,
+            "trade_date": today,
+            "name": name,
+            "last_price": _number(_first_existing(filtered, ["最新价", "收盘"])),
+            "pct_change": _number(_first_existing(filtered, ["涨跌幅"])),
+            "volume": _number(_first_existing(filtered, ["成交量"])),
+            "amount": _number(_first_existing(filtered, ["成交额"])),
+            "turnover_rate": _number(_first_existing(filtered, ["换手率"])),
+            "pe_ttm": pd.NA,
+            "pb": pd.NA,
+            "market_cap": _number(_first_existing(filtered, ["总市值", "流通市值"])),
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+
+    securities = pd.DataFrame(
+        {
+            "market": "HK",
+            "symbol": symbol,
+            "asset_type": "etf",
+            "board": board,
+            "name": name,
+            "exchange": "HKEX",
+            "currency": "HKD",
+            "status": "listed",
+            "is_st": False,
+            "is_hk_connect": False,
+            "metadata_source": source,
+            "metadata_confidence": "medium",
+            "updated_at": updated_at,
+        }
+    )
+
+    snapshots = snapshots.dropna(subset=["symbol"])
+    return securities.drop_duplicates(["market", "symbol"]), snapshots
+
+
 def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
     import akshare as ak
 
@@ -303,6 +360,18 @@ def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
         ]
     )
     return normalize_a_etf_spot(raw, source)
+
+
+def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    import akshare as ak
+
+    raw, source = _fetch_first_available(
+        [
+            ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
+            ("akshare.stock_hk_spot", ak.stock_hk_spot),
+        ]
+    )
+    return normalize_hk_etf_spot(raw, source)
 
 
 def fetch_hk_connect_symbols_with_meta() -> tuple[set[str], str, str]:
@@ -423,10 +492,33 @@ def fetch_history(
     start_date: str,
     end_date: str,
     adjust: str = "qfq",
+    asset_type: str = "stock",
 ) -> pd.DataFrame:
     import akshare as ak
 
-    if market == "A":
+    is_etf = str(asset_type or "stock").lower() == "etf"
+
+    if market == "A" and is_etf:
+        # A-share ETFs use the fund history endpoints, not the stock ones.
+        clean = _clean_a_symbol(pd.Series([symbol])).iloc[0]
+        prefixed = _a_symbol_with_exchange(clean)
+        calls = [
+            (
+                "akshare.fund_etf_hist_em",
+                lambda: ak.fund_etf_hist_em(
+                    symbol=clean,
+                    period="daily",
+                    start_date=start_date,
+                    end_date=end_date,
+                    adjust=adjust or "",
+                ),
+            ),
+            (
+                "akshare.fund_etf_hist_sina",
+                lambda: ak.fund_etf_hist_sina(symbol=prefixed),
+            ),
+        ]
+    elif market == "A":
         clean = _clean_a_symbol(pd.Series([symbol])).iloc[0]
         prefixed = _a_symbol_with_exchange(clean)
         calls = [

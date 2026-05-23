@@ -9,7 +9,7 @@ import pandas as pd
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
 from ah_screener.documents import build_document_records
-from ah_screener.etf_model import enrich_etf_snapshot
+from ah_screener.etf_model import consolidate_etf_candidates, enrich_etf_snapshot
 from ah_screener.expert_model import (
     CURATED_THEME_OVERRIDES,
     STRATEGY_NAME,
@@ -18,14 +18,15 @@ from ah_screener.expert_model import (
 )
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.identity import default_identity_mappings
+from ah_screener.potential import scan_potential_candidates, validate_potential_signals
 from ah_screener.reporting import generate_report
-from ah_screener.scoring import score_snapshot
 from ah_screener.sources.akshare_client import (
     DEFAULT_BENCHMARKS,
     fetch_a_board_tags,
     fetch_a_etf_spot,
     fetch_benchmark_history,
     fetch_history,
+    fetch_hk_etf_spot,
     fetch_spot,
     parse_benchmark,
 )
@@ -36,6 +37,7 @@ from ah_screener.sources.hkexnews_client import (
 from ah_screener.sources.us_client import fetch_us_spot, fetch_us_spot_batch
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
+from ah_screener.universe import ETFS, STOCKS, AssetClass, select_assets
 
 
 MarketArg = Literal["A", "HK", "US", "ETF", "all"]
@@ -80,6 +82,10 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
         etf_securities, etf_snapshots = fetch_a_etf_spot()
         result["A_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
         result["A_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+    if market in {"HK", "ETF", "all"}:
+        etf_securities, etf_snapshots = fetch_hk_etf_spot()
+        result["HK_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
+        result["HK_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
     return result
 
 
@@ -99,6 +105,7 @@ def sync_us_spot_batch(
     limit: int = 100,
     include_etf: bool = False,
     lookback_days: int = 14,
+    asset_type: str | None = None,
 ) -> dict[str, int]:
     store = get_store()
     store.init_db()
@@ -107,6 +114,7 @@ def sync_us_spot_batch(
         limit=limit,
         include_etf=include_etf,
         lookback_days=lookback_days,
+        asset_type=asset_type,
     )
     return {
         "US_securities": store.upsert_dataframe("securities", securities),
@@ -228,49 +236,63 @@ def _identity_mapping_frame(store: Store) -> pd.DataFrame:
     return mappings.drop_duplicates(["market", "symbol"], keep="first")
 
 
-def run_scores() -> int:
-    store = get_store()
-    store.init_db()
-    snapshots = store.query_df("SELECT * FROM market_snapshots")
-    tags = store.query_df("SELECT * FROM company_tags")
-    scores = score_snapshot(snapshots=snapshots, tags=tags, settings=get_settings())
-    return store.upsert_dataframe("screening_scores", scores)
-
-
-def _latest_snapshots(store: Store) -> pd.DataFrame:
+def _latest_snapshots(
+    store: Store, asset_classes: tuple[AssetClass, ...] = STOCKS
+) -> pd.DataFrame:
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     if snapshots.empty:
         return snapshots
-    if "asset_type" in snapshots.columns:
-        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
+    snapshots = select_assets(snapshots, asset_classes)
     snapshots = snapshots.copy()
     snapshots["trade_date"] = pd.to_datetime(snapshots["trade_date"], errors="coerce")
     return snapshots.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
 
 
-def sync_history(market: MarketArg, top: int = 150, lookback_days: int = 420) -> dict[str, int]:
+def sync_history(
+    market: MarketArg,
+    top: int = 150,
+    lookback_days: int = 420,
+    include_etf: bool = True,
+    etf_top: int = 120,
+) -> dict[str, int]:
     store = get_store()
     store.init_db()
-    latest = _latest_snapshots(store)
+    asset_classes = (*STOCKS, *ETFS) if include_etf else STOCKS
+    latest = _latest_snapshots(store, asset_classes=asset_classes)
     if latest.empty:
         raise RuntimeError("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
+    if "asset_type" not in latest.columns:
+        latest = latest.assign(asset_type="stock")
 
     markets = ["A", "HK", "US"] if market == "all" else [market]
     end = datetime.now().strftime("%Y%m%d")
     start = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
     result: dict[str, int] = {}
     for item in markets:
-        universe = (
-            latest[latest["market"] == item]
-            .assign(amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0))
-            .sort_values("amount_num", ascending=False)
-            .head(top)
+        pool = latest[latest["market"] == item].assign(
+            amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0),
+            asset_type=lambda df: df["asset_type"].fillna("stock"),
         )
+        # Take top stocks and top ETFs separately, so high-turnover ETFs do not
+        # crowd stocks out of a single combined ranking.
+        stocks = pool[pool["asset_type"].eq("stock")].sort_values("amount_num", ascending=False).head(top)
+        etfs = (
+            pool[pool["asset_type"].eq("etf")].sort_values("amount_num", ascending=False).head(etf_top)
+            if include_etf
+            else pool.iloc[0:0]
+        )
+        universe = pd.concat([stocks, etfs], ignore_index=True)
         inserted = 0
         failed = 0
-        for symbol in universe["symbol"].astype(str):
+        for row in universe.itertuples(index=False):
             try:
-                history = fetch_history(item, symbol=symbol, start_date=start, end_date=end)
+                history = fetch_history(
+                    item,
+                    symbol=str(row.symbol),
+                    start_date=start,
+                    end_date=end,
+                    asset_type=str(getattr(row, "asset_type", "stock") or "stock"),
+                )
             except Exception:
                 failed += 1
                 continue
@@ -315,9 +337,7 @@ def run_technical_indicators() -> int:
 def run_expert_scores() -> dict[str, int]:
     store = get_store()
     store.init_db()
-    snapshots = store.query_df("SELECT * FROM market_snapshots")
-    if "asset_type" in snapshots.columns:
-        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
+    snapshots = select_assets(store.query_df("SELECT * FROM market_snapshots"), STOCKS)
     tags = store.query_df("SELECT * FROM company_tags")
     technicals = store.query_df("SELECT * FROM technical_indicators")
     fundamentals = store.query_df("SELECT * FROM financial_metrics")
@@ -644,13 +664,55 @@ def sync_hkex_documents(
     return result
 
 
-def export_etf_candidates(top: int = 100, category: str | None = None) -> pd.DataFrame:
+def run_potential_validation() -> pd.DataFrame:
+    store = get_store()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    return validate_potential_signals(prices)
+
+
+def run_potential_scan(top: int = 80) -> dict[str, int]:
+    store = get_store()
+    store.init_db()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    validation = validate_potential_signals(prices)
+    candidates = scan_potential_candidates(prices, snapshots, validation=validation, top=top)
+    if not candidates.empty:
+        candidates["updated_at"] = pd.Timestamp(datetime.now())
+    return {"potential_candidates": store.upsert_dataframe("potential_candidates", candidates)}
+
+
+def export_potential_candidates(top: int = 80) -> pd.DataFrame:
+    store = get_store()
+    return store.query_df(
+        """
+        SELECT *
+        FROM potential_candidates
+        ORDER BY snapshot_date DESC, potential_score DESC
+        LIMIT ?
+        """,
+        [top],
+    )
+
+
+def export_etf_candidates(
+    top: int = 100,
+    category: str | None = None,
+    grouped: bool = True,
+    market: str | None = None,
+) -> pd.DataFrame:
     store = get_store()
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
     if snapshots.empty or "asset_type" not in snapshots.columns:
         return pd.DataFrame()
-    etfs = snapshots[snapshots["asset_type"].fillna("stock").eq("etf")].copy()
-    etfs = enrich_etf_snapshot(etfs)
+    etfs = select_assets(snapshots, ETFS).copy()
+    if market and market.upper() != "ALL":
+        etfs = etfs[etfs["market"].astype(str).str.upper().eq(market.upper())]
+    # Pass real technical scores so CLI etf_score matches the report/UI (review #1).
+    technicals = store.query_df("SELECT * FROM technical_indicators")
+    if grouped:
+        return consolidate_etf_candidates(etfs, top=top, category=category, technicals=technicals)
+    etfs = enrich_etf_snapshot(etfs, technicals=technicals)
     if category:
         etfs = etfs[etfs["etf_category"].eq(category)]
     return etfs.sort_values(["etf_score", "amount"], ascending=[False, False]).head(top)
@@ -1094,25 +1156,6 @@ def backtest_refined_candidates(
     return pd.DataFrame(rows)
 
 
-def export_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:
-    store = get_store()
-    where = ""
-    params: list[object] = []
-    if decision:
-        where = "WHERE decision = ?"
-        params.append(decision)
-    return store.query_df(
-        f"""
-        SELECT *
-        FROM screening_scores
-        {where}
-        ORDER BY snapshot_date DESC, total_score DESC
-        LIMIT ?
-        """,
-        [*params, top],
-    )
-
-
 def export_expert_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:
     store = get_store()
     where = "WHERE strategy = ?"
@@ -1161,7 +1204,6 @@ def run_full_update(
         result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
     result["curated_theme_tags"] = sync_curated_theme_tags()
     result["identity_mappings"] = sync_identity_mappings()
-    result["basic_scores"] = run_scores()
     result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
     result["benchmarks"] = sync_benchmarks(lookback_days=lookback_days)
     result["technical_rows"] = run_technical_indicators()
@@ -1169,6 +1211,7 @@ def run_full_update(
         result["fundamentals"] = sync_fundamentals("all", top=top)
     result["expert_scores"] = run_expert_scores()
     result["industry_valuation_stats"] = compute_industry_valuation_stats()
+    result["potential_scan"] = run_potential_scan()
     if include_report:
         result["report"] = str(generate_report())
     return result

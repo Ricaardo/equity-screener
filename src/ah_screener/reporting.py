@@ -7,7 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 from ah_screener.config import get_settings
-from ah_screener.etf_model import enrich_etf_snapshot
+from ah_screener.selection import dedup_etf_pool, etf_category_overview
+from ah_screener.universe import ETFS, select_assets
 from ah_screener.expert_model import STRATEGY_NAME
 from ah_screener.storage import Store
 
@@ -78,6 +79,7 @@ def _table(df: pd.DataFrame, columns: list[str]) -> str:
 
 
 def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
+    store.init_db()
     refined = store.query_df(
         """
         SELECT *
@@ -100,6 +102,14 @@ def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     technicals = store.query_df("SELECT * FROM technical_indicators")
     securities = store.query_df("SELECT * FROM securities")
+    potential = store.query_df(
+        """
+        SELECT *
+        FROM potential_candidates
+        ORDER BY snapshot_date DESC, potential_score DESC
+        LIMIT 30
+        """
+    )
     return {
         "refined": refined,
         "expert": expert,
@@ -107,6 +117,7 @@ def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
         "snapshots": snapshots,
         "technicals": technicals,
         "securities": securities,
+        "potential": potential,
     }
 
 
@@ -304,6 +315,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
     snapshots = _latest_by_security(data["snapshots"], "trade_date")
     technicals = _latest(data["technicals"], "snapshot_date")
     securities = data["securities"]
+    potential = _latest(data["potential"], "snapshot_date")
 
     generated_at = datetime.now()
     report_date = generated_at.strftime("%Y-%m-%d")
@@ -420,40 +432,64 @@ def generate_report(output_dir: Path | None = None) -> Path:
     )
     if not decision_counts.empty:
         decision_counts = decision_counts.rename(columns={"decision": "决策"})
-    etf_pool = (
-        snapshots[snapshots["asset_type"].fillna("stock").eq("etf")].copy()
-        if not snapshots.empty and "asset_type" in snapshots.columns
-        else pd.DataFrame()
-    )
-    etf_scored = enrich_etf_snapshot(etf_pool) if not etf_pool.empty else pd.DataFrame()
-    etf_display = etf_scored.copy()
+    etf_pool = select_assets(snapshots, ETFS).copy() if not snapshots.empty else pd.DataFrame()
+    # Two-table layout (decision D1): ① full-pool size by category; ② double-layer
+    # de-duplicated leaders. Both go through the selection seam (R14).
+    etf_category_counts = etf_category_overview(etf_pool)
+    etf_deduped = dedup_etf_pool(etf_pool, technicals=technicals, top=20)
+    etf_display = etf_deduped.copy()
     if not etf_display.empty:
-        etf_display = etf_display.sort_values(["etf_score", "amount"], ascending=False).head(20)
+        etf_display["涨跌幅"] = pd.to_numeric(etf_display.get("pct_change"), errors="coerce").map(
+            lambda value: f"{float(value):.2f}%" if pd.notna(value) else ""
+        )
+        etf_display["成交额"] = etf_display.get("amount").map(_fmt_amount)
+        etf_display["同组数"] = pd.to_numeric(
+            etf_display.get("peer_count"), errors="coerce"
+        ).fillna(1).astype(int)
         etf_display = etf_display.rename(
             columns={
                 "symbol": "代码",
                 "name": "名称",
-                "etf_category": "分类",
+                "etf_cluster": "簇",
+                "etf_track": "跟踪",
                 "etf_score": "ETF分",
                 "etf_recommendation": "建议",
-                "pct_change": "涨跌幅",
-                "amount": "成交额",
+                "peer_alternatives": "同类备选",
             }
         )
-        etf_display["涨跌幅"] = etf_display["涨跌幅"].map(
-            lambda value: f"{float(value):.2f}%" if pd.notna(value) else ""
+        etf_display["ETF分"] = pd.to_numeric(etf_display["ETF分"], errors="coerce").map(
+            lambda value: f"{float(value):.1f}" if pd.notna(value) else ""
         )
-        etf_display["成交额"] = etf_display["成交额"].map(_fmt_amount)
-    etf_category_counts = (
-        etf_scored.groupby("etf_category")
-        .size()
-        .rename("数量")
-        .reset_index()
-        .rename(columns={"etf_category": "分类"})
-        .sort_values("数量", ascending=False)
-        if not etf_scored.empty
-        else pd.DataFrame(columns=["分类", "数量"])
-    )
+    potential_display = potential.copy()
+    if not potential_display.empty:
+        for column in [
+            "potential_score",
+            "technical_setup_score",
+            "relative_strength_score",
+            "pivot_price",
+            "target_price",
+            "stop_price",
+            "rr_ratio",
+            "hist_win_rate",
+        ]:
+            potential_display[column] = pd.to_numeric(potential_display[column], errors="coerce").map(
+                lambda value: f"{float(value):.1f}" if pd.notna(value) else ""
+            )
+        potential_display = potential_display.rename(
+            columns={
+                "market": "市场",
+                "symbol": "代码",
+                "name": "名称",
+                "potential_score": "潜力分",
+                "technical_setup_score": "筑底",
+                "relative_strength_score": "RS",
+                "pivot_price": "触发价",
+                "target_price": "目标价",
+                "stop_price": "止损价",
+                "rr_ratio": "RR",
+                "hist_win_rate": "历史胜率",
+            }
+        )
     change_display = _candidate_changes(refined_all)
 
     lines = [
@@ -520,17 +556,35 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "",
             "## 6. ETF 工具池",
             "",
+            "### 6.1 完整池规模（按分类）",
+            "",
             _table(etf_category_counts, ["分类", "数量"]) if not etf_category_counts.empty else "暂无数据。",
             "",
-            _table(etf_display, ["代码", "名称", "分类", "ETF分", "建议", "涨跌幅", "成交额"])
+            "### 6.2 双层去重精选（同指数折叠 → 相关簇代表）",
+            "",
+            _table(
+                etf_display,
+                ["代码", "名称", "簇", "跟踪", "ETF分", "建议", "同组数", "涨跌幅", "成交额", "同类备选"],
+            )
             if not etf_display.empty
             else "暂无 ETF 数据。",
             "",
-            "## 7. 主题建议",
+            "## 7. 潜力扫描（价格形态试运行）",
+            "",
+            "- 口径：price-only；历史胜率含幸存者偏差，仅作相对参考；基本面/题材在 v1 中为中性占位。",
+            "",
+            _table(
+                potential_display,
+                ["市场", "代码", "名称", "潜力分", "筑底", "RS", "触发价", "目标价", "止损价", "RR", "历史胜率"],
+            )
+            if not potential_display.empty
+            else "暂无潜力扫描结果。运行 `ah-screener potential-scan` 后刷新。",
+            "",
+            "## 8. 主题建议",
             "",
             *_bucket_recommendations(refined),
             "",
-            "## 8. 提炼候选",
+            "## 9. 提炼候选",
             "",
             _table(
                 refined_display,
@@ -555,7 +609,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not refined_display.empty
             else "暂无数据。",
             "",
-            "## 9. 核心候选",
+            "## 10. 核心候选",
             "",
             _table(
                 core,
@@ -578,13 +632,13 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not core.empty
             else "暂无核心候选。",
             "",
-            "## 10. 候选变化",
+            "## 11. 候选变化",
             "",
             _table(change_display, ["变化", "主题桶", "市场", "代码", "名称", "最新分", "上期分", "分数变化"])
             if not change_display.empty
             else "当前只有一个提炼快照，下一次定时更新后会生成新增、移出和分数变化。",
             "",
-            "## 11. 多期基本面",
+            "## 12. 多期基本面",
             "",
             _table(
                 fundamental_display,
@@ -609,11 +663,11 @@ def generate_report(output_dir: Path | None = None) -> Path:
             if not fundamental_display.empty
             else "暂无多期基本面数据。",
             "",
-            "## 12. 操作建议",
+            "## 13. 操作建议",
             "",
             *_portfolio_notes(refined),
             "",
-            "## 13. 后续自动刷新",
+            "## 14. 后续自动刷新",
             "",
             "建议每天收盘后或每周固定运行完整刷新流程，重新同步行情、技术指标、三表基本面、专家评分和报告。",
             "本项目已提供 `ah-screener update-all` 与 `ah-screener install-schedule` 两个命令用于自动化。",
