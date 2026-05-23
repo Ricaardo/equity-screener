@@ -537,6 +537,39 @@ def render_kpis(market_df: pd.DataFrame, expert_df: pd.DataFrame, refined_df: pd
     st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
 
 
+def render_conclusion(refined_df: pd.DataFrame, expert_df: pd.DataFrame) -> None:
+    """Data-driven one-glance stance: candidate counts + top theme directions."""
+    core = int(expert_df["decision"].eq("core_candidate").sum()) if not expert_df.empty else 0
+    watch = int(expert_df["decision"].eq("watchlist").sum()) if not expert_df.empty else 0
+    directions: list[str] = []
+    if not refined_df.empty and {"bucket", "expert_score"}.issubset(refined_df.columns):
+        grouped = (
+            refined_df.assign(score=pd.to_numeric(refined_df["expert_score"], errors="coerce"))
+            .groupby("bucket")
+            .agg(n=("symbol", "nunique"), score=("score", "mean"))
+            .sort_values(["n", "score"], ascending=False)
+            .head(3)
+        )
+        directions = [
+            f"{_safe(bucket)}（{int(row['n'])}只·均分{row['score']:.0f}）"
+            for bucket, row in grouped.iterrows()
+        ]
+    dir_html = " &nbsp;·&nbsp; ".join(directions) if directions else "暂无提炼方向，先运行 expert-score"
+    st.markdown(
+        f"""
+        <div class="panel">
+          <div class="panel-title"><strong>当前结论</strong><span class="hint">数据驱动</span></div>
+          <div style="padding:0.4rem 0.2rem;line-height:1.7;">
+            <span class="chip green">核心候选 {core}</span>
+            <span class="chip">观察 {watch}</span><br>
+            <span style="opacity:0.7;">重点方向：</span>{dir_html}
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def render_candidate_cards(df: pd.DataFrame, limit: int = 8) -> None:
     if df.empty:
         st.info("暂无精选候选。")
@@ -936,6 +969,7 @@ board_filter = st.sidebar.multiselect("板块", board_options, default=board_opt
 
 risk_filter = st.sidebar.selectbox("风险状态", ["全部", "排除 ST/退", "仅 ST/退"], index=1)
 search_text = st.sidebar.text_input("代码或名称")
+st.sidebar.caption("↑ 市场/类型/板块/风险/搜索：作用于全部页签")
 min_expert_score = st.sidebar.slider("专家最低分", 0, 100, 55)
 min_fundamental_score = st.sidebar.slider("基本面最低分", 0, 100, 0)
 decision_options = (
@@ -945,6 +979,7 @@ decision_options = (
 )
 default_decisions = [item for item in ["core_candidate", "watchlist"] if item in decision_options]
 decision_filter = st.sidebar.multiselect("专家决策", decision_options, default=default_decisions)
+st.sidebar.caption("↑ 专家分/基本面分/决策：仅作用于 精选 · 股票池 · 基本面（潜力页有独立阈值）")
 
 filtered_market = apply_common_filters(market_view)
 filtered_expert = apply_common_filters(expert_view)
@@ -985,6 +1020,7 @@ overview_tab, refined_tab, potential_tab, stocks_tab, etf_tab, fundamentals_tab,
 )
 
 with overview_tab:
+    render_conclusion(refined_view, expert_view)
     left, right = st.columns([1.25, 1])
     with left:
         st.markdown('<div class="panel"><div class="panel-title"><strong>高优先级候选</strong><span class="hint">按专家分排序</span></div>', unsafe_allow_html=True)
