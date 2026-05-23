@@ -75,6 +75,30 @@ class PotentialScannerTest(TestCase):
         s = f_spiked[f_spiked["trade_date"].eq(anchor)]["base_setup"].iloc[0]
         self.assertAlmostEqual(float(b), float(s), places=6)
 
+    def test_fundamental_turn_pillar_lifts_score(self) -> None:
+        from ah_screener.potential import _fundamental_turn_scores
+
+        fund = pd.DataFrame(
+            [
+                {"market": "A", "symbol": "AAA", "snapshot_date": "2026-05-23",
+                 "fundamental_trend_score": 90.0, "growth_score": 90.0},
+                {"market": "A", "symbol": "BBB", "snapshot_date": "2026-05-23",
+                 "fundamental_trend_score": 10.0, "growth_score": 10.0},
+            ]
+        )
+        turn = _fundamental_turn_scores(fund)
+        self.assertAlmostEqual(turn[("A", "AAA")], 90.0, places=1)
+        self.assertAlmostEqual(turn[("A", "BBB")], 10.0, places=1)
+        # missing fundamentals -> empty map (caller defaults to neutral 50)
+        self.assertEqual(_fundamental_turn_scores(pd.DataFrame()), {})
+
+    def test_weight_profiles_are_market_specific(self) -> None:
+        from ah_screener.potential import WEIGHT_PROFILES
+
+        for mkt in ("A", "HK", "US"):
+            self.assertAlmostEqual(sum(WEIGHT_PROFILES[mkt].values()), 1.0, places=6)
+        self.assertGreater(WEIGHT_PROFILES["US"]["fundamental"], WEIGHT_PROFILES["A"]["fundamental"])
+
     def test_threshold_sweep_returns_grid_with_stats(self) -> None:
         prices = pd.concat(
             [_make_prices(f"S{i}", 10 + i, 0.02 + i * 0.001, 210) for i in range(6)],

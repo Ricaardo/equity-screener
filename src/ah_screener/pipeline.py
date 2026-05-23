@@ -763,8 +763,11 @@ def run_potential_scan(top: int = 80) -> dict[str, int]:
     store.init_db()
     prices = store.query_df("SELECT * FROM daily_prices")
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    fundamentals = store.query_df("SELECT * FROM financial_metrics")
     validation = validate_potential_signals(prices)
-    candidates = scan_potential_candidates(prices, snapshots, validation=validation, top=top)
+    candidates = scan_potential_candidates(
+        prices, snapshots, validation=validation, top=top, fundamentals=fundamentals
+    )
     # Replace prior rows for this strategy so a stricter scan doesn't leave stale picks.
     store.execute("DELETE FROM potential_candidates WHERE strategy = ?", ["potential_v1"])
     if not candidates.empty:
