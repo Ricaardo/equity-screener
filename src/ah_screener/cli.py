@@ -242,8 +242,9 @@ def sync_history_command(
         True, "--include-etf/--stocks-only", help="Also fetch top ETF daily history."
     ),
     etf_top: int = typer.Option(120, help="Top liquid ETFs per market to fetch."),
+    full: bool = typer.Option(False, "--full", help="Force full backfill (ignore incremental skip)."),
 ) -> None:
-    """Sync historical daily prices for the most liquid names (stocks + ETFs)."""
+    """Sync historical daily prices incrementally (skips names already current)."""
     normalized = market.upper()
     if normalized not in {"A", "HK", "US", "ALL"}:
         raise typer.BadParameter("market must be A, HK, US, or all")
@@ -253,6 +254,7 @@ def sync_history_command(
         lookback_days=lookback_days,
         include_etf=include_etf,
         etf_top=etf_top,
+        full=full,
     )
     for key, count in result.items():
         console.print(f"{key}: {count}")
@@ -265,10 +267,11 @@ def sync_benchmarks_command(
         help="Comma-separated benchmarks, for example A:000300,HK:HSI,US:SPY.",
     ),
     lookback_days: int = typer.Option(430, help="Calendar lookback days."),
+    full: bool = typer.Option(False, "--full", help="Force full backfill (ignore incremental skip)."),
 ) -> None:
-    """Sync free A/H benchmark index history into daily_prices."""
+    """Sync free A/H benchmark index history into daily_prices (incremental)."""
     items = [item.strip() for item in benchmarks.split(",") if item.strip()] if benchmarks else None
-    result = sync_benchmarks(benchmarks=items, lookback_days=lookback_days)
+    result = sync_benchmarks(benchmarks=items, lookback_days=lookback_days, full=full)
     for key, count in result.items():
         console.print(f"{key}: {count}")
 
@@ -284,14 +287,16 @@ def technical_command() -> None:
 def sync_fundamentals_command(
     market: str = typer.Option("all", help="A, HK, US, or all."),
     top: int = typer.Option(120, help="Top liquid names per market to fetch fundamentals."),
+    force: bool = typer.Option(False, "--force", help="Re-fetch all (ignore freshness/carry-forward)."),
 ) -> None:
-    """Sync financial statements and standardized fundamental metrics."""
+    """Sync fundamentals incrementally (carries forward fresh metrics; --force refetches)."""
     normalized = market.upper()
     if normalized not in {"A", "HK", "US", "ALL"}:
         raise typer.BadParameter("market must be A, HK, US, or all")
     result = sync_fundamentals(
         "all" if normalized == "ALL" else normalized,  # type: ignore[arg-type]
         top=top,
+        force=force,
     )
     for key, count in result.items():
         console.print(f"{key}: {count}")

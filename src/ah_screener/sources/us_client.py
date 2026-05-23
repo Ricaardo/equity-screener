@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import os
 from datetime import datetime, timedelta
+from functools import lru_cache
 from io import StringIO
 from time import sleep
 from typing import Any
@@ -12,16 +11,13 @@ import pandas as pd
 import requests
 
 from ah_screener.classification import infer_us_board, infer_us_exchange
+from ah_screener.sources.futu_client import fetch_futu_history
 
 
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
-STOOQ_DAILY_URL = "https://stooq.com/q/d/l/"
-FUTU_HOST = os.getenv("AH_SCREENER_FUTU_HOST", "127.0.0.1")
-FUTU_PORT = int(os.getenv("AH_SCREENER_FUTU_PORT", "11111"))
-USE_FUTU = os.getenv("AH_SCREENER_USE_FUTU", "1").lower() not in {"0", "false", "no"}
 
 US_DEFAULT_SYMBOLS: tuple[str, ...] = (
     "AAPL",
@@ -237,81 +233,9 @@ def _fetch_us_history_akshare(symbol: str, adjust: str) -> pd.DataFrame:
     return _normalize_us_history(raw, symbol=symbol, source="akshare.stock_us_daily", adj_type=adjust or "raw")
 
 
-def _fetch_us_history_stooq(symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
-    api_key = os.getenv("STOOQ_API_KEY") or os.getenv("AH_SCREENER_STOOQ_API_KEY")
-    if not api_key:
-        return pd.DataFrame()
-    params = {
-        "s": f"{_clean_us_symbol(symbol).lower()}.us",
-        "i": "d",
-        "d1": start_date,
-        "d2": end_date,
-        "apikey": api_key,
-    }
-    response = requests.get(STOOQ_DAILY_URL, params=params, timeout=20)
-    response.raise_for_status()
-    raw = pd.read_csv(StringIO(response.text))
-    if raw.empty or "No data" in response.text:
-        return pd.DataFrame()
-    raw = raw.rename(
-        columns={
-            "Date": "date",
-            "Open": "open",
-            "High": "high",
-            "Low": "low",
-            "Close": "close",
-            "Volume": "volume",
-        }
-    )
-    return _normalize_us_history(raw, symbol=symbol, source="stooq.daily_csv", adj_type="raw")
-
-
 def _fetch_us_history_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
-    """Fetch US daily K-lines from local Futu OpenD when available.
-
-    Optional dependency by design: if ``futu-api`` is not installed or OpenD is not
-    reachable, callers catch the exception and fall back to AkShare/Stooq.
-    """
-    if not USE_FUTU or importlib.util.find_spec("futu") is None:
-        return pd.DataFrame()
-    futu = importlib.import_module("futu")
-    quote_ctx = futu.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
-    try:
-        code = f"US.{_clean_us_symbol(symbol).replace('.', '-')}"
-        autype = getattr(futu, "AuType", None)
-        autype_value = getattr(autype, "QFQ", None) if adjust else getattr(autype, "NONE", None)
-        if autype_value is None:
-            autype_value = "qfq" if adjust else None
-        ret, raw = quote_ctx.request_history_kline(
-            code,
-            start=pd.to_datetime(start_date).strftime("%Y-%m-%d"),
-            end=pd.to_datetime(end_date).strftime("%Y-%m-%d"),
-            ktype=futu.KLType.K_DAY,
-            autype=autype_value,
-        )
-        if ret != getattr(futu, "RET_OK", 0):
-            raise RuntimeError(str(raw))
-        if raw is None or raw.empty:
-            return pd.DataFrame()
-        frame = raw.rename(
-            columns={
-                "time_key": "date",
-                "data_date": "date",
-                "open_price": "open",
-                "high_price": "high",
-                "low_price": "low",
-                "close_price": "close",
-                "turnover": "amount",
-            }
-        )
-        normalized = _normalize_us_history(
-            frame, symbol=symbol, source="futu.opend.history_kline", adj_type=adjust or "raw"
-        )
-        if "amount" in frame.columns:
-            normalized["amount"] = _number(frame["amount"]).to_numpy()
-        return normalized
-    finally:
-        quote_ctx.close()
+    """US daily K-lines via the shared Futu OpenD client (empty when unavailable)."""
+    return fetch_futu_history("US", symbol, start_date, end_date, adjust=adjust)
 
 
 def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = "") -> pd.DataFrame:
@@ -321,7 +245,6 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
     calls = [
         lambda: _fetch_us_history_futu(symbol, start_date=start_date, end_date=end_date, adjust=adjust),
         lambda: _fetch_us_history_akshare(symbol, adjust=adjust),
-        lambda: _fetch_us_history_stooq(symbol, start_date=start_date, end_date=end_date),
     ]
     for func in calls:
         try:
@@ -460,7 +383,10 @@ def fetch_us_spot_batch(
     return fetch_us_spot(symbols=selected, lookback_days=lookback_days, master=master)
 
 
+@lru_cache(maxsize=1)
 def fetch_sec_company_tickers() -> dict[str, dict[str, Any]]:
+    # Cached for the process: the full SEC ticker→CIK map was previously re-downloaded
+    # once per US symbol during a fundamentals batch (incremental fetching, stage).
     response = requests.get(SEC_TICKERS_URL, headers=_sec_headers(), timeout=20)
     response.raise_for_status()
     raw = response.json()

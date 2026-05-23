@@ -22,6 +22,35 @@ SETUP_STEP_DAYS = 20
 RS_RANK_CUT = 70.0
 RET_60D_CAP = 0.35
 
+# Per-market pillar weights (master-plan D5). A: fundamentals are a light gate and
+# theme/RS lead; HK balanced; US fundamentals-led (CANSLIM-style).
+WEIGHT_PROFILES: dict[str, dict[str, float]] = {
+    "A": {"technical": 0.35, "rs": 0.25, "fundamental": 0.15, "theme": 0.25},
+    "HK": {"technical": 0.30, "rs": 0.25, "fundamental": 0.25, "theme": 0.20},
+    "US": {"technical": 0.30, "rs": 0.25, "fundamental": 0.30, "theme": 0.15},
+}
+_DEFAULT_PROFILE = WEIGHT_PROFILES["A"]
+
+
+def _fundamental_turn_scores(fundamentals: pd.DataFrame | None) -> dict[tuple[str, str], float]:
+    """Map (market, symbol) -> fundamental-turn score from the latest stored metrics.
+
+    Uses the multi-period trend + growth scores already computed in financial_metrics
+    (improvement/acceleration proxy). Live scan only, so current data carries no
+    look-ahead. Missing names default to neutral 50 at the call site.
+    """
+    if fundamentals is None or fundamentals.empty:
+        return {}
+    f = fundamentals.copy()
+    f["snapshot_date"] = pd.to_datetime(f["snapshot_date"], errors="coerce")
+    f = f[f["snapshot_date"] == f["snapshot_date"].max()].drop_duplicates(
+        ["market", "symbol"], keep="last"
+    )
+    trend = pd.to_numeric(f.get("fundamental_trend_score"), errors="coerce")
+    growth = pd.to_numeric(f.get("growth_score"), errors="coerce")
+    score = (trend.fillna(50) * 0.6 + growth.fillna(50) * 0.4).clip(0, 100)
+    return {(str(m), str(s)): float(v) for m, s, v in zip(f["market"], f["symbol"], score)}
+
 
 def _rank_pct(series: pd.Series, ascending: bool = True) -> pd.Series:
     numeric = pd.to_numeric(series, errors="coerce")
@@ -198,6 +227,7 @@ def scan_potential_candidates(
     snapshots: pd.DataFrame,
     validation: pd.DataFrame | None = None,
     top: int = 80,
+    fundamentals: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
     features = _setup_scores(_price_features(prices))
     if features.empty:
@@ -213,14 +243,21 @@ def scan_potential_candidates(
     )
     latest["technical_setup_score"] = latest["base_setup"].fillna(50).clip(0, 100)
     latest["relative_strength_score"] = latest["return_60d_rank"].fillna(50).clip(0, 100)
-    latest["fundamental_turn_score"] = 50.0
-    latest["theme_early_score"] = 50.0
+    turn = _fundamental_turn_scores(fundamentals)
+    latest["fundamental_turn_score"] = [
+        turn.get((str(m), str(s)), 50.0) for m, s in zip(latest["market"], latest["symbol"])
+    ]
+    latest["theme_early_score"] = 50.0  # neutral until point-in-time theme history (R1)
     latest["extended_penalty"] = np.where(latest["return_60d"].fillna(0) > 0.35, 25.0, 0.0)
+
+    def _profile(col: str) -> pd.Series:
+        return latest["market"].map(lambda m: WEIGHT_PROFILES.get(str(m), _DEFAULT_PROFILE)[col])
+
     latest["potential_score"] = (
-        latest["technical_setup_score"] * 0.35
-        + latest["relative_strength_score"] * 0.25
-        + latest["fundamental_turn_score"] * 0.15
-        + latest["theme_early_score"] * 0.25
+        latest["technical_setup_score"] * _profile("technical")
+        + latest["relative_strength_score"] * _profile("rs")
+        + latest["fundamental_turn_score"] * _profile("fundamental")
+        + latest["theme_early_score"] * _profile("theme")
         - latest["extended_penalty"]
     ).clip(0, 100)
     latest = latest[latest["validated_setup"]].copy()

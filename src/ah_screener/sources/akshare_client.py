@@ -14,6 +14,7 @@ from ah_screener.classification import (
     is_st_name,
 )
 from ah_screener.etf_model import is_hk_listed_etf
+from ah_screener.sources.futu_client import fetch_futu_history
 from ah_screener.sources.us_client import fetch_us_history, fetch_us_spot
 
 
@@ -497,6 +498,17 @@ def fetch_history(
     import akshare as ak
 
     is_etf = str(asset_type or "stock").lower() == "etf"
+
+    # HK: prefer local Futu OpenD; fall through to AKShare when unavailable/empty.
+    if market == "HK":
+        try:
+            futu_hist = fetch_futu_history("HK", symbol, start_date, end_date, adjust=adjust)
+        except Exception:
+            futu_hist = pd.DataFrame()
+        if not futu_hist.empty:
+            start = pd.to_datetime(start_date)
+            end = pd.to_datetime(end_date)
+            return futu_hist[(futu_hist["trade_date"] >= start) & (futu_hist["trade_date"] <= end)]
 
     if market == "A" and is_etf:
         # A-share ETFs use the fund history endpoints, not the stock ones.

@@ -64,19 +64,27 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
     store = get_store()
     store.init_db()
     result: dict[str, int] = {}
+    tolerant = market == "all"  # a single transient endpoint failure must not abort a full refresh
+
+    def _ingest(label: str, fetch) -> None:
+        try:
+            securities, snapshots = fetch()
+        except Exception as exc:  # noqa: BLE001 - record and continue across markets
+            result[f"{label}_failed"] = 1
+            result[f"{label}_error"] = str(exc)[:200]
+            if not tolerant:
+                raise
+            return
+        result[f"{label}_securities"] = store.upsert_dataframe("securities", securities)
+        result[f"{label}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+
     markets = ["A", "HK", "US"] if market == "all" else ([] if market == "ETF" else [market])
     for item in markets:
-        securities, snapshots = fetch_spot(item)  # type: ignore[arg-type]
-        result[f"{item}_securities"] = store.upsert_dataframe("securities", securities)
-        result[f"{item}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+        _ingest(item, lambda item=item: fetch_spot(item))  # type: ignore[arg-type]
     if market in {"A", "ETF", "all"}:
-        etf_securities, etf_snapshots = fetch_a_etf_spot()
-        result["A_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
-        result["A_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+        _ingest("A_etf", fetch_a_etf_spot)
     if market in {"HK", "ETF", "all"}:
-        etf_securities, etf_snapshots = fetch_hk_etf_spot()
-        result["HK_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
-        result["HK_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+        _ingest("HK_etf", fetch_hk_etf_spot)
     return result
 
 
@@ -245,7 +253,15 @@ def sync_history(
     lookback_days: int = 420,
     include_etf: bool = True,
     etf_top: int = 120,
+    full: bool = False,
 ) -> dict[str, int]:
+    """Sync daily prices incrementally.
+
+    A name already covered through the latest snapshot date is skipped; a stale name
+    is fetched only from its last stored bar (minus a small buffer for adjustments)
+    forward, instead of re-pulling the full ``lookback_days`` window. ``full=True``
+    forces a complete backfill (e.g. first run or to repair gaps).
+    """
     store = get_store()
     store.init_db()
     asset_classes = (*STOCKS, *ETFS) if include_etf else STOCKS
@@ -255,15 +271,27 @@ def sync_history(
     if "asset_type" not in latest.columns:
         latest = latest.assign(asset_type="stock")
 
+    coverage = store.query_df(
+        "SELECT market, symbol, MAX(trade_date) AS max_td FROM daily_prices GROUP BY market, symbol"
+    )
+    cov_map: dict[tuple[str, str], pd.Timestamp] = {}
+    if not coverage.empty:
+        coverage["max_td"] = pd.to_datetime(coverage["max_td"], errors="coerce")
+        cov_map = {
+            (str(r.market), str(r.symbol)): r.max_td for r in coverage.itertuples(index=False)
+        }
+
     markets = ["A", "HK", "US"] if market == "all" else [market]
-    end = datetime.now().strftime("%Y%m%d")
-    start = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
+    end_dt = datetime.now()
+    end = end_dt.strftime("%Y%m%d")
+    full_start = (end_dt - timedelta(days=lookback_days)).strftime("%Y%m%d")
     result: dict[str, int] = {}
     for item in markets:
         pool = latest[latest["market"] == item].assign(
             amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0),
             asset_type=lambda df: df["asset_type"].fillna("stock"),
         )
+        target = pd.to_datetime(pool["trade_date"], errors="coerce").max()  # latest synced market date
         # Take top stocks and top ETFs separately, so high-turnover ETFs do not
         # crowd stocks out of a single combined ranking.
         stocks = pool[pool["asset_type"].eq("stock")].sort_values("amount_num", ascending=False).head(top)
@@ -274,12 +302,22 @@ def sync_history(
         )
         universe = pd.concat([stocks, etfs], ignore_index=True)
         inserted = 0
+        skipped = 0
         failed = 0
         for row in universe.itertuples(index=False):
+            symbol = str(row.symbol)
+            nm_max = cov_map.get((item, symbol))
+            if not full and nm_max is not None and pd.notna(nm_max) and pd.notna(target) and nm_max >= target:
+                skipped += 1  # already current through the latest market date
+                continue
+            if not full and nm_max is not None and pd.notna(nm_max):
+                start = (nm_max - pd.Timedelta(days=7)).strftime("%Y%m%d")  # gap + adjustment buffer
+            else:
+                start = full_start
             try:
                 history = fetch_history(
                     item,
-                    symbol=str(row.symbol),
+                    symbol=symbol,
                     start_date=start,
                     end_date=end,
                     asset_type=str(getattr(row, "asset_type", "stock") or "stock"),
@@ -289,6 +327,7 @@ def sync_history(
                 continue
             inserted += store.upsert_dataframe("daily_prices", history)
         result[f"{item}_history_rows"] = inserted
+        result[f"{item}_history_skipped"] = skipped
         result[f"{item}_history_failed_symbols"] = failed
     return result
 
@@ -296,15 +335,36 @@ def sync_history(
 def sync_benchmarks(
     benchmarks: list[str] | None = None,
     lookback_days: int = 430,
+    full: bool = False,
 ) -> dict[str, int]:
     store = get_store()
     store.init_db()
-    end = datetime.now().strftime("%Y%m%d")
-    start = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
+    coverage = store.query_df(
+        "SELECT market, symbol, MAX(trade_date) AS max_td FROM daily_prices GROUP BY market, symbol"
+    )
+    cov_map: dict[tuple[str, str], pd.Timestamp] = {}
+    if not coverage.empty:
+        coverage["max_td"] = pd.to_datetime(coverage["max_td"], errors="coerce")
+        cov_map = {
+            (str(r.market), str(r.symbol)): r.max_td for r in coverage.itertuples(index=False)
+        }
+    end_dt = datetime.now()
+    end = end_dt.strftime("%Y%m%d")
+    full_start = (end_dt - timedelta(days=lookback_days)).strftime("%Y%m%d")
+    fresh_cut = pd.Timestamp(end_dt.date()) - pd.Timedelta(days=4)  # tolerate weekends/holidays
     result: dict[str, int] = {}
     for benchmark in benchmarks or DEFAULT_BENCHMARKS:
         market, symbol = parse_benchmark(benchmark)
         key = f"{market}_{symbol}_benchmark_rows"
+        nm_max = cov_map.get((market, str(symbol)))
+        if not full and nm_max is not None and pd.notna(nm_max) and nm_max >= fresh_cut:
+            result[key] = 0
+            result[f"{market}_{symbol}_benchmark_skipped"] = 1
+            continue
+        if not full and nm_max is not None and pd.notna(nm_max):
+            start = (nm_max - pd.Timedelta(days=7)).strftime("%Y%m%d")
+        else:
+            start = full_start
         try:
             history = fetch_benchmark_history(f"{market}:{symbol}", start_date=start, end_date=end)
         except Exception:
@@ -365,7 +425,17 @@ def run_expert_scores() -> dict[str, int]:
     }
 
 
-def sync_fundamentals(market: MarketArg, top: int = 120) -> dict[str, int]:
+def sync_fundamentals(
+    market: MarketArg, top: int = 120, force: bool = False, max_age_days: int = 75
+) -> dict[str, int]:
+    """Sync fundamentals incrementally.
+
+    Financials change only ~quarterly, so a name whose stored metrics are younger than
+    ``max_age_days`` is carried forward to the current snapshot_date instead of being
+    re-fetched (``force=True`` re-fetches everything). Consumers read the latest
+    snapshot_date, so carried rows are re-stamped to it. This turns the daily refresh
+    cost from O(top-N network fetches) to ~0 outside earnings season.
+    """
     store = get_store()
     store.init_db()
     latest = _latest_snapshots(store)
@@ -374,6 +444,12 @@ def sync_fundamentals(market: MarketArg, top: int = 120) -> dict[str, int]:
 
     markets = ["A", "HK", "US"] if market == "all" else [market]
     snapshot_date = latest["trade_date"].max()
+    existing = store.query_df("SELECT * FROM financial_metrics")
+    if not existing.empty:
+        existing = existing.copy()
+        existing["snapshot_date"] = pd.to_datetime(existing["snapshot_date"], errors="coerce")
+        existing["updated_at"] = pd.to_datetime(existing["updated_at"], errors="coerce")
+    cutoff = pd.Timestamp.now() - pd.Timedelta(days=max_age_days)
     result: dict[str, int] = {}
     for item in markets:
         universe = (
@@ -382,14 +458,26 @@ def sync_fundamentals(market: MarketArg, top: int = 120) -> dict[str, int]:
             .sort_values("amount_num", ascending=False)
             .head(top)
         )
+        prev_latest: dict[str, pd.Series] = {}
+        if not existing.empty:
+            item_prev = existing[existing["market"] == item].sort_values("snapshot_date")
+            for sym, grp in item_prev.groupby("symbol"):
+                prev_latest[str(sym)] = grp.iloc[-1]
         store.execute(
             "DELETE FROM financial_metrics WHERE snapshot_date = ? AND market = ?",
             [snapshot_date, item],
         )
-        statement_rows = 0
-        metric_rows = 0
-        failed = 0
+        statement_rows = metric_rows = fetched = carried = failed = 0
         for symbol in universe["symbol"].astype(str):
+            prev = prev_latest.get(symbol)
+            fresh = prev is not None and pd.notna(prev.get("updated_at")) and prev["updated_at"] >= cutoff
+            if fresh and not force:
+                row = prev.to_dict()
+                row["snapshot_date"] = snapshot_date
+                row["updated_at"] = pd.Timestamp(datetime.now())
+                metric_rows += store.upsert_dataframe("financial_metrics", pd.DataFrame([row]))
+                carried += 1
+                continue
             try:
                 items, metrics = fetch_fundamentals(item, symbol, snapshot_date=snapshot_date)  # type: ignore[arg-type]
             except Exception:
@@ -397,8 +485,11 @@ def sync_fundamentals(market: MarketArg, top: int = 120) -> dict[str, int]:
                 continue
             statement_rows += store.upsert_dataframe("financial_statement_items", items)
             metric_rows += store.upsert_dataframe("financial_metrics", metrics)
+            fetched += 1
         result[f"{item}_financial_statement_items"] = statement_rows
         result[f"{item}_financial_metric_rows"] = metric_rows
+        result[f"{item}_fundamentals_fetched"] = fetched
+        result[f"{item}_fundamentals_carried"] = carried
         result[f"{item}_financial_failed_symbols"] = failed
     return result
 
@@ -672,8 +763,11 @@ def run_potential_scan(top: int = 80) -> dict[str, int]:
     store.init_db()
     prices = store.query_df("SELECT * FROM daily_prices")
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    fundamentals = store.query_df("SELECT * FROM financial_metrics")
     validation = validate_potential_signals(prices)
-    candidates = scan_potential_candidates(prices, snapshots, validation=validation, top=top)
+    candidates = scan_potential_candidates(
+        prices, snapshots, validation=validation, top=top, fundamentals=fundamentals
+    )
     # Replace prior rows for this strategy so a stricter scan doesn't leave stale picks.
     store.execute("DELETE FROM potential_candidates WHERE strategy = ?", ["potential_v1"])
     if not candidates.empty:
@@ -823,21 +917,30 @@ def run_full_update(
     include_report: bool = True,
 ) -> dict[str, object]:
     result: dict[str, object] = {}
-    result["sync_spot"] = sync_spot("all")
+
+    def _step(name: str, fn) -> None:
+        # One flaky free-data source must not abort the whole refresh: record and continue,
+        # so downstream compute (technical/expert/potential/report) still runs on stored data.
+        try:
+            result[name] = fn()
+        except Exception as exc:  # noqa: BLE001
+            result[name] = {"failed": str(exc)[:200]}
+
+    _step("sync_spot", lambda: sync_spot("all"))
     if industry_limit is not None:
-        result["a_industry_tags"] = sync_a_tags("industry", limit=industry_limit)
+        _step("a_industry_tags", lambda: sync_a_tags("industry", limit=industry_limit))
     if concept_limit is not None:
-        result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
-    result["curated_theme_tags"] = sync_curated_theme_tags()
-    result["identity_mappings"] = sync_identity_mappings()
-    result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
-    result["benchmarks"] = sync_benchmarks(lookback_days=lookback_days)
-    result["technical_rows"] = run_technical_indicators()
+        _step("a_concept_tags", lambda: sync_a_tags("concept", limit=concept_limit))
+    _step("curated_theme_tags", sync_curated_theme_tags)
+    _step("identity_mappings", sync_identity_mappings)
+    _step("history", lambda: sync_history("all", top=top, lookback_days=lookback_days))
+    _step("benchmarks", lambda: sync_benchmarks(lookback_days=lookback_days))
+    _step("technical_rows", run_technical_indicators)
     if include_fundamentals:
-        result["fundamentals"] = sync_fundamentals("all", top=top)
-    result["expert_scores"] = run_expert_scores()
-    result["industry_valuation_stats"] = compute_industry_valuation_stats()
-    result["potential_scan"] = run_potential_scan()
+        _step("fundamentals", lambda: sync_fundamentals("all", top=top))
+    _step("expert_scores", run_expert_scores)
+    _step("industry_valuation_stats", compute_industry_valuation_stats)
+    _step("potential_scan", run_potential_scan)
     if include_report:
-        result["report"] = str(generate_report())
+        _step("report", lambda: str(generate_report()))
     return result
