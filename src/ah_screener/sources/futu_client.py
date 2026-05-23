@@ -104,3 +104,93 @@ def fetch_futu_history(
         return _normalize(raw, market=market, symbol=symbol, adj_type=adjust or "raw")
     finally:
         quote_ctx.close()
+
+
+def _normalize_hk_etf(basics: pd.DataFrame, snapshot: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Build (securities, market_snapshots) frames from Futu HK ETF basics + snapshot.
+
+    Pure function (unit-testable) so the Futu field mapping is verifiable without OpenD.
+    """
+    now = pd.Timestamp.now()
+    if basics is None or basics.empty:
+        return pd.DataFrame(), pd.DataFrame()
+    b = basics.copy()
+    b["symbol"] = b["code"].astype(str).str.split(".").str[-1].str.zfill(5)
+    snap = snapshot.copy() if snapshot is not None and not snapshot.empty else pd.DataFrame()
+    if not snap.empty:
+        snap["symbol"] = snap["code"].astype(str).str.split(".").str[-1].str.zfill(5)
+        snap = snap.set_index("symbol")
+
+    def _col(sym: str, name: str):
+        return snap.loc[sym, name] if (not snap.empty and sym in snap.index and name in snap.columns) else pd.NA
+
+    securities = pd.DataFrame(
+        {
+            "market": "HK",
+            "symbol": b["symbol"],
+            "name": b.get("name", b["symbol"]),
+            "asset_type": "etf",
+            "board": "HK ETF",
+            "exchange": "HKEX",
+            "currency": "HKD",
+            "status": "listed",
+            "is_st": False,
+            "is_hk_connect": False,
+            "metadata_source": "futu.opend.get_stock_basicinfo",
+            "metadata_confidence": "high",
+            "updated_at": now,
+        }
+    )
+    rows = []
+    for _, row in b.iterrows():
+        sym = row["symbol"]
+        last = pd.to_numeric(pd.Series([_col(sym, "last_price")]), errors="coerce").iloc[0]
+        prev = pd.to_numeric(pd.Series([_col(sym, "prev_close_price")]), errors="coerce").iloc[0]
+        pct = ((last / prev - 1) * 100) if pd.notna(last) and pd.notna(prev) and prev else pd.NA
+        rows.append(
+            {
+                "market": "HK",
+                "symbol": sym,
+                "asset_type": "etf",
+                "board": "HK ETF",
+                "trade_date": pd.to_datetime(_col(sym, "update_time"), errors="coerce"),
+                "name": row.get("name", sym),
+                "last_price": last,
+                "pct_change": pct,
+                "volume": pd.to_numeric(pd.Series([_col(sym, "volume")]), errors="coerce").iloc[0],
+                "amount": pd.to_numeric(pd.Series([_col(sym, "turnover")]), errors="coerce").iloc[0],
+                "turnover_rate": pd.to_numeric(pd.Series([_col(sym, "turnover_rate")]), errors="coerce").iloc[0],
+                "pe_ttm": pd.NA,
+                "pb": pd.NA,
+                "market_cap": pd.NA,
+                "source": "futu.opend.get_market_snapshot",
+                "updated_at": now,
+            }
+        )
+    snapshots = pd.DataFrame(rows)
+    if not snapshots.empty:
+        snapshots["trade_date"] = snapshots["trade_date"].fillna(now.normalize())
+    return securities, snapshots
+
+
+def fetch_futu_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """HK ETF universe + spot via Futu OpenD; empty when unavailable (caller falls back)."""
+    if not futu_available():
+        return pd.DataFrame(), pd.DataFrame()
+    import futu
+
+    quote_ctx = futu.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
+    try:
+        ret, basics = quote_ctx.get_stock_basicinfo(futu.Market.HK, futu.SecurityType.ETF)
+        if ret != getattr(futu, "RET_OK", 0) or basics is None or basics.empty:
+            return pd.DataFrame(), pd.DataFrame()
+        codes = basics["code"].astype(str).tolist()
+        snaps = []
+        for i in range(0, len(codes), 200):  # Futu snapshot caps batch size
+            sret, sdf = quote_ctx.get_market_snapshot(codes[i : i + 200])
+            if sret == getattr(futu, "RET_OK", 0) and sdf is not None and not sdf.empty:
+                snaps.append(sdf)
+        snapshot = pd.concat(snaps, ignore_index=True) if snaps else pd.DataFrame()
+        return _normalize_hk_etf(basics, snapshot)
+    finally:
+        quote_ctx.close()

@@ -69,3 +69,32 @@
 - 筛选结果是研究辅助，不构成投资建议。
 - 严格点时真实回测仍依赖未来定时任务自然积累；`backfill-refined-snapshots` 是基于真实日线的历史回放，用于先验证模型和回测链路。严格口径请用 `backtest --natural-only` 排除 `is_replay = true` 的快照。
 - 免费数据源存在限流、字段变化和短期不可用风险，定时任务失败时优先查看 `logs/`。
+
+## 后续 backlog（2026-05-24，PR #1/#2 合并后）
+
+P0 是本机/浏览器操作（需 Futu OpenD + 真实浏览器），不在仓库代码范围；其余为代码项，逐条推进。
+
+### P0 · 本机运营验证（用户侧，非代码）
+- [ ] 本机一次干净的同日全市场 `update-all --top 150`（OpenD 起着）——验证多市场核心候选、Futu US/HK 全数据、增量加速。
+- [ ] 浏览器目视看板（结论卡 / ETF 两视图 / 潜力 tab / 情景卡）。
+
+### P1 · 高价值
+- [x] HK ETF 经 Futu OpenD 取现货 universe（`get_stock_basicinfo(HK, ETF)` + 快照），akshare 失败时回退。⚠ 字段映射需本机 OpenD 实测确认。
+- [x] 潜力 tab 渲染情景卡（selectbox 选标的 → 展开 scenario_json：触发/目标/止损/时间止损/RR/历史胜率）。
+- [x] 多市场同日守卫：`market_date_health` 在报告 §3.1 列各市场最新日期，分歧 >3 天告警。
+
+### P2 · 完整性/质量
+- [x] CI：GitHub Actions 跑 ruff + pytest。
+- [x] SEC ticker 表缓存（`@lru_cache`）。companyfacts 为每标的一次性，缓存收益低+内存风险，未做。
+- [⏸] 潜力"题材早期"支柱（现中性）——**推迟**：需要"题材内 peer 排名 + 题材动量"数据，且按 R10 应先验证其前瞻 edge 再进生产；当前三支柱（技术/RS/基本面）已验证。半成品支柱会引入噪音。
+- [⏸] point-in-time 财务（防前视 R1）——**推迟**：需按 `report_date` 从 `financial_statement_items` 重建 as-of 快照，工程量大；当前历史验证保持 price-only（R1 已封住前视），live 扫描用当期财务无前视问题。
+
+### P3 · 锦上添花
+- [x] `sync_a_tags` 增量（板块成员 <max_age_days 跳过）。
+- [x] 看板数据新鲜度角标（hero 下方各市场最新快照 + 分歧告警）。
+- [⏸] 回测用多市场新数据重跑——属本机运营（需同日全市场数据），归入 P0。
+- [⏸] 规则 YAML 热加载——低价值，未做（规则已外置 JSON，改后重启即可）。
+
+### 完成小结（2026-05-24 本轮）
+已实现 6 项（HK ETF Futu / 情景卡 / 同日守卫 / CI / sync_a_tags 增量 / 新鲜度角标），60 测试绿、ruff 干净。
+推迟 4 项（题材支柱 / point-in-time 财务 / 回测重跑 / YAML 热加载），均附理由——前两项是纪律性推迟（需 edge 验证 / 大重建），不宜半成品上线。

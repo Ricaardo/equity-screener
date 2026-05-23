@@ -165,3 +165,28 @@ class SyncSpotResilienceTest(TestCase):
                     pipeline.sync_spot("HK")
             finally:
                 pipeline.fetch_spot, pipeline.get_store = originals
+
+
+class SyncTagsIncrementalTest(TestCase):
+    def test_sync_a_tags_skips_when_fresh(self) -> None:
+        originals = (pipeline.fetch_a_board_tags, pipeline.get_store)
+        with TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "t.duckdb")
+            store.init_db()
+            store.upsert_dataframe(
+                "company_tags",
+                pd.DataFrame([{"market": "A", "symbol": "600000", "tag_type": "industry",
+                               "tag_name": "银行", "evidence_level": "A", "source": "test",
+                               "updated_at": pd.Timestamp.now()}]),
+            )
+
+            def boom(*a, **k):
+                raise AssertionError("fetch_a_board_tags must not be called when fresh")
+
+            pipeline.fetch_a_board_tags = boom
+            pipeline.get_store = lambda: store
+            try:
+                fresh = pipeline.sync_a_tags("industry", None)
+            finally:
+                pipeline.fetch_a_board_tags, pipeline.get_store = originals
+        self.assertEqual(fresh, 0)

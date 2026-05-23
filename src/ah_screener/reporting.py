@@ -78,6 +78,33 @@ def _table(df: pd.DataFrame, columns: list[str]) -> str:
     return out.to_markdown(index=False)
 
 
+def market_date_health(snapshots: pd.DataFrame, max_spread_days: int = 3) -> tuple[pd.DataFrame, str]:
+    """Per-market latest snapshot date + a warning when markets diverge.
+
+    expert/report use the global-latest snapshot date, so if markets sit on
+    different dates (partial syncs) the freshest market dominates the candidate
+    list. Surface this so a stale-market artifact isn't silent.
+    """
+    if snapshots is None or snapshots.empty or "market" not in snapshots.columns:
+        return pd.DataFrame(columns=["市场", "最新日期"]), ""
+    dates = (
+        snapshots.assign(_d=pd.to_datetime(snapshots["trade_date"], errors="coerce"))
+        .groupby("market")["_d"]
+        .max()
+        .sort_values()
+    )
+    table = dates.reset_index().rename(columns={"market": "市场", "_d": "最新日期"})
+    table["最新日期"] = table["最新日期"].dt.strftime("%Y-%m-%d")
+    spread = (dates.max() - dates.min()).days if dates.notna().all() and len(dates) > 1 else 0
+    warning = ""
+    if spread > max_spread_days:
+        warning = (
+            f"⚠ 各市场快照日期相差 {spread} 天（{dates.idxmin()} 最旧 / {dates.idxmax()} 最新）。"
+            "专家与候选取全局最新日期，结果会偏向最新市场——建议同日重跑 update-all。"
+        )
+    return table, warning
+
+
 def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
     store.init_db()
     refined = store.query_df(
@@ -522,6 +549,14 @@ def generate_report(output_dir: Path | None = None) -> Path:
     )
     for key, value in coverage.items():
         lines.append(f"| {key} | {value:,} |")
+
+    date_table, date_warning = market_date_health(snapshots)
+    if not date_table.empty:
+        lines.extend(["", "### 3.1 数据新鲜度（各市场最新快照日）", ""])
+        if date_warning:
+            lines.append(f"> {date_warning}")
+            lines.append("")
+        lines.append(_table(date_table, ["市场", "最新日期"]))
 
     lines.extend(
         [

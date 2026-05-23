@@ -849,6 +849,32 @@ def display_potential(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def render_scenario_card(row: pd.Series) -> None:
+    """Render a potential candidate's scenario card from its stored scenario_json."""
+    try:
+        sc = json.loads(row.get("scenario_json") or "{}")
+    except (TypeError, ValueError):
+        sc = {}
+    st.markdown(
+        f"""
+        <div class="panel">
+          <div class="panel-title"><strong>{_safe(row.get("name"))}</strong>
+            <span class="hint">{_safe(row.get("market"))} · {_safe(row.get("symbol"))} · 潜力分 {_score(row.get("potential_score"))}</span></div>
+          <div style="line-height:1.9;padding:0.3rem 0.2rem;">
+            <span class="chip green">触发：{_safe(sc.get("trigger"))}</span><br>
+            <span class="chip">目标：{_safe(sc.get("target"))}</span>
+            <span class="chip red">止损：{_safe(sc.get("stop"))}</span><br>
+            <span class="chip">时间止损：{_safe(sc.get("time_stop"))}</span>
+            <span class="chip">RR {_score(row.get("rr_ratio"))}</span>
+            <span class="chip">历史胜率 {_score(row.get("hist_win_rate"))}%</span><br>
+            <span style="opacity:0.6;font-size:0.85em;">{_safe(sc.get("bias_note"))}</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def display_coverage(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -1014,6 +1040,15 @@ if not filtered_fundamentals.empty:
 
 render_hero(snapshot_text, len(market_view), len(refined_view))
 render_kpis(market_view, expert_view, refined_view)
+if not market_view.empty and "trade_date" in market_view.columns:
+    _dates = (
+        market_view.assign(_d=pd.to_datetime(market_view["trade_date"], errors="coerce"))
+        .groupby("market")["_d"].max().dropna().sort_index()
+    )
+    _parts = " · ".join(f"{m} {d:%m-%d}" for m, d in _dates.items())
+    _stale = (_dates.max() - _dates.min()).days if len(_dates) > 1 else 0
+    _warn = "  ⚠ 市场日期不一致，候选偏向最新市场" if _stale > 3 else ""
+    st.caption(f"数据缓存 5 分钟｜各市场最新快照：{_parts}{_warn}")
 
 overview_tab, refined_tab, potential_tab, stocks_tab, etf_tab, fundamentals_tab, coverage_tab, tags_tab = st.tabs(
     ["总览", "精选", "潜力", "股票池", "ETF", "基本面", "覆盖", "标签"]
@@ -1053,7 +1088,7 @@ with refined_tab:
 
 with potential_tab:
     st.markdown("## 潜力扫描")
-    st.caption("price-only v1：历史胜率含幸存者偏差，仅作相对参考；基本面/题材暂为中性占位。")
+    st.caption("技术筑底 + 相对强度 + 基本面拐点（题材中性）；历史胜率含幸存者偏差，仅作相对参考。")
     try:
         potential_view = load_table("potential_candidates")
     except Exception:
@@ -1065,13 +1100,22 @@ with potential_tab:
         min_potential = st.slider("潜力最低分", 0, 100, 55)
         filtered_potential = filtered_potential[
             pd.to_numeric(filtered_potential["potential_score"], errors="coerce").fillna(0) >= min_potential
-        ]
+        ].sort_values("potential_score", ascending=False)
         st.dataframe(
-            display_potential(filtered_potential.sort_values("potential_score", ascending=False).head(200)),
+            display_potential(filtered_potential.head(200)),
             width="stretch",
             hide_index=True,
-            height=620,
+            height=420,
         )
+        if not filtered_potential.empty:
+            st.markdown("### 情景卡")
+            options = {
+                f"{row.get('name')} ({row.get('symbol')})": idx
+                for idx, row in filtered_potential.head(50).iterrows()
+            }
+            pick = st.selectbox("选择标的查看情景卡", list(options))
+            if pick is not None:
+                render_scenario_card(filtered_potential.loc[options[pick]])
 
 with stocks_tab:
     st.markdown("## 股票池")
