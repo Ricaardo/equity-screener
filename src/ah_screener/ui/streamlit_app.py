@@ -9,6 +9,8 @@ import streamlit as st
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
 from ah_screener.etf_model import enrich_etf_snapshot
+from ah_screener.selection import dedup_etf_pool
+from ah_screener.universe import ETFS, select_assets
 from ah_screener.expert_model import STRATEGY_NAME
 from ah_screener.pipeline import coverage_status
 from ah_screener.storage import Store
@@ -757,6 +759,63 @@ def display_etf(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+def display_etf_dedup(df: pd.DataFrame) -> pd.DataFrame:
+    """Double-layer de-duplicated ETF leaders, with fold provenance."""
+    if df is None or df.empty:
+        return pd.DataFrame()
+    cols = [
+        "market", "symbol", "name", "etf_cluster", "etf_track", "etf_score",
+        "peer_count", "etf_recommendation", "pct_change", "amount", "peer_alternatives",
+    ]
+    out = df[[c for c in cols if c in df.columns]].copy()
+    out["amount"] = out["amount"].map(_amount)
+    out["pct_change"] = out["pct_change"].map(_pct)
+    if "peer_count" in out.columns:
+        out["peer_count"] = pd.to_numeric(out["peer_count"], errors="coerce").fillna(1).astype(int)
+    return out.rename(
+        columns={
+            "market": "市场",
+            "symbol": "代码",
+            "name": "名称",
+            "etf_cluster": "簇",
+            "etf_track": "跟踪",
+            "etf_score": "ETF分",
+            "peer_count": "同组数",
+            "etf_recommendation": "建议",
+            "pct_change": "涨跌幅",
+            "amount": "成交额",
+            "peer_alternatives": "同类备选",
+        }
+    )
+
+
+def display_potential(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None or df.empty:
+        return pd.DataFrame()
+    cols = [
+        "market", "symbol", "name", "potential_score", "technical_setup_score",
+        "relative_strength_score", "pivot_price", "target_price", "stop_price",
+        "rr_ratio", "hist_win_rate", "bias_note",
+    ]
+    out = df[[c for c in cols if c in df.columns]].copy()
+    return out.rename(
+        columns={
+            "market": "市场",
+            "symbol": "代码",
+            "name": "名称",
+            "potential_score": "潜力分",
+            "technical_setup_score": "筑底",
+            "relative_strength_score": "RS",
+            "pivot_price": "触发价",
+            "target_price": "目标价",
+            "stop_price": "止损价",
+            "rr_ratio": "RR",
+            "hist_win_rate": "历史胜率",
+            "bias_note": "偏差说明",
+        }
+    )
+
+
 def display_coverage(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df
@@ -921,8 +980,8 @@ if not filtered_fundamentals.empty:
 render_hero(snapshot_text, len(market_view), len(refined_view))
 render_kpis(market_view, expert_view, refined_view)
 
-overview_tab, refined_tab, stocks_tab, etf_tab, fundamentals_tab, coverage_tab, tags_tab = st.tabs(
-    ["总览", "精选", "股票池", "ETF", "基本面", "覆盖", "标签"]
+overview_tab, refined_tab, potential_tab, stocks_tab, etf_tab, fundamentals_tab, coverage_tab, tags_tab = st.tabs(
+    ["总览", "精选", "潜力", "股票池", "ETF", "基本面", "覆盖", "标签"]
 )
 
 with overview_tab:
@@ -956,33 +1015,61 @@ with refined_tab:
     render_candidate_cards(filtered_refined, limit=12)
     st.dataframe(display_refined(filtered_refined), width="stretch", hide_index=True, height=560)
 
+with potential_tab:
+    st.markdown("## 潜力扫描")
+    st.caption("price-only v1：历史胜率含幸存者偏差，仅作相对参考；基本面/题材暂为中性占位。")
+    try:
+        potential_view = load_table("potential_candidates")
+    except Exception:
+        potential_view = pd.DataFrame()
+    if potential_view.empty:
+        st.info("暂无潜力扫描结果。运行 ah-screener potential-scan 后刷新。")
+    else:
+        filtered_potential = apply_common_filters(potential_view)
+        min_potential = st.slider("潜力最低分", 0, 100, 55)
+        filtered_potential = filtered_potential[
+            pd.to_numeric(filtered_potential["potential_score"], errors="coerce").fillna(0) >= min_potential
+        ]
+        st.dataframe(
+            display_potential(filtered_potential.sort_values("potential_score", ascending=False).head(200)),
+            width="stretch",
+            hide_index=True,
+            height=620,
+        )
+
 with stocks_tab:
     st.markdown("## 股票池")
     stock_expert = filtered_expert[filtered_expert["asset_type"].eq("stock")] if not filtered_expert.empty else filtered_expert
     st.dataframe(display_expert(stock_expert.head(400)), width="stretch", hide_index=True, height=650)
 
 with etf_tab:
-    st.markdown("## ETF 池")
-    etfs = filtered_market[filtered_market["asset_type"].eq("etf")] if not filtered_market.empty else filtered_market
-    if etfs.empty:
+    st.markdown("## ETF 工具池")
+    etfs_raw = select_assets(filtered_market, ETFS) if not filtered_market.empty else filtered_market
+    if etfs_raw is None or etfs_raw.empty:
         st.info("暂无 ETF 数据。运行 ah-screener sync-spot --market ETF 后刷新。")
     else:
-        etfs = enrich_etf_snapshot(etfs)
-        category_options = sorted(etfs["etf_category"].dropna().unique())
-        selected_categories = st.multiselect("ETF 分类", category_options, default=category_options)
-        if selected_categories:
-            etfs = etfs[etfs["etf_category"].isin(selected_categories)]
+        technicals = load_table("technical_indicators")
+        full = enrich_etf_snapshot(etfs_raw, technicals=technicals)
+        deduped = dedup_etf_pool(etfs_raw, technicals=technicals, top=80)
         a, b, c, d = st.columns(4)
-        a.metric("ETF 数量", f"{len(etfs):,}")
-        b.metric("成交额过亿", f"{(pd.to_numeric(etfs['amount'], errors='coerce') >= 100_000_000).sum():,}")
-        c.metric("优先观察", f"{etfs['etf_recommendation'].eq('优先观察').sum():,}")
-        d.metric("分类数", f"{etfs['etf_category'].nunique():,}")
-        st.dataframe(
-            display_etf(etfs.sort_values(["etf_score", "amount"], ascending=False).head(300)),
-            width="stretch",
-            hide_index=True,
-            height=650,
-        )
+        a.metric("ETF 数量", f"{len(full):,}")
+        b.metric("双层去重后", f"{len(deduped):,}")
+        c.metric("成交额过亿", f"{(pd.to_numeric(full['amount'], errors='coerce') >= 100_000_000).sum():,}")
+        d.metric("分类数", f"{full['etf_category'].nunique():,}")
+        view = st.radio("视图", ["双层去重精选", "完整池"], horizontal=True)
+        if view == "双层去重精选":
+            st.caption("同指数多家基金折叠为一只，再按相关性簇保留代表；同组数 = 被折叠的同质 ETF 数量，同类备选可追溯。")
+            st.dataframe(display_etf_dedup(deduped), width="stretch", hide_index=True, height=620)
+        else:
+            category_options = sorted(full["etf_category"].dropna().unique())
+            selected_categories = st.multiselect("ETF 分类", category_options, default=category_options)
+            view_df = full[full["etf_category"].isin(selected_categories)] if selected_categories else full
+            st.dataframe(
+                display_etf(view_df.sort_values(["etf_score", "amount"], ascending=False).head(300)),
+                width="stretch",
+                hide_index=True,
+                height=620,
+            )
 
 with fundamentals_tab:
     st.markdown("## 基本面")

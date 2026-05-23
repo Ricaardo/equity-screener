@@ -74,7 +74,7 @@ uv run ah-screener export --top 100
 uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
 ```
 
-只刷新 ETF：
+只刷新 A 股和港股 ETF：
 
 ```bash
 uv run ah-screener sync-spot --market ETF
@@ -99,7 +99,9 @@ ah-screener industry-valuation-stats
 ah-screener expert-export --top 50
 ah-screener refined-export --top 50
 ah-screener candidate-changes
-ah-screener etf-export --top 50
+uv run ah-screener etf-export --top 50
+uv run ah-screener etf-export --market HK --top 30
+uv run ah-screener etf-export --raw --top 100
 ah-screener sync-benchmarks --lookback-days 430
 ah-screener backfill-refined-snapshots --min-snapshots 6 --rebalance quarterly
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
@@ -123,7 +125,7 @@ refined_candidates
 
 `refined_candidates` 会按主题桶、风格桶和 A/H/US 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H/US 多地上市或同名主体只保留专家分最高的一只。
 
-`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股场内 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放候选快照；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时回测使用 `--natural-only` 排除。
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股和港股 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分；默认按同指数或同赛道合并，只输出每组最优候选，使用 `--raw` 可查看未合并明细。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放候选快照；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时回测使用 `--natural-only` 排除。
 
 ## 免费数据源
 

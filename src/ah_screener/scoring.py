@@ -1,33 +1,17 @@
-from __future__ import annotations
+"""Shared scoring primitives.
 
-import json
-from datetime import datetime
+The standalone simple-score model (``score_snapshot`` → ``screening_scores``) was
+retired — it duplicated the richer ``expert_model`` and had no report/UI/backtest
+consumers (docs/master-plan.md R7, stage 8). These rank/valuation/liquidity/risk
+helpers remain because ``expert_model`` reuses them.
+"""
+
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
 from ah_screener.config import Settings
-
-
-THEME_KEYWORDS = {
-    "AI",
-    "人工智能",
-    "算力",
-    "半导体",
-    "芯片",
-    "机器人",
-    "新能源",
-    "储能",
-    "光伏",
-    "风电",
-    "创新药",
-    "CXO",
-    "出海",
-    "高股息",
-    "央企",
-    "国企",
-    "国产替代",
-}
 
 
 def _rank_score(series: pd.Series, ascending: bool = True) -> pd.Series:
@@ -51,25 +35,6 @@ def _liquidity_score(df: pd.DataFrame) -> pd.Series:
     amount = pd.to_numeric(df["amount"], errors="coerce")
     log_amount = np.log10(amount.where(amount > 0))
     return _rank_score(log_amount, ascending=True)
-
-
-def _theme_score(tags: pd.DataFrame, index: pd.MultiIndex) -> pd.Series:
-    if tags.empty:
-        return pd.Series(30.0, index=index)
-
-    tag_text = tags.assign(
-        is_theme=tags["tag_name"].astype(str).apply(
-            lambda value: any(keyword.lower() in value.lower() for keyword in THEME_KEYWORDS)
-        )
-    )
-    counts = (
-        tag_text[tag_text["is_theme"]]
-        .groupby(["market", "symbol"])
-        .size()
-        .rename("theme_hits")
-        .reindex(index, fill_value=0)
-    )
-    return (30 + counts.clip(0, 5) * 14).astype(float).clip(0, 100)
 
 
 def _risk_penalty(row: pd.Series, settings: Settings) -> tuple[float, list[str]]:
@@ -102,76 +67,3 @@ def _risk_penalty(row: pd.Series, settings: Settings) -> tuple[float, list[str]]
         reasons.append("最新价缺失或异常")
 
     return penalty, reasons
-
-
-def score_snapshot(snapshots: pd.DataFrame, tags: pd.DataFrame, settings: Settings) -> pd.DataFrame:
-    if snapshots.empty:
-        return pd.DataFrame()
-
-    latest_date = snapshots["trade_date"].max()
-    df = snapshots.copy()
-    df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
-    df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
-    df = df.set_index(["market", "symbol"], drop=False)
-
-    df["quality_score"] = 50.0
-    df["growth_score"] = 50.0
-    df["valuation_score"] = _valuation_score(df)
-    df["liquidity_score"] = _liquidity_score(df)
-    df["theme_score"] = _theme_score(tags, df.index)
-
-    penalties: list[float] = []
-    reasons_list: list[str] = []
-    decisions: list[str] = []
-    for _, row in df.iterrows():
-        penalty, reasons = _risk_penalty(row, settings)
-        penalties.append(penalty)
-        total_before_penalty = (
-            row["valuation_score"] * 0.30
-            + row["liquidity_score"] * 0.25
-            + row["theme_score"] * 0.20
-            + row["quality_score"] * 0.15
-            + row["growth_score"] * 0.10
-        )
-        total = max(0.0, total_before_penalty - penalty)
-        if penalty >= 80 or total < 35:
-            decision = "reject"
-        elif total < 50:
-            decision = "watch"
-        else:
-            decision = "keep"
-        decisions.append(decision)
-        reasons_list.append(json.dumps(reasons, ensure_ascii=False))
-
-    df["risk_score"] = pd.Series(penalties, index=df.index).clip(0, 100)
-    df["total_score"] = (
-        df["valuation_score"] * 0.30
-        + df["liquidity_score"] * 0.25
-        + df["theme_score"] * 0.20
-        + df["quality_score"] * 0.15
-        + df["growth_score"] * 0.10
-        - df["risk_score"]
-    ).clip(0, 100)
-    df["decision"] = decisions
-    df["reasons"] = reasons_list
-    df["snapshot_date"] = latest_date
-    df["updated_at"] = pd.Timestamp(datetime.now())
-
-    return df[
-        [
-            "snapshot_date",
-            "market",
-            "symbol",
-            "name",
-            "quality_score",
-            "growth_score",
-            "valuation_score",
-            "liquidity_score",
-            "theme_score",
-            "risk_score",
-            "total_score",
-            "decision",
-            "reasons",
-            "updated_at",
-        ]
-    ].reset_index(drop=True)

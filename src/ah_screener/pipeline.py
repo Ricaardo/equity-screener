@@ -9,7 +9,7 @@ import pandas as pd
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
 from ah_screener.documents import build_document_records
-from ah_screener.etf_model import enrich_etf_snapshot
+from ah_screener.etf_model import consolidate_etf_candidates, enrich_etf_snapshot
 from ah_screener.expert_model import (
     CURATED_THEME_OVERRIDES,
     STRATEGY_NAME,
@@ -18,14 +18,20 @@ from ah_screener.expert_model import (
 )
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.identity import default_identity_mappings
+from ah_screener.potential import (
+    scan_potential_candidates,
+    sweep_potential_thresholds,
+    validate_potential_signals,
+)
+from ah_screener.selection import validate_etf_clusters
 from ah_screener.reporting import generate_report
-from ah_screener.scoring import score_snapshot
 from ah_screener.sources.akshare_client import (
     DEFAULT_BENCHMARKS,
     fetch_a_board_tags,
     fetch_a_etf_spot,
     fetch_benchmark_history,
     fetch_history,
+    fetch_hk_etf_spot,
     fetch_spot,
     parse_benchmark,
 )
@@ -36,27 +42,14 @@ from ah_screener.sources.hkexnews_client import (
 from ah_screener.sources.us_client import fetch_us_spot, fetch_us_spot_batch
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
+from ah_screener.universe import ETFS, STOCKS, AssetClass, select_assets
+from ah_screener.backtest import (  # re-exported for backward compat
+    backfill_refined_candidate_snapshots as backfill_refined_candidate_snapshots,
+    backtest_refined_candidates as backtest_refined_candidates,
+)
 
 
 MarketArg = Literal["A", "HK", "US", "ETF", "all"]
-RebalanceMode = Literal["snapshot", "monthly", "quarterly"]
-BACKTEST_COLUMNS = [
-    "period_start",
-    "period_end",
-    "signal_date",
-    "holdings",
-    "gross_return",
-    "turnover",
-    "cost_rate",
-    "period_return",
-    "equity",
-    "benchmark",
-    "benchmark_return",
-    "benchmark_equity",
-    "excess_return",
-    "excess_equity",
-    "holding_symbols",
-]
 
 
 def get_store() -> Store:
@@ -80,6 +73,10 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
         etf_securities, etf_snapshots = fetch_a_etf_spot()
         result["A_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
         result["A_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
+    if market in {"HK", "ETF", "all"}:
+        etf_securities, etf_snapshots = fetch_hk_etf_spot()
+        result["HK_etf_securities"] = store.upsert_dataframe("securities", etf_securities)
+        result["HK_etf_snapshots"] = store.upsert_dataframe("market_snapshots", etf_snapshots)
     return result
 
 
@@ -99,6 +96,7 @@ def sync_us_spot_batch(
     limit: int = 100,
     include_etf: bool = False,
     lookback_days: int = 14,
+    asset_type: str | None = None,
 ) -> dict[str, int]:
     store = get_store()
     store.init_db()
@@ -107,6 +105,7 @@ def sync_us_spot_batch(
         limit=limit,
         include_etf=include_etf,
         lookback_days=lookback_days,
+        asset_type=asset_type,
     )
     return {
         "US_securities": store.upsert_dataframe("securities", securities),
@@ -228,49 +227,63 @@ def _identity_mapping_frame(store: Store) -> pd.DataFrame:
     return mappings.drop_duplicates(["market", "symbol"], keep="first")
 
 
-def run_scores() -> int:
-    store = get_store()
-    store.init_db()
-    snapshots = store.query_df("SELECT * FROM market_snapshots")
-    tags = store.query_df("SELECT * FROM company_tags")
-    scores = score_snapshot(snapshots=snapshots, tags=tags, settings=get_settings())
-    return store.upsert_dataframe("screening_scores", scores)
-
-
-def _latest_snapshots(store: Store) -> pd.DataFrame:
+def _latest_snapshots(
+    store: Store, asset_classes: tuple[AssetClass, ...] = STOCKS
+) -> pd.DataFrame:
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     if snapshots.empty:
         return snapshots
-    if "asset_type" in snapshots.columns:
-        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
+    snapshots = select_assets(snapshots, asset_classes)
     snapshots = snapshots.copy()
     snapshots["trade_date"] = pd.to_datetime(snapshots["trade_date"], errors="coerce")
     return snapshots.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
 
 
-def sync_history(market: MarketArg, top: int = 150, lookback_days: int = 420) -> dict[str, int]:
+def sync_history(
+    market: MarketArg,
+    top: int = 150,
+    lookback_days: int = 420,
+    include_etf: bool = True,
+    etf_top: int = 120,
+) -> dict[str, int]:
     store = get_store()
     store.init_db()
-    latest = _latest_snapshots(store)
+    asset_classes = (*STOCKS, *ETFS) if include_etf else STOCKS
+    latest = _latest_snapshots(store, asset_classes=asset_classes)
     if latest.empty:
         raise RuntimeError("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
+    if "asset_type" not in latest.columns:
+        latest = latest.assign(asset_type="stock")
 
     markets = ["A", "HK", "US"] if market == "all" else [market]
     end = datetime.now().strftime("%Y%m%d")
     start = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y%m%d")
     result: dict[str, int] = {}
     for item in markets:
-        universe = (
-            latest[latest["market"] == item]
-            .assign(amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0))
-            .sort_values("amount_num", ascending=False)
-            .head(top)
+        pool = latest[latest["market"] == item].assign(
+            amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0),
+            asset_type=lambda df: df["asset_type"].fillna("stock"),
         )
+        # Take top stocks and top ETFs separately, so high-turnover ETFs do not
+        # crowd stocks out of a single combined ranking.
+        stocks = pool[pool["asset_type"].eq("stock")].sort_values("amount_num", ascending=False).head(top)
+        etfs = (
+            pool[pool["asset_type"].eq("etf")].sort_values("amount_num", ascending=False).head(etf_top)
+            if include_etf
+            else pool.iloc[0:0]
+        )
+        universe = pd.concat([stocks, etfs], ignore_index=True)
         inserted = 0
         failed = 0
-        for symbol in universe["symbol"].astype(str):
+        for row in universe.itertuples(index=False):
             try:
-                history = fetch_history(item, symbol=symbol, start_date=start, end_date=end)
+                history = fetch_history(
+                    item,
+                    symbol=str(row.symbol),
+                    start_date=start,
+                    end_date=end,
+                    asset_type=str(getattr(row, "asset_type", "stock") or "stock"),
+                )
             except Exception:
                 failed += 1
                 continue
@@ -315,9 +328,7 @@ def run_technical_indicators() -> int:
 def run_expert_scores() -> dict[str, int]:
     store = get_store()
     store.init_db()
-    snapshots = store.query_df("SELECT * FROM market_snapshots")
-    if "asset_type" in snapshots.columns:
-        snapshots = snapshots[snapshots["asset_type"].fillna("stock") == "stock"]
+    snapshots = select_assets(store.query_df("SELECT * FROM market_snapshots"), STOCKS)
     tags = store.query_df("SELECT * FROM company_tags")
     technicals = store.query_df("SELECT * FROM technical_indicators")
     fundamentals = store.query_df("SELECT * FROM financial_metrics")
@@ -644,13 +655,73 @@ def sync_hkex_documents(
     return result
 
 
-def export_etf_candidates(top: int = 100, category: str | None = None) -> pd.DataFrame:
+def run_potential_validation() -> pd.DataFrame:
+    store = get_store()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    return validate_potential_signals(prices)
+
+
+def run_potential_threshold_sweep() -> pd.DataFrame:
+    store = get_store()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    return sweep_potential_thresholds(prices)
+
+
+def run_potential_scan(top: int = 80) -> dict[str, int]:
+    store = get_store()
+    store.init_db()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    validation = validate_potential_signals(prices)
+    candidates = scan_potential_candidates(prices, snapshots, validation=validation, top=top)
+    # Replace prior rows for this strategy so a stricter scan doesn't leave stale picks.
+    store.execute("DELETE FROM potential_candidates WHERE strategy = ?", ["potential_v1"])
+    if not candidates.empty:
+        candidates["updated_at"] = pd.Timestamp(datetime.now())
+    return {"potential_candidates": store.upsert_dataframe("potential_candidates", candidates)}
+
+
+def export_potential_candidates(top: int = 80) -> pd.DataFrame:
+    store = get_store()
+    return store.query_df(
+        """
+        SELECT *
+        FROM potential_candidates
+        ORDER BY snapshot_date DESC, potential_score DESC
+        LIMIT ?
+        """,
+        [top],
+    )
+
+
+def validate_etf_cluster_table(min_corr: float = 0.9) -> pd.DataFrame:
+    store = get_store()
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    if snapshots.empty:
+        return pd.DataFrame()
+    pool = select_assets(snapshots, ETFS)
+    prices = store.query_df("SELECT market, symbol, trade_date, close FROM daily_prices")
+    return validate_etf_clusters(pool, prices, min_corr=min_corr)
+
+
+def export_etf_candidates(
+    top: int = 100,
+    category: str | None = None,
+    grouped: bool = True,
+    market: str | None = None,
+) -> pd.DataFrame:
     store = get_store()
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
     if snapshots.empty or "asset_type" not in snapshots.columns:
         return pd.DataFrame()
-    etfs = snapshots[snapshots["asset_type"].fillna("stock").eq("etf")].copy()
-    etfs = enrich_etf_snapshot(etfs)
+    etfs = select_assets(snapshots, ETFS).copy()
+    if market and market.upper() != "ALL":
+        etfs = etfs[etfs["market"].astype(str).str.upper().eq(market.upper())]
+    # Pass real technical scores so CLI etf_score matches the report/UI (review #1).
+    technicals = store.query_df("SELECT * FROM technical_indicators")
+    if grouped:
+        return consolidate_etf_candidates(etfs, top=top, category=category, technicals=technicals)
+    etfs = enrich_etf_snapshot(etfs, technicals=technicals)
     if category:
         etfs = etfs[etfs["etf_category"].eq(category)]
     return etfs.sort_values(["etf_score", "amount"], ascending=[False, False]).head(top)
@@ -711,408 +782,6 @@ def candidate_changes() -> pd.DataFrame:
     ].sort_values(["status", "bucket", "latest_score"], ascending=[True, True, False])
 
 
-def _empty_backtest_frame() -> pd.DataFrame:
-    return pd.DataFrame(columns=BACKTEST_COLUMNS)
-
-
-def _rebalance_points(
-    signal_dates: list[pd.Timestamp],
-    final_price_date: pd.Timestamp,
-    mode: RebalanceMode,
-) -> list[tuple[pd.Timestamp, pd.Timestamp]]:
-    if not signal_dates:
-        return []
-    if mode == "snapshot":
-        starts = signal_dates
-    else:
-        frequency = "MS" if mode == "monthly" else "QS"
-        calendar_starts = [
-            pd.Timestamp(value)
-            for value in pd.date_range(signal_dates[0], final_price_date, freq=frequency)
-            if pd.Timestamp(value) > signal_dates[0]
-        ]
-        starts = sorted(set([signal_dates[0], *calendar_starts]))
-
-    points: list[tuple[pd.Timestamp, pd.Timestamp]] = []
-    for start in starts:
-        eligible = [date for date in signal_dates if date <= start]
-        if eligible:
-            points.append((start, eligible[-1]))
-    return points
-
-
-def _select_backtest_picks(
-    picks: pd.DataFrame,
-    max_names: int,
-    industry_neutral: bool,
-    max_per_group: int,
-) -> pd.DataFrame:
-    if picks.empty:
-        return picks
-    picks = picks.copy()
-    for column, default in [
-        ("expert_score", 0.0),
-        ("peer_score", 50.0),
-        ("industry_fit_score", 50.0),
-        ("fundamental_score", 50.0),
-        ("technical_score", 50.0),
-        ("industry_peer_group", "未分类"),
-    ]:
-        if column not in picks.columns:
-            picks[column] = default
-    picks = picks.sort_values(
-        ["expert_score", "industry_fit_score", "peer_score", "fundamental_score", "technical_score"],
-        ascending=False,
-    )
-    if not industry_neutral:
-        return picks.head(max_names)
-
-    selected: list[int] = []
-    group_counts: dict[str, int] = {}
-    for idx, row in picks.iterrows():
-        group = str(row.get("industry_peer_group") or row.get("bucket") or "未分类")
-        if group_counts.get(group, 0) >= max_per_group:
-            continue
-        selected.append(idx)
-        group_counts[group] = group_counts.get(group, 0) + 1
-        if len(selected) >= max_names:
-            break
-    return picks.loc[selected]
-
-
-def _benchmark_frame(prices: pd.DataFrame, benchmark: str) -> pd.DataFrame:
-    market, symbol = parse_benchmark(benchmark)
-    frame = prices[
-        (prices["market"].astype(str).str.upper() == market) & (prices["symbol"].astype(str) == symbol)
-    ].copy()
-    if frame.empty:
-        return frame
-    adj = frame.get("adj_type", pd.Series("", index=frame.index)).astype(str).str.lower()
-    source = frame.get("source", pd.Series("", index=frame.index)).astype(str).str.lower()
-    benchmark_rows = frame[adj.eq("benchmark") | source.str.contains("index", na=False)]
-    return benchmark_rows if not benchmark_rows.empty else frame
-
-
-def _period_price_return(
-    prices: pd.DataFrame,
-    start_date: pd.Timestamp,
-    end_date: pd.Timestamp,
-) -> float | None:
-    history = prices[
-        (prices["trade_date"] >= start_date) & (prices["trade_date"] <= end_date)
-    ].sort_values("trade_date")
-    if len(history) < 2:
-        return None
-    start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
-    end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
-    if pd.notna(start_close) and pd.notna(end_close) and float(start_close) > 0:
-        return float(end_close) / float(start_close) - 1
-    return None
-
-
-def _historical_signal_dates(
-    prices: pd.DataFrame,
-    rebalance: RebalanceMode,
-    min_snapshots: int,
-) -> list[pd.Timestamp]:
-    dates = pd.to_datetime(prices["trade_date"], errors="coerce").dropna().sort_values().unique()
-    if len(dates) < 2:
-        return []
-    start = pd.Timestamp(dates[0])
-    end = pd.Timestamp(dates[-1])
-    if rebalance == "snapshot":
-        candidates = [pd.Timestamp(date) for date in dates[:: max(len(dates) // max(min_snapshots, 1), 1)]]
-    else:
-        frequency = "MS" if rebalance == "monthly" else "QS"
-        candidates = [pd.Timestamp(value) for value in pd.date_range(start, end, freq=frequency)]
-    trading_dates = [pd.Timestamp(date) for date in dates]
-    selected: list[pd.Timestamp] = []
-    for candidate in candidates:
-        eligible = [date for date in trading_dates if date <= candidate]
-        if eligible:
-            selected.append(eligible[-1])
-    selected = sorted(set(selected))
-    if selected and selected[-1] == end:
-        selected = selected[:-1]
-    return selected[-min_snapshots:]
-
-
-def _trailing_return_score(
-    prices: pd.DataFrame,
-    market: str,
-    symbol: str,
-    signal_date: pd.Timestamp,
-    lookback_days: int = 90,
-) -> float:
-    start_date = signal_date - pd.Timedelta(days=lookback_days)
-    history = prices[
-        (prices["market"].astype(str) == market)
-        & (prices["symbol"].astype(str) == symbol)
-        & (prices["trade_date"] >= start_date)
-        & (prices["trade_date"] <= signal_date)
-    ].sort_values("trade_date")
-    if len(history) < 2:
-        return 50.0
-    start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
-    end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
-    if pd.isna(start_close) or pd.isna(end_close) or float(start_close) <= 0:
-        return 50.0
-    trailing_return = float(end_close) / float(start_close) - 1
-    return float(max(0, min(100, 50 + trailing_return * 180)))
-
-
-def _trailing_return_scores(
-    prices: pd.DataFrame,
-    signal_date: pd.Timestamp,
-    lookback_days: int = 90,
-) -> dict[tuple[str, str], float]:
-    start_date = signal_date - pd.Timedelta(days=lookback_days)
-    window = prices[
-        (prices["trade_date"] >= start_date)
-        & (prices["trade_date"] <= signal_date)
-    ].sort_values(["market", "symbol", "trade_date"])
-    if window.empty:
-        return {}
-    scores: dict[tuple[str, str], float] = {}
-    for (market, symbol), group in window.groupby(["market", "symbol"], sort=False):
-        if len(group) < 2:
-            continue
-        start_close = pd.to_numeric(group["close"].iloc[0], errors="coerce")
-        end_close = pd.to_numeric(group["close"].iloc[-1], errors="coerce")
-        if pd.isna(start_close) or pd.isna(end_close) or float(start_close) <= 0:
-            continue
-        trailing_return = float(end_close) / float(start_close) - 1
-        scores[(str(market), str(symbol))] = float(max(0, min(100, 50 + trailing_return * 180)))
-    return scores
-
-
-def backfill_refined_candidate_snapshots(
-    min_snapshots: int = 6,
-    rebalance: RebalanceMode = "quarterly",
-    max_per_bucket: int = 3,
-    max_per_style: int = 2,
-) -> int:
-    store = get_store()
-    store.init_db()
-    existing = store.query_df(
-        """
-        SELECT DISTINCT snapshot_date
-        FROM refined_candidates
-        WHERE strategy = ?
-        ORDER BY snapshot_date
-        """,
-        [STRATEGY_NAME],
-    )
-    existing_dates = (
-        set(pd.to_datetime(existing["snapshot_date"]).dt.normalize())
-        if not existing.empty
-        else set()
-    )
-    if len(existing_dates) >= min_snapshots:
-        return 0
-
-    expert = store.query_df(
-        """
-        SELECT *
-        FROM expert_screening_results
-        WHERE strategy = ?
-        """,
-        [STRATEGY_NAME],
-    )
-    prices = store.query_df("SELECT * FROM daily_prices")
-    if expert.empty or prices.empty:
-        return 0
-    expert["snapshot_date"] = pd.to_datetime(expert["snapshot_date"])
-    prices["trade_date"] = pd.to_datetime(prices["trade_date"])
-    prices["symbol"] = prices["symbol"].astype(str)
-    latest_signal = expert["snapshot_date"].max()
-    template = expert[expert["snapshot_date"] == latest_signal].copy()
-    if template.empty:
-        return 0
-
-    target_count = max(min_snapshots - len(existing_dates), 0)
-    signal_dates = _historical_signal_dates(prices, rebalance, min_snapshots + 2)
-    signal_dates = [
-        date.normalize()
-        for date in signal_dates
-        if date.normalize() not in existing_dates and date.normalize() < latest_signal.normalize()
-    ][-target_count:]
-    inserted = 0
-    for signal_date in signal_dates:
-        replay = template.copy()
-        replay["snapshot_date"] = signal_date
-        trailing_scores = _trailing_return_scores(prices, signal_date)
-        replay["technical_score"] = replay.apply(
-            lambda row: trailing_scores.get((str(row["market"]), str(row["symbol"])), 50.0),
-            axis=1,
-        )
-        replay["expert_score"] = (
-            pd.to_numeric(replay["expert_score"], errors="coerce").fillna(50) * 0.78
-            + pd.to_numeric(replay["technical_score"], errors="coerce").fillna(50) * 0.16
-            + pd.to_numeric(
-                replay.get("liquidity_score", pd.Series(50, index=replay.index)),
-                errors="coerce",
-            ).fillna(50)
-            * 0.06
-        ).clip(0, 100)
-        replay["reasons"] = replay["reasons"].astype(str) + f"; historical_replay_signal={signal_date.date()}"
-        replay["snapshot_source"] = "historical_replay"
-        replay["is_replay"] = True
-        refined = refine_candidates(
-            replay,
-            max_per_bucket=max_per_bucket,
-            max_per_style=max_per_style,
-        )
-        if refined.empty:
-            continue
-        store.execute(
-            "DELETE FROM refined_candidates WHERE snapshot_date = ? AND strategy = ?",
-            [pd.Timestamp(signal_date).date(), STRATEGY_NAME],
-        )
-        inserted += store.upsert_dataframe("refined_candidates", refined)
-    return inserted
-
-
-def backtest_refined_candidates(
-    initial_capital: float = 1_000_000,
-    max_names: int = 12,
-    rebalance: RebalanceMode = "snapshot",
-    fee_bps: float = 5.0,
-    slippage_bps: float = 10.0,
-    industry_neutral: bool = False,
-    max_per_group: int = 2,
-    benchmark: str | None = None,
-    include_replay: bool = True,
-) -> pd.DataFrame:
-    store = get_store()
-    refined = store.query_df(
-        """
-        SELECT *
-        FROM refined_candidates
-        WHERE strategy = ?
-        """,
-        [STRATEGY_NAME],
-    )
-    prices = store.query_df("SELECT * FROM daily_prices")
-    if not include_replay and not refined.empty:
-        if "is_replay" in refined.columns:
-            is_replay = (
-                refined["is_replay"]
-                .fillna(False)
-                .astype(str)
-                .str.lower()
-                .isin(["true", "1", "t", "yes"])
-            )
-            refined = refined[~is_replay].copy()
-        if "snapshot_source" in refined.columns:
-            source = refined["snapshot_source"].fillna("natural").astype(str)
-            refined = refined[~source.str.contains("replay", case=False, na=False)].copy()
-    if refined.empty or prices.empty:
-        return _empty_backtest_frame()
-
-    refined["snapshot_date"] = pd.to_datetime(refined["snapshot_date"])
-    prices["trade_date"] = pd.to_datetime(prices["trade_date"])
-    prices["symbol"] = prices["symbol"].astype(str)
-    dates = sorted(refined["snapshot_date"].dropna().unique())
-    final_price_date = prices["trade_date"].max()
-    if not dates or final_price_date <= dates[0]:
-        return _empty_backtest_frame()
-
-    rows: list[dict[str, object]] = []
-    equity = float(initial_capital)
-    benchmark_equity = float(initial_capital)
-    previous_weights: dict[tuple[str, str], float] = {}
-    cost_bps = max(fee_bps, 0) + max(slippage_bps, 0)
-    points = _rebalance_points([pd.Timestamp(date) for date in dates], final_price_date, rebalance)
-    benchmark_prices = _benchmark_frame(prices, benchmark) if benchmark else pd.DataFrame()
-    for index, (start_date, signal_date) in enumerate(points):
-        end_date = points[index + 1][0] if index + 1 < len(points) else final_price_date
-        if end_date <= start_date:
-            continue
-        picks = _select_backtest_picks(
-            refined[refined["snapshot_date"] == signal_date],
-            max_names=max_names,
-            industry_neutral=industry_neutral,
-            max_per_group=max_per_group,
-        )
-        holding_returns: dict[tuple[str, str], float] = {}
-        for _, pick in picks.iterrows():
-            key = (str(pick["market"]), str(pick["symbol"]))
-            history = prices[
-                (prices["market"] == key[0])
-                & (prices["symbol"] == key[1])
-                & (prices["trade_date"] >= start_date)
-                & (prices["trade_date"] <= end_date)
-            ].sort_values("trade_date")
-            if len(history) < 2:
-                continue
-            start_close = pd.to_numeric(history["close"].iloc[0], errors="coerce")
-            end_close = pd.to_numeric(history["close"].iloc[-1], errors="coerce")
-            if pd.notna(start_close) and pd.notna(end_close) and float(start_close) > 0:
-                holding_returns[key] = float(end_close) / float(start_close) - 1
-        if not holding_returns:
-            continue
-        current_weights = {key: 1 / len(holding_returns) for key in holding_returns}
-        traded_notional = sum(
-            abs(current_weights.get(key, 0.0) - previous_weights.get(key, 0.0))
-            for key in set(current_weights) | set(previous_weights)
-        )
-        gross_return = float(
-            sum(current_weights[key] * holding_returns[key] for key in holding_returns)
-        )
-        cost_rate = traded_notional * cost_bps / 10_000
-        period_return = gross_return - cost_rate
-        equity *= 1 + period_return
-        benchmark_return = None
-        if benchmark and not benchmark_prices.empty:
-            benchmark_return = _period_price_return(benchmark_prices, start_date, end_date)
-            if benchmark_return is not None:
-                benchmark_equity *= 1 + benchmark_return
-        benchmark_equity_value = benchmark_equity if benchmark_return is not None else None
-        excess_return = period_return - benchmark_return if benchmark_return is not None else None
-        excess_equity = equity - benchmark_equity if benchmark_return is not None else None
-        rows.append(
-            {
-                "period_start": pd.Timestamp(start_date).date(),
-                "period_end": pd.Timestamp(end_date).date(),
-                "signal_date": pd.Timestamp(signal_date).date(),
-                "holdings": len(holding_returns),
-                "gross_return": gross_return,
-                "turnover": traded_notional,
-                "cost_rate": cost_rate,
-                "period_return": period_return,
-                "equity": equity,
-                "benchmark": benchmark,
-                "benchmark_return": benchmark_return,
-                "benchmark_equity": benchmark_equity_value,
-                "excess_return": excess_return,
-                "excess_equity": excess_equity,
-                "holding_symbols": ",".join(f"{market}:{symbol}" for market, symbol in current_weights),
-            }
-        )
-        previous_weights = current_weights
-    return pd.DataFrame(rows)
-
-
-def export_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:
-    store = get_store()
-    where = ""
-    params: list[object] = []
-    if decision:
-        where = "WHERE decision = ?"
-        params.append(decision)
-    return store.query_df(
-        f"""
-        SELECT *
-        FROM screening_scores
-        {where}
-        ORDER BY snapshot_date DESC, total_score DESC
-        LIMIT ?
-        """,
-        [*params, top],
-    )
-
-
 def export_expert_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:
     store = get_store()
     where = "WHERE strategy = ?"
@@ -1161,7 +830,6 @@ def run_full_update(
         result["a_concept_tags"] = sync_a_tags("concept", limit=concept_limit)
     result["curated_theme_tags"] = sync_curated_theme_tags()
     result["identity_mappings"] = sync_identity_mappings()
-    result["basic_scores"] = run_scores()
     result["history"] = sync_history("all", top=top, lookback_days=lookback_days)
     result["benchmarks"] = sync_benchmarks(lookback_days=lookback_days)
     result["technical_rows"] = run_technical_indicators()
@@ -1169,6 +837,7 @@ def run_full_update(
         result["fundamentals"] = sync_fundamentals("all", top=top)
     result["expert_scores"] = run_expert_scores()
     result["industry_valuation_stats"] = compute_industry_valuation_stats()
+    result["potential_scan"] = run_potential_scan()
     if include_report:
         result["report"] = str(generate_report())
     return result

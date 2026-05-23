@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import os
 from datetime import datetime, timedelta
 from io import StringIO
@@ -17,6 +19,9 @@ OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
 STOOQ_DAILY_URL = "https://stooq.com/q/d/l/"
+FUTU_HOST = os.getenv("AH_SCREENER_FUTU_HOST", "127.0.0.1")
+FUTU_PORT = int(os.getenv("AH_SCREENER_FUTU_PORT", "11111"))
+USE_FUTU = os.getenv("AH_SCREENER_USE_FUTU", "1").lower() not in {"0", "false", "no"}
 
 US_DEFAULT_SYMBOLS: tuple[str, ...] = (
     "AAPL",
@@ -261,11 +266,60 @@ def _fetch_us_history_stooq(symbol: str, start_date: str, end_date: str) -> pd.D
     return _normalize_us_history(raw, symbol=symbol, source="stooq.daily_csv", adj_type="raw")
 
 
+def _fetch_us_history_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
+    """Fetch US daily K-lines from local Futu OpenD when available.
+
+    Optional dependency by design: if ``futu-api`` is not installed or OpenD is not
+    reachable, callers catch the exception and fall back to AkShare/Stooq.
+    """
+    if not USE_FUTU or importlib.util.find_spec("futu") is None:
+        return pd.DataFrame()
+    futu = importlib.import_module("futu")
+    quote_ctx = futu.OpenQuoteContext(host=FUTU_HOST, port=FUTU_PORT)
+    try:
+        code = f"US.{_clean_us_symbol(symbol).replace('.', '-')}"
+        autype = getattr(futu, "AuType", None)
+        autype_value = getattr(autype, "QFQ", None) if adjust else getattr(autype, "NONE", None)
+        if autype_value is None:
+            autype_value = "qfq" if adjust else None
+        ret, raw = quote_ctx.request_history_kline(
+            code,
+            start=pd.to_datetime(start_date).strftime("%Y-%m-%d"),
+            end=pd.to_datetime(end_date).strftime("%Y-%m-%d"),
+            ktype=futu.KLType.K_DAY,
+            autype=autype_value,
+        )
+        if ret != getattr(futu, "RET_OK", 0):
+            raise RuntimeError(str(raw))
+        if raw is None or raw.empty:
+            return pd.DataFrame()
+        frame = raw.rename(
+            columns={
+                "time_key": "date",
+                "data_date": "date",
+                "open_price": "open",
+                "high_price": "high",
+                "low_price": "low",
+                "close_price": "close",
+                "turnover": "amount",
+            }
+        )
+        normalized = _normalize_us_history(
+            frame, symbol=symbol, source="futu.opend.history_kline", adj_type=adjust or "raw"
+        )
+        if "amount" in frame.columns:
+            normalized["amount"] = _number(frame["amount"]).to_numpy()
+        return normalized
+    finally:
+        quote_ctx.close()
+
+
 def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = "") -> pd.DataFrame:
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
     last_error: Exception | None = None
     calls = [
+        lambda: _fetch_us_history_futu(symbol, start_date=start_date, end_date=end_date, adjust=adjust),
         lambda: _fetch_us_history_akshare(symbol, adjust=adjust),
         lambda: _fetch_us_history_stooq(symbol, start_date=start_date, end_date=end_date),
     ]
@@ -287,13 +341,16 @@ def select_us_batch_symbols(
     offset: int = 0,
     limit: int = 100,
     include_etf: bool = False,
+    asset_type: str | None = None,
 ) -> list[str]:
     if master.empty or limit <= 0:
         return []
     frame = master.copy()
     if "status" in frame.columns:
         frame = frame[frame["status"].fillna("listed").astype(str).str.lower().eq("listed")]
-    if not include_etf and "asset_type" in frame.columns:
+    if asset_type and "asset_type" in frame.columns:
+        frame = frame[frame["asset_type"].fillna("stock").astype(str).str.lower().eq(asset_type.lower())]
+    elif not include_etf and "asset_type" in frame.columns:
         frame = frame[frame["asset_type"].fillna("stock").astype(str).str.lower().ne("etf")]
     for column in ["asset_type", "exchange"]:
         if column not in frame.columns:
@@ -388,6 +445,7 @@ def fetch_us_spot_batch(
     limit: int = 100,
     include_etf: bool = False,
     lookback_days: int = 14,
+    asset_type: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     master = fetch_us_security_master()
     selected = select_us_batch_symbols(
@@ -395,6 +453,7 @@ def fetch_us_spot_batch(
         offset=offset,
         limit=limit,
         include_etf=include_etf,
+        asset_type=asset_type,
     )
     if not selected:
         return master.iloc[0:0].copy(), pd.DataFrame()
