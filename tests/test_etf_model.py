@@ -12,7 +12,7 @@ from ah_screener.etf_model import (
     infer_etf_track,
     is_hk_listed_etf,
 )
-from ah_screener.selection import dedup_etf_pool, etf_category_overview
+from ah_screener.selection import dedup_etf_pool, etf_category_overview, validate_etf_clusters
 
 
 def _etf(symbol: str, name: str, amount: float, market: str = "A", **kw) -> dict:
@@ -204,6 +204,33 @@ class EtfModelTest(TestCase):
         )
         enriched = enrich_etf_snapshot(df, technicals=tech).set_index("symbol")
         self.assertGreater(enriched.loc["AAA", "etf_score"], enriched.loc["BBB", "etf_score"])
+
+    def test_validate_clusters_flags_merge_candidate(self) -> None:
+        import numpy as np
+
+        # Two different-cluster tracks whose reps move almost identically -> merge_candidate.
+        dates = pd.bdate_range("2024-01-01", periods=200)
+        rng = np.random.default_rng(0)
+        base = rng.normal(0, 0.01, len(dates)).cumsum() + 10
+        pool = pd.DataFrame(
+            [
+                _etf("159915", "创业板ETF", 5e8),  # cluster 成长科创宽基
+                _etf("510050", "上证50ETF", 5e8),  # cluster 大盘宽基
+            ]
+        )
+        prices = pd.concat(
+            [
+                pd.DataFrame({"market": "A", "symbol": "159915", "trade_date": dates, "close": base}),
+                pd.DataFrame(
+                    {"market": "A", "symbol": "510050", "trade_date": dates, "close": base * 1.001}
+                ),
+            ],
+            ignore_index=True,
+        )
+        out = validate_etf_clusters(pool, prices, min_corr=0.9)
+        self.assertFalse(out.empty)
+        self.assertEqual(out.iloc[0]["relation"], "merge_candidate")
+        self.assertGreaterEqual(float(out.iloc[0]["corr"]), 0.9)
 
     def test_category_overview_counts_pool(self) -> None:
         overview = etf_category_overview(

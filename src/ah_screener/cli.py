@@ -42,6 +42,7 @@ from ah_screener.pipeline import (
     sync_spot,
     sync_us_spot,
     sync_us_spot_batch,
+    validate_etf_cluster_table,
 )
 from ah_screener.reporting import generate_report
 from ah_screener.scheduler import install_launchd_schedule, uninstall_launchd_schedule
@@ -547,6 +548,31 @@ def potential_scan_command(top: int = typer.Option(80, help="Rows to persist and
             _fmt_optional_float(row["stop_price"]),
             _fmt_optional_float(row["rr_ratio"]),
             _fmt_optional_float(row["hist_win_rate"], digits=1, suffix="%"),
+        )
+    console.print(table)
+
+
+@app.command("etf-cluster-validate")
+def etf_cluster_validate_command(
+    min_corr: float = typer.Option(0.9, help="Correlation threshold for fold/merge flags."),
+) -> None:
+    """Empirically validate the ETF cluster table against return correlations (stage 9)."""
+    df = validate_etf_cluster_table(min_corr=min_corr)
+    if df.empty:
+        console.print("No cluster flags — manual grouping agrees with correlations (or no history).")
+        return
+    table = Table(show_header=True, header_style="bold")
+    for column in ["track_a", "track_b", "cluster_a", "cluster_b", "corr", "overlap_days", "relation"]:
+        table.add_column(column)
+    for _, row in df.iterrows():
+        table.add_row(
+            str(row["track_a"]),
+            str(row["track_b"]),
+            str(row["cluster_a"]),
+            str(row["cluster_b"]),
+            f"{float(row['corr']):.3f}",
+            str(int(row["overlap_days"])),
+            str(row["relation"]),
         )
     console.print(table)
 

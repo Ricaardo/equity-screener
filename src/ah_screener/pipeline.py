@@ -19,6 +19,7 @@ from ah_screener.expert_model import (
 from ah_screener.fundamentals import fetch_fundamentals
 from ah_screener.identity import default_identity_mappings
 from ah_screener.potential import scan_potential_candidates, validate_potential_signals
+from ah_screener.selection import validate_etf_clusters
 from ah_screener.reporting import generate_report
 from ah_screener.sources.akshare_client import (
     DEFAULT_BENCHMARKS,
@@ -693,6 +694,16 @@ def export_potential_candidates(top: int = 80) -> pd.DataFrame:
         """,
         [top],
     )
+
+
+def validate_etf_cluster_table(min_corr: float = 0.9) -> pd.DataFrame:
+    store = get_store()
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    if snapshots.empty:
+        return pd.DataFrame()
+    pool = select_assets(snapshots, ETFS)
+    prices = store.query_df("SELECT market, symbol, trade_date, close FROM daily_prices")
+    return validate_etf_clusters(pool, prices, min_corr=min_corr)
 
 
 def export_etf_candidates(
