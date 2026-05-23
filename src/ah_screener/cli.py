@@ -725,12 +725,15 @@ def report_command(
 
 @app.command("update-all")
 def update_all_command(
-    top: int = typer.Option(120, help="Top liquid names per market for history and fundamentals."),
+    top: int = typer.Option(120, help="Top liquid names per market for daily-price history."),
     lookback_days: int = typer.Option(430, help="Calendar lookback days for daily price history."),
     industry_limit: Optional[int] = typer.Option(50, help="A-share industry board limit."),
     concept_limit: Optional[int] = typer.Option(120, help="A-share concept board limit."),
     skip_fundamentals: bool = typer.Option(False, help="Skip financial statements for faster refresh."),
     skip_report: bool = typer.Option(False, help="Skip Markdown report generation."),
+    fundamentals_top: Optional[int] = typer.Option(
+        None, help="Top names per market for fundamentals (defaults to --top; incremental so can go deep)."
+    ),
 ) -> None:
     """Run the full refresh pipeline and regenerate expert outputs."""
     result = run_full_update(
@@ -740,6 +743,7 @@ def update_all_command(
         concept_limit=concept_limit,
         include_fundamentals=not skip_fundamentals,
         include_report=not skip_report,
+        fundamentals_top=fundamentals_top,
     )
     for key, value in result.items():
         console.print(f"{key}: {value}")

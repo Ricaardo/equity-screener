@@ -930,6 +930,7 @@ def run_full_update(
     concept_limit: int | None = 120,
     include_fundamentals: bool = True,
     include_report: bool = True,
+    fundamentals_top: int | None = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {}
 
@@ -952,7 +953,9 @@ def run_full_update(
     _step("benchmarks", lambda: sync_benchmarks(lookback_days=lookback_days))
     _step("technical_rows", run_technical_indicators)
     if include_fundamentals:
-        _step("fundamentals", lambda: sync_fundamentals("all", top=top))
+        # Fundamentals are incremental (carried forward), so coverage can go much deeper
+        # than history without re-fetch cost. Defaults to `top` when not specified.
+        _step("fundamentals", lambda: sync_fundamentals("all", top=fundamentals_top or top))
     _step("expert_scores", run_expert_scores)
     _step("industry_valuation_stats", compute_industry_valuation_stats)
     _step("potential_scan", run_potential_scan)
