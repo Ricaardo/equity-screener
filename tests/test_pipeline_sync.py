@@ -229,9 +229,12 @@ class SyncSpotResilienceTest(TestCase):
             "generate_report",
         ]
         originals = {n: getattr(pipeline, n) for n in names}
+        original_validate = pipeline.run_expert_validation
         try:
             for n in names:
                 setattr(pipeline, n, lambda *a, **k: {})
+            # run_expert_validation returns a (stats, summary) tuple; the step takes [1].
+            pipeline.run_expert_validation = lambda *a, **k: (None, {"sample_count": 0})
 
             def boom(*a, **k):
                 raise RuntimeError("akshare board tags down")
@@ -241,10 +244,12 @@ class SyncSpotResilienceTest(TestCase):
         finally:
             for n, fn in originals.items():
                 setattr(pipeline, n, fn)
+            pipeline.run_expert_validation = original_validate
 
         self.assertIn("failed", result["a_industry_tags"])
         self.assertIn("report", result)  # downstream step still ran despite the tags failure
         self.assertIn("expert_scores", result)
+        self.assertIn("expert_validation", result)
 
     def test_sync_delisted_universe_persists_lifecycle_events(self) -> None:
         originals = (

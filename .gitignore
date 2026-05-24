@@ -8,6 +8,9 @@ logs/
 scripts/update_all.sh
 dist/
 reports/ui-screenshots/
+# Moving "latest" report pointers are regenerated every run — track dated reports only.
+reports/ah-screening-report-latest.json
+reports/ah-screening-report-latest.md
 
 data/*.duckdb
 data/*.duckdb.*

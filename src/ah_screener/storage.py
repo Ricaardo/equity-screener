@@ -335,6 +335,14 @@ CREATE TABLE IF NOT EXISTS potential_candidates (
     updated_at TIMESTAMP,
     PRIMARY KEY (snapshot_date, strategy, market, symbol)
 );
+
+CREATE TABLE IF NOT EXISTS ingest_failures (
+    run_date DATE NOT NULL,
+    step VARCHAR NOT NULL,
+    message VARCHAR,
+    occurred_at TIMESTAMP,
+    PRIMARY KEY (run_date, step)
+);
 """
 
 MIGRATION_SQL = """

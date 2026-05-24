@@ -26,11 +26,13 @@ from ah_screener.pipeline import (
     export_refined_candidates,
     fundamentals_status,
     ingest_company_document,
+    ingest_failure_status,
     import_custom_tags,
     import_industry_mapping,
     init_db,
     run_full_update,
     run_expert_scores,
+    run_expert_validation,
     run_potential_scan,
     run_potential_threshold_sweep,
     run_potential_validation,
@@ -366,6 +368,26 @@ def coverage_status_command() -> None:
     )
 
 
+@app.command("ingest-status")
+def ingest_status_command(
+    limit: int = typer.Option(30, help="Most recent ingest failures to show."),
+) -> None:
+    """Show recent ingest-step failures (why coverage may have shrunk)."""
+    df = ingest_failure_status(limit=limit)
+    if df.empty:
+        console.print("No ingest failures recorded. Latest refreshes completed every step.")
+        return
+    _print_df(
+        df,
+        [
+            Col("run_date", "run_date"),
+            Col("step", "step"),
+            Col("message", "message"),
+            Col("occurred_at", "occurred_at"),
+        ],
+    )
+
+
 @app.command("expert-score")
 def expert_score_command() -> None:
     """Run the built-in expert theme + master + technical model."""
@@ -549,6 +571,37 @@ def potential_walk_forward_command() -> None:
             Col("bias_note", "bias_note"),
         ],
         empty_msg="No walk-forward rows. Need longer stored history with enough setup samples.",
+    )
+
+
+@app.command("expert-validate")
+def expert_validate_command(
+    forward_days: int = typer.Option(40, help="Forward trading days for the return label."),
+) -> None:
+    """Validate expert decision buckets against forward excess returns (P2-4)."""
+    f3 = lambda v: _fmt_optional_float(v, 3)  # noqa: E731
+    stats, summary = run_expert_validation(forward_days=forward_days)
+    console.print(
+        f"samples={summary.get('sample_count', 0)} "
+        f"snapshots={summary.get('snapshot_count', 0)} "
+        f"median-excess monotonic in decision order: {summary.get('monotonic')}"
+    )
+    console.print(f"bias: {summary.get('bias_note', '')}")
+    _print_df(
+        stats,
+        [
+            Col("decision", "decision"),
+            Col("sample_count", "sample_count", _int),
+            Col("win_rate", "win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("median_excess", "median_excess", f3),
+            Col("p25_excess", "p25_excess", f3),
+            Col("p75_excess", "p75_excess", f3),
+            Col("mean_expert_score", "mean_expert_score", _fmt_optional_float),
+        ],
+        empty_msg=(
+            "No expert-validation rows. Need natural expert snapshots with forward "
+            "price history (only a couple of natural snapshots exist so far)."
+        ),
     )
 
 

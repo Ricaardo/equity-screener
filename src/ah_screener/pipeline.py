@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Literal
@@ -16,8 +17,9 @@ from ah_screener.expert_model import (
     refine_candidates,
     run_expert_model,
 )
+from ah_screener.expert_validation import validate_expert_decisions
 from ah_screener.fundamentals import fetch_fundamentals
-from ah_screener.identity import default_identity_mappings
+from ah_screener.identity import default_identity_mappings, derive_fuzzy_identity_mappings
 from ah_screener.potential import (
     scan_potential_candidates,
     sweep_potential_thresholds,
@@ -57,6 +59,8 @@ from ah_screener.backtest import (  # re-exported for backward compat
 
 
 MarketArg = Literal["A", "HK", "US", "ETF", "all"]
+
+logger = logging.getLogger("ah_screener.pipeline")
 
 
 def get_store() -> Store:
@@ -370,14 +374,85 @@ def sync_curated_theme_tags() -> int:
 def sync_identity_mappings() -> int:
     store = get_store()
     store.init_db()
-    return store.upsert_dataframe("company_identity_mappings", default_identity_mappings())
+    curated = default_identity_mappings()
+    written = store.upsert_dataframe("company_identity_mappings", curated)
+    # P2-7: augment curated links with fuzzy cross-market name matches (curated wins).
+    securities = store.query_df("SELECT market, symbol, name FROM securities")
+    fuzzy = derive_fuzzy_identity_mappings(securities, curated=curated)
+    if not fuzzy.empty:
+        written += store.upsert_dataframe("company_identity_mappings", fuzzy)
+    return written
+
+
+def _record_ingest_failure(step: str, message: str) -> None:
+    """Persist an ingest-step failure so coverage erosion is observable (P2-5).
+
+    Best-effort: recording a failure must never itself abort the refresh.
+    """
+    try:
+        store = get_store()
+        store.init_db()
+        now = datetime.now()
+        store.upsert_dataframe(
+            "ingest_failures",
+            pd.DataFrame(
+                [
+                    {
+                        "run_date": now.date(),
+                        "step": step,
+                        "message": message,
+                        "occurred_at": pd.Timestamp(now),
+                    }
+                ]
+            ),
+        )
+    except Exception:  # noqa: BLE001 - observability must not break the pipeline
+        logger.exception("failed to record ingest failure for step %s", step)
+
+
+def run_expert_validation(forward_days: int = 40) -> tuple[pd.DataFrame, dict[str, object]]:
+    """Validate expert decision buckets against forward excess returns (P2-4)."""
+    store = get_store()
+    store.init_db()
+    expert = store.query_df(
+        "SELECT snapshot_date, market, symbol, decision, expert_score "
+        "FROM expert_screening_results WHERE strategy = ?",
+        [STRATEGY_NAME],
+    )
+    prices = store.query_df("SELECT market, symbol, trade_date, close FROM daily_prices")
+    return validate_expert_decisions(expert, prices, forward_days=forward_days)
+
+
+def ingest_failure_status(limit: int = 30) -> pd.DataFrame:
+    """Recent ingest-step failures, newest first."""
+    store = get_store()
+    store.init_db()
+    return store.query_df(
+        """
+        SELECT run_date, step, message, occurred_at
+        FROM ingest_failures
+        ORDER BY occurred_at DESC
+        LIMIT ?
+        """,
+        [limit],
+    )
 
 
 def _identity_mapping_frame(store: Store) -> pd.DataFrame:
-    mappings = store.query_df("SELECT market, symbol, canonical_id FROM company_identity_mappings")
+    mappings = store.query_df(
+        "SELECT market, symbol, canonical_id, confidence FROM company_identity_mappings"
+    )
     if mappings.empty:
         mappings = default_identity_mappings()[["market", "symbol", "canonical_id"]]
-    return mappings.drop_duplicates(["market", "symbol"], keep="first")
+        mappings["confidence"] = "high"
+    # Curated (non-fuzzy) links win when a symbol carries both a curated and a fuzzy row.
+    mappings["_fuzzy"] = mappings["confidence"].astype(str).eq("fuzzy")
+    mappings = (
+        mappings.sort_values("_fuzzy")
+        .drop_duplicates(["market", "symbol"], keep="first")
+        .drop(columns=["_fuzzy", "confidence"])
+    )
+    return mappings
 
 
 def _latest_snapshots(store: Store, asset_classes: tuple[AssetClass, ...] = STOCKS) -> pd.DataFrame:
@@ -553,12 +628,14 @@ def run_expert_scores() -> dict[str, int]:
     tags = store.query_df("SELECT * FROM company_tags")
     technicals = store.query_df("SELECT * FROM technical_indicators")
     fundamentals = store.query_df("SELECT * FROM financial_metrics")
+    lifecycle = store.query_df("SELECT * FROM security_lifecycle_events")
     results, themes = run_expert_model(
         snapshots=snapshots,
         tags=tags,
         technicals=technicals,
         fundamentals=fundamentals,
         settings=get_settings(),
+        lifecycle=lifecycle,
     )
     if not results.empty:
         mappings = _identity_mapping_frame(store)
@@ -1111,10 +1188,14 @@ def run_full_update(
     def _step(name: str, fn) -> None:
         # One flaky free-data source must not abort the whole refresh: record and continue,
         # so downstream compute (technical/expert/potential/report) still runs on stored data.
+        # Failures are also persisted (P2-5) so a silently shrinking coverage is observable.
         try:
             result[name] = fn()
         except Exception as exc:  # noqa: BLE001
-            result[name] = {"failed": str(exc)[:200]}
+            message = str(exc)[:300]
+            result[name] = {"failed": message}
+            logger.warning("ingest step %s failed: %s", name, message)
+            _record_ingest_failure(name, message)
 
     _step("delisted_universe", sync_delisted_universe)
     _step("sync_spot", lambda: sync_spot("all"))
@@ -1134,6 +1215,10 @@ def run_full_update(
     _step("expert_scores", run_expert_scores)
     _step("industry_valuation_stats", compute_industry_valuation_stats)
     _step("potential_scan", run_potential_scan)
+    # Forward-return check on the expert decision buckets. Cheap, and honest by design:
+    # while natural snapshots are too thin it just reports 0 samples, but once they
+    # accumulate every refresh auto-produces the out-of-sample verdict.
+    _step("expert_validation", lambda: run_expert_validation()[1])
     if include_report:
         _step("report", lambda: str(generate_report()))
     return result
