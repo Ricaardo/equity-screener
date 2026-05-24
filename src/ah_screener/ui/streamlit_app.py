@@ -328,6 +328,16 @@ DECISION_LABELS = {
     "reserve": "储备",
     "reject": "剔除",
 }
+MARKET_LABELS = {"A": "A股", "HK": "港股", "US": "美股"}
+STOCK_MARKETS = ("A", "HK", "US")
+
+
+def _ts_chip(item: dict) -> str:
+    ts = item.get("trading_system")
+    if not ts:
+        return ""
+    cls = "chip green" if ts == "T+0" else "chip"
+    return f'<span class="{cls}">{escape(str(ts))}</span>'
 
 
 # --- formatters -----------------------------------------------------------------
@@ -436,14 +446,15 @@ def render_hero(report: dict) -> None:
         """,
         unsafe_allow_html=True,
     )
+    by_market = counts.get("refined_by_market", {})
     cells = [
-        ("提炼候选", counts.get("refined_candidates", 0)),
+        ("A股 提炼", by_market.get("A", 0)),
+        ("港股 提炼", by_market.get("HK", 0)),
+        ("美股 提炼", by_market.get("US", 0)),
+        ("ETF 精选", counts.get("etf_leaders", 0)),
         ("核心候选", counts.get("core_candidates", 0)),
         ("潜力标的", counts.get("potential_candidates", 0)),
-        ("ETF 精选", counts.get("etf_leaders", 0)),
     ]
-    for item in report.get("data_freshness", [])[:2]:
-        cells.append((f"{item.get('market')} 最新", item.get("latest_date") or "--"))
     html = "".join(
         f'<div class="kpi"><div class="label">{_safe(label)}</div>'
         f'<div class="value">{_safe(value)}</div></div>'
@@ -496,6 +507,7 @@ def _candidate_card(item: dict) -> str:
         f'<div class="score">{_score(item.get("expert_score"))}</div>'
         "</div>"
         '<div class="chip-row">'
+        f"{_ts_chip(item)}"
         f'<span class="chip">{_safe(item.get("style_bucket"))}</span>'
         f'<span class="chip">基本面 {_score(item.get("fundamental_score"))}</span>'
         f'<span class="chip">技术 {_score(item.get("technical_score"))}</span>'
@@ -520,12 +532,27 @@ def render_candidate_cards(candidates: list[dict]) -> None:
         st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
 
 
-def render_core_cards(candidates: list[dict]) -> None:
-    if not candidates:
-        st.info("当前报告没有核心候选。")
+def render_market_section(report: dict, market: str) -> None:
+    """One market's screening result at a glance: core picks + refined by theme."""
+    refined = [c for c in report.get("refined_candidates", []) if c.get("market") == market]
+    core = [c for c in report.get("core_candidates", []) if c.get("market") == market]
+    ts = "T+0" if market in {"HK", "US"} else "T+1（个股）"
+    st.markdown(
+        f"#### {MARKET_LABELS.get(market, market)}　"
+        f"<span class='hint'>交易制度 {ts}　·　提炼 {len(refined)} 只　·　核心 {len(core)} 只</span>",
+        unsafe_allow_html=True,
+    )
+    if not refined and not core:
+        st.info(f"{MARKET_LABELS.get(market, market)} 暂无筛选候选。")
         return
-    cards = "".join(_candidate_card(item) for item in candidates)
-    st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    if core:
+        st.markdown("##### ★ 核心候选")
+        cards = "".join(_candidate_card(item) for item in core)
+        st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    if refined:
+        st.markdown("##### 提炼候选（按主题）")
+        render_candidate_cards(refined)
+    render_evidence(refined or core)
 
 
 def _potential_card(item: dict) -> str:
@@ -538,6 +565,7 @@ def _potential_card(item: dict) -> str:
         f'<div class="score">{_score(item.get("potential_score"))}</div>'
         "</div>"
         '<div class="chip-row">'
+        f"{_ts_chip(item)}"
         f'<span class="chip">筑底 {_score(item.get("technical_setup_score"))}</span>'
         f'<span class="chip">RS {_score(item.get("relative_strength_score"))}</span>'
         f'<span class="chip green">触发 {_price(item.get("pivot_price"))}</span>'
@@ -554,8 +582,20 @@ def render_potential_cards(candidates: list[dict]) -> None:
         st.info("当前报告没有潜力扫描结果。运行 `ah-screener potential-scan` 后重新生成报告。")
         return
     st.caption("口径：price-only；触发/目标/止损为情景参考，RS 阈值仍是运行参数，非 edge 证明。")
-    cards = "".join(_potential_card(item) for item in candidates)
-    st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    by_market: dict[str, list[dict]] = {}
+    for item in candidates:
+        by_market.setdefault(str(item.get("market") or "其他"), []).append(item)
+    for market in [*STOCK_MARKETS, *sorted(set(by_market) - set(STOCK_MARKETS))]:
+        items = by_market.get(market)
+        if not items:
+            continue
+        st.markdown(
+            f"##### {MARKET_LABELS.get(market, market)}　"
+            f"<span class='hint'>{len(items)} 只</span>",
+            unsafe_allow_html=True,
+        )
+        cards = "".join(_potential_card(item) for item in items)
+        st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
 
 
 def render_evidence(candidates: list[dict]) -> None:
@@ -577,8 +617,11 @@ def render_etf(leaders: list[dict]) -> None:
         return
     table = [
         {
+            "市场": MARKET_LABELS.get(str(item.get("market")), item.get("market")),
+            "交易制度": item.get("trading_system"),
             "代码": item.get("symbol"),
             "名称": item.get("name"),
+            "分类": item.get("etf_category"),
             "簇": item.get("etf_cluster"),
             "跟踪": item.get("etf_track"),
             "ETF分": _score(item.get("etf_score")),
@@ -588,6 +631,7 @@ def render_etf(leaders: list[dict]) -> None:
         }
         for item in leaders
     ]
+    st.caption("交易制度：A 股个股 T+1；跨境/债券/商品/货币类 ETF T+0；港股/美股 T+0。")
     st.dataframe(table, width="stretch", hide_index=True)
 
 
@@ -646,27 +690,29 @@ if report is None:
 render_hero(report)
 render_conclusion(report)
 
-core_tab, refined_tab, potential_tab, etf_tab, full_tab = st.tabs(
-    ["核心候选", "提炼候选", "潜力扫描", "ETF 工具池", "完整报告"]
+a_tab, hk_tab, us_tab, etf_tab, potential_tab, full_tab = st.tabs(
+    ["A股", "港股", "美股", "ETF", "潜力扫描", "完整报告"]
 )
 
-with core_tab:
-    render_core_cards(report.get("core_candidates", []))
-    render_evidence(report.get("core_candidates", []))
+with a_tab:
+    render_market_section(report, "A")
 
-with refined_tab:
-    render_candidate_cards(report.get("refined_candidates", []))
-    render_evidence(report.get("refined_candidates", []))
-    st.markdown("##### 候选变化")
-    render_changes(report.get("candidate_changes", []))
+with hk_tab:
+    render_market_section(report, "HK")
 
-with potential_tab:
-    render_potential_cards(report.get("potential_candidates", []))
+with us_tab:
+    render_market_section(report, "US")
 
 with etf_tab:
     render_etf(report.get("etf_leaders", []))
 
+with potential_tab:
+    render_potential_cards(report.get("potential_candidates", []))
+
 with full_tab:
+    st.markdown("##### 候选变化")
+    render_changes(report.get("candidate_changes", []))
+    st.divider()
     markdown_text = load_markdown(selected_date)
     if markdown_text:
         st.markdown(markdown_text)

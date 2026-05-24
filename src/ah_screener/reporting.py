@@ -39,8 +39,24 @@ EXTERNAL_CONTEXT = [
 ]
 
 
-REPORT_SCHEMA_VERSION = "1.0"
+REPORT_SCHEMA_VERSION = "1.1"
 DISCLAIMER = "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。"
+# A-share ETF categories that trade T+0 (cross-border / bond / commodity / money);
+# onshore equity ETFs (宽基/行业/主题) and all A-share stocks are T+1.
+T0_ETF_CATEGORIES = frozenset({"跨境ETF", "债券ETF", "商品ETF", "货币ETF"})
+
+
+def _trading_system(market: object, asset_type: object = "stock", etf_category: object = None) -> str:
+    """Trading settlement regime shown at a glance: HK/US intraday round-trip = T+0;
+    A-share stocks = T+1; A-share ETFs depend on category."""
+    m = str(market or "").upper()
+    if m in {"US", "HK"}:
+        return "T+0"
+    if m == "A":
+        if str(asset_type).lower() == "etf":
+            return "T+0" if str(etf_category) in T0_ETF_CATEGORIES else "T+1"
+        return "T+1"
+    return "T+1"
 CONCLUSION_LINES = [
     "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
     "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
@@ -922,11 +938,16 @@ def _build_payload(
     This is the AI-facing product: every candidate carries its score breakdown and
     parsed ``reasons`` evidence chain, mirroring exactly what the Markdown shows.
     """
+    # Stock candidates are A/HK/US equities (the expert universe is stocks-only).
+    refined = refined.copy()
+    if not refined.empty:
+        refined["trading_system"] = [_trading_system(m, "stock") for m in refined["market"]]
     refined_fields = [
         "bucket",
         "rank_in_bucket",
         "style_bucket",
         "market",
+        "trading_system",
         "symbol",
         "name",
         "expert_score",
@@ -946,8 +967,12 @@ def _build_payload(
         if not expert.empty and "decision" in expert.columns
         else expert.head(0)
     )
+    core = core.copy()
+    if not core.empty:
+        core["trading_system"] = [_trading_system(m, "stock") for m in core["market"]]
     core_fields = [
         "market",
+        "trading_system",
         "symbol",
         "name",
         "expert_score",
@@ -964,8 +989,12 @@ def _build_payload(
         "theme_matches",
         "reasons",
     ]
+    potential = potential.copy()
+    if not potential.empty:
+        potential["trading_system"] = [_trading_system(m, "stock") for m in potential["market"]]
     potential_fields = [
         "market",
+        "trading_system",
         "symbol",
         "name",
         "potential_score",
@@ -981,9 +1010,25 @@ def _build_payload(
         "hist_win_rate",
         "bias_note",
     ]
+    etf_leaders = etf_leaders.copy()
+    if not etf_leaders.empty:
+        categories = (
+            etf_leaders["etf_category"]
+            if "etf_category" in etf_leaders.columns
+            else [None] * len(etf_leaders)
+        )
+        markets = (
+            etf_leaders["market"] if "market" in etf_leaders.columns else ["A"] * len(etf_leaders)
+        )
+        etf_leaders["trading_system"] = [
+            _trading_system(m, "etf", c) for m, c in zip(markets, categories)
+        ]
     etf_fields = [
+        "market",
+        "trading_system",
         "symbol",
         "name",
+        "etf_category",
         "etf_cluster",
         "etf_track",
         "etf_score",
@@ -1044,6 +1089,11 @@ def _build_payload(
             "core_candidates": int(len(core)),
             "potential_candidates": int(len(potential)),
             "etf_leaders": int(len(etf_leaders)),
+            "refined_by_market": (
+                {str(k): int(v) for k, v in refined["market"].value_counts().items()}
+                if not refined.empty
+                else {}
+            ),
         },
         "refined_candidates": _records(
             refined, refined_fields, list_fields=("theme_matches", "reasons")

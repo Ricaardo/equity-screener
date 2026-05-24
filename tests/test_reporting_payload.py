@@ -29,6 +29,20 @@ class CleanTest(TestCase):
         self.assertEqual(reporting._clean(pd.Timestamp("2026-05-24")), "2026-05-24")
 
 
+class TradingSystemTest(TestCase):
+    def test_market_and_etf_category_rules(self) -> None:
+        self.assertEqual(reporting._trading_system("US", "stock"), "T+0")
+        self.assertEqual(reporting._trading_system("HK", "stock"), "T+0")
+        self.assertEqual(reporting._trading_system("A", "stock"), "T+1")
+        # A-share ETFs: cross-border/bond/commodity/money are T+0; equity is T+1.
+        self.assertEqual(reporting._trading_system("A", "etf", "跨境ETF"), "T+0")
+        self.assertEqual(reporting._trading_system("A", "etf", "债券ETF"), "T+0")
+        self.assertEqual(reporting._trading_system("A", "etf", "商品ETF"), "T+0")
+        self.assertEqual(reporting._trading_system("A", "etf", "货币ETF"), "T+0")
+        self.assertEqual(reporting._trading_system("A", "etf", "宽基指数ETF"), "T+1")
+        self.assertEqual(reporting._trading_system("A", "etf", "行业ETF"), "T+1")
+
+
 class ParseJsonListTest(TestCase):
     def test_parses_real_list(self) -> None:
         self.assertEqual(reporting._parse_json_list('["a", "b"]'), ["a", "b"])
