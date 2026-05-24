@@ -185,3 +185,53 @@ class GenerateReportArtifactsTest(TestCase):
             )
             self.assertEqual(payload["report_type"], "ah-screening")
             json.dumps(payload, allow_nan=False)
+
+
+class ValidatePayloadTest(TestCase):
+    def _minimal_payload(self) -> dict:
+        return {
+            key: ([] if key.endswith("candidates") or key in {"etf_leaders", "candidate_changes"} else "x")
+            for key in reporting.REPORT_REQUIRED_TOP_KEYS
+        }
+
+    def test_minimal_payload_passes(self) -> None:
+        reporting.validate_report_payload(self._minimal_payload())
+
+    def test_missing_top_key_raises(self) -> None:
+        payload = self._minimal_payload()
+        del payload["counts"]
+        with self.assertRaises(ValueError):
+            reporting.validate_report_payload(payload)
+
+    def test_record_missing_required_field_raises(self) -> None:
+        payload = self._minimal_payload()
+        # refined_candidates record missing the contract field `bucket`.
+        payload["refined_candidates"] = [
+            {
+                "market": "A",
+                "trading_system": "T+1",
+                "symbol": "600519",
+                "name": "贵州茅台",
+                "expert_score": 80.0,
+            }
+        ]
+        with self.assertRaises(ValueError):
+            reporting.validate_report_payload(payload)
+
+
+class BuildReportPayloadTest(TestCase):
+    def test_returns_validated_payload_without_writing_files(self) -> None:
+        import os
+        import tempfile
+        from pathlib import Path
+        from unittest import mock
+
+        with tempfile.TemporaryDirectory() as tmp:
+            db = str(Path(tmp) / "t.duckdb")
+            with mock.patch.dict(os.environ, {"AH_SCREENER_DB": db}):
+                payload = reporting.build_report_payload()
+            # Contract holds and no report files were written by this call.
+            self.assertEqual(payload["report_type"], "ah-screening")
+            self.assertEqual(payload["schema_version"], reporting.REPORT_SCHEMA_VERSION)
+            reporting.validate_report_payload(payload)
+            self.assertEqual(list(Path(tmp).glob("*.json")), [])
