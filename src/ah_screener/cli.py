@@ -34,10 +34,12 @@ from ah_screener.pipeline import (
     run_potential_scan,
     run_potential_threshold_sweep,
     run_potential_validation,
+    run_potential_walk_forward,
     run_technical_indicators,
     sync_a_tags,
     sync_benchmarks,
     sync_curated_theme_tags,
+    sync_delisted_universe,
     sync_fundamentals,
     sync_hkex_documents,
     sync_history,
@@ -183,6 +185,14 @@ def classify_securities_command() -> None:
         console.print(f"{key}: {count}")
 
 
+@app.command("sync-delisted-universe")
+def sync_delisted_universe_command() -> None:
+    """Sync A/HK/US delisting lifecycle records for survivorship-bias audits."""
+    result = sync_delisted_universe()
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
 @app.command("sync-a-tags")
 def sync_a_tags_command(
     kind: str = typer.Option("industry", help="industry or concept."),
@@ -212,7 +222,9 @@ def sync_identity_mappings_command() -> None:
 
 @app.command("import-tags")
 def import_tags_command(
-    path: Path = typer.Option(Path("data/custom_tags.csv"), help="CSV path with market,symbol,tag_name columns."),
+    path: Path = typer.Option(
+        Path("data/custom_tags.csv"), help="CSV path with market,symbol,tag_name columns."
+    ),
     source: str = typer.Option("custom_csv", help="Source label stored with imported tags."),
 ) -> None:
     """Import user-maintained industry, concept, theme, or risk tags from CSV."""
@@ -226,7 +238,9 @@ def import_industry_map_command(
         Path("data/industry_mapping.csv"),
         help="CSV path with market,symbol,detailed_industry or industry columns.",
     ),
-    source: str = typer.Option("industry_mapping_csv", help="Source label stored with imported mappings."),
+    source: str = typer.Option(
+        "industry_mapping_csv", help="Source label stored with imported mappings."
+    ),
 ) -> None:
     """Import editable fine-grained industry mappings into company_tags."""
     count = import_industry_mapping(path=path, source=source)
@@ -242,7 +256,9 @@ def sync_history_command(
         True, "--include-etf/--stocks-only", help="Also fetch top ETF daily history."
     ),
     etf_top: int = typer.Option(120, help="Top liquid ETFs per market to fetch."),
-    full: bool = typer.Option(False, "--full", help="Force full backfill (ignore incremental skip)."),
+    full: bool = typer.Option(
+        False, "--full", help="Force full backfill (ignore incremental skip)."
+    ),
 ) -> None:
     """Sync historical daily prices incrementally (skips names already current)."""
     normalized = market.upper()
@@ -267,7 +283,9 @@ def sync_benchmarks_command(
         help="Comma-separated benchmarks, for example A:000300,HK:HSI,US:SPY.",
     ),
     lookback_days: int = typer.Option(430, help="Calendar lookback days."),
-    full: bool = typer.Option(False, "--full", help="Force full backfill (ignore incremental skip)."),
+    full: bool = typer.Option(
+        False, "--full", help="Force full backfill (ignore incremental skip)."
+    ),
 ) -> None:
     """Sync free A/H benchmark index history into daily_prices (incremental)."""
     items = [item.strip() for item in benchmarks.split(",") if item.strip()] if benchmarks else None
@@ -287,7 +305,9 @@ def technical_command() -> None:
 def sync_fundamentals_command(
     market: str = typer.Option("all", help="A, HK, US, or all."),
     top: int = typer.Option(120, help="Top liquid names per market to fetch fundamentals."),
-    force: bool = typer.Option(False, "--force", help="Re-fetch all (ignore freshness/carry-forward)."),
+    force: bool = typer.Option(
+        False, "--force", help="Re-fetch all (ignore freshness/carry-forward)."
+    ),
 ) -> None:
     """Sync fundamentals incrementally (carries forward fresh metrics; --force refetches)."""
     normalized = market.upper()
@@ -502,6 +522,36 @@ def potential_sweep_command() -> None:
     )
 
 
+@app.command("potential-walk-forward")
+def potential_walk_forward_command() -> None:
+    """Validate rs_quiet thresholds with chronological walk-forward splits."""
+    f3 = lambda v: _fmt_optional_float(v, 3)  # noqa: E731
+    _print_df(
+        run_potential_walk_forward(),
+        [
+            Col("fold", "fold", _int),
+            Col("train_start", "train_start"),
+            Col("train_end", "train_end"),
+            Col("test_start", "test_start"),
+            Col("test_end", "test_end"),
+            Col(
+                "selected_rs_rank_cut", "selected_rs_rank_cut", lambda v: _fmt_optional_float(v, 0)
+            ),
+            Col(
+                "selected_ret_60d_cap", "selected_ret_60d_cap", lambda v: _fmt_optional_float(v, 2)
+            ),
+            Col("train_sample_count", "train_sample_count", _int),
+            Col("train_win_rate", "train_win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("train_median_excess_40d", "train_median_excess_40d", f3),
+            Col("test_sample_count", "test_sample_count", _int),
+            Col("test_win_rate", "test_win_rate", lambda v: _fmt_optional_float(v, 1, "%")),
+            Col("test_median_excess_40d", "test_median_excess_40d", f3),
+            Col("bias_note", "bias_note"),
+        ],
+        empty_msg="No walk-forward rows. Need longer stored history with enough setup samples.",
+    )
+
+
 @app.command("potential-scan")
 def potential_scan_command(top: int = typer.Option(80, help="Rows to persist and show.")) -> None:
     """Run potential-stock scan and persist scenario cards."""
@@ -577,7 +627,9 @@ def ingest_document_command(
     market: str = typer.Option(..., help="A, HK, or US."),
     symbol: str = typer.Option(..., help="Security symbol."),
     path: Path = typer.Option(..., help="Local PDF/TXT/MD annual report or announcement path."),
-    document_type: str = typer.Option("annual_report", help="annual_report, announcement, filing, etc."),
+    document_type: str = typer.Option(
+        "annual_report", help="annual_report, announcement, filing, etc."
+    ),
     report_date: Optional[str] = typer.Option(None, help="Report date in YYYY-MM-DD format."),
     title: Optional[str] = typer.Option(None, help="Document title."),
     source_url: Optional[str] = typer.Option(None, help="Official source URL, such as HKEXnews."),
@@ -604,7 +656,9 @@ def ingest_document_command(
 @app.command("sync-hkex-documents")
 def sync_hkex_documents_command(
     symbol: str = typer.Option(..., help="Hong Kong stock code, for example 00700."),
-    output_dir: Path = typer.Option(Path("data/hkex_documents"), help="Directory for downloaded PDFs."),
+    output_dir: Path = typer.Option(
+        Path("data/hkex_documents"), help="Directory for downloaded PDFs."
+    ),
     from_date: Optional[str] = typer.Option(None, help="Search start date in YYYY-MM-DD format."),
     to_date: Optional[str] = typer.Option(None, help="Search end date in YYYY-MM-DD format."),
     keywords: str = typer.Option(
@@ -615,7 +669,9 @@ def sync_hkex_documents_command(
     lang: str = typer.Option("EN", help="HKEXnews language, EN or ZH."),
 ) -> None:
     """Search HKEXnews, download matching PDFs, and ingest extracted evidence."""
-    keyword_items = [item.strip() for item in keywords.split(",") if item.strip()] if keywords else None
+    keyword_items = (
+        [item.strip() for item in keywords.split(",") if item.strip()] if keywords else None
+    )
     result = sync_hkex_documents(
         symbol=symbol,
         output_dir=output_dir,
@@ -661,13 +717,15 @@ def backtest_command(
         "--industry-neutral/--no-industry-neutral",
         help="Limit holdings per industry peer group.",
     ),
-    max_per_group: int = typer.Option(2, help="Maximum holdings per peer group when industry-neutral."),
+    max_per_group: int = typer.Option(
+        2, help="Maximum holdings per peer group when industry-neutral."
+    ),
     benchmark: Optional[str] = typer.Option(
         None,
         help="Optional benchmark in MARKET:SYMBOL format, for example A:000300, HK:HSI, or US:SPY.",
     ),
     include_replay: bool = typer.Option(
-        True,
+        False,
         "--include-replay/--natural-only",
         help="Include historical replay snapshots generated by backfill-refined-snapshots.",
     ),
@@ -729,10 +787,13 @@ def update_all_command(
     lookback_days: int = typer.Option(430, help="Calendar lookback days for daily price history."),
     industry_limit: Optional[int] = typer.Option(50, help="A-share industry board limit."),
     concept_limit: Optional[int] = typer.Option(120, help="A-share concept board limit."),
-    skip_fundamentals: bool = typer.Option(False, help="Skip financial statements for faster refresh."),
+    skip_fundamentals: bool = typer.Option(
+        False, help="Skip financial statements for faster refresh."
+    ),
     skip_report: bool = typer.Option(False, help="Skip Markdown report generation."),
     fundamentals_top: Optional[int] = typer.Option(
-        None, help="Top names per market for fundamentals (defaults to --top; incremental so can go deep)."
+        None,
+        help="Top names per market for fundamentals (defaults to --top; incremental so can go deep).",
     ),
 ) -> None:
     """Run the full refresh pipeline and regenerate expert outputs."""
@@ -772,7 +833,9 @@ def install_schedule_command(
         return
 
     target = f"gui/{os.getuid()}"
-    subprocess.run(["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True)
+    subprocess.run(
+        ["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True
+    )
     completed = subprocess.run(
         ["launchctl", "bootstrap", target, str(plist_path)],
         check=False,
@@ -793,7 +856,9 @@ def uninstall_schedule_command() -> None:
     label = "com.ah-screener.update"
     target = f"gui/{os.getuid()}"
     plist_path = Path.home() / "Library" / "LaunchAgents" / f"{label}.plist"
-    subprocess.run(["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True)
+    subprocess.run(
+        ["launchctl", "bootout", target, str(plist_path)], check=False, capture_output=True
+    )
     removed = uninstall_launchd_schedule(label=label)
     console.print(f"Removed schedule: {removed}")
 

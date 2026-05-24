@@ -218,14 +218,14 @@ class HistorySource(Protocol):
 
 | 能力 | 现状 | 需要做 |
 | --- | --- | --- |
-| 美股股票现货 | ✅ `fetch_us_spot` | 纳入 universe 注册表 |
-| 美股股票历史 | ✅ `fetch_us_history` | 纳入 `sync_history` 多市场遍历 |
+| 美股股票现货 | ✅ `fetch_us_spot` | OpenD 快照优先，免费源回退 |
+| 美股股票历史 | ✅ `fetch_us_history` | OpenD 历史优先，AKShare 回退 |
 | 美股基本面 | ✅ SEC EDGAR (`fundamentals._us_metric_row`) | 复用 |
-| **美股 ETF 现货** | ❌ 无 | 新增 adapter（Nasdaq Trader ETF 列表 / Stooq / yfinance 免费源） |
-| **美股 ETF 历史** | 可复用 `fetch_us_history` | adapter 注册即可 |
-| 美股 ETF 分类/簇 | ❌ | 扩展 `ETF_RULES/CLUSTER`：SPY/QQQ/IWM/纳指/标普/罗素 等英文关键词 |
+| **美股 ETF 现货** | ✅ 已接入 | OpenD ETF 主数据/快照优先，Nasdaq Trader/AKShare 回退 |
+| **美股 ETF 历史** | ✅ 已接入 | 复用 OpenD 优先的 `fetch_us_history` |
+| 美股 ETF 分类/簇 | ✅ 已接入 | `ETF_RULES/CLUSTER` 已覆盖 SPY/QQQ/IWM/DIA 等英文关键词 |
 
-要点：美股 ETF 接入后，技术引擎与去重逻辑**零改动复用**——这正是统一技术 + 资产类别抽象的回报。分类与簇规则需要补英文关键词（标普 500、纳指 100、罗素 2000、行业 SPDR 等）。
+要点：美股 ETF 接入后，技术引擎与去重逻辑**零改动复用**——这正是统一技术 + 资产类别抽象的回报。英文分类与簇规则已落到外置 ETF rules，后续只需按真实数据继续补词。
 
 ---
 
@@ -281,8 +281,8 @@ class HistorySource(Protocol):
 | --- | --- | --- | --- |
 | 1 | cluster 划分方式 | ✅ **先人工表起步，后续用收益相关系数（>0.9）自动验证** | 同型思路也用于潜力股历史胜率：先人工口径，后自动校准 |
 | 2 | 报告/看板 ETF 呈现 | ✅ **两表并存**：①完整工具池规模（分类计数）②双层去重精选 | 见 §12 前端布局 |
-| 3 | 美股 ETF 现货免费源 | ⏳ 待定（Nasdaq Trader 列表 + Stooq 历史 / yfinance） | 阶段四再定 |
-| 4 | `scoring.py` 是否下线 | ⏳ 待定（确认无 UI/报告/回测依赖后下线） | 阶段五处理 |
+| 3 | 美股 ETF 现货免费源 | ✅ OpenD 主数据/快照/历史优先，Nasdaq Trader + AKShare 回退 | Stooq 已移除，因免费 CSV 端点需要人工 captcha/apikey |
+| 4 | `scoring.py` 是否下线 | ✅ 简单 `screening_scores` 链路下线，保留共享评分原语 | `expert_model` 仍复用 rank/valuation/liquidity/risk helper |
 
 > 关联：潜力股扫描详见 [`potential-stock-scanner.md`](./potential-stock-scanner.md)。
 
