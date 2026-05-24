@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 import pandas as pd
@@ -98,6 +99,84 @@ DEFAULT_IDENTITY_LINKS: tuple[tuple[str, tuple[tuple[str, str, str, str], ...]],
         ),
     ),
 )
+
+
+_NAME_NOISE = re.compile(
+    r"(股份有限公司|有限公司|控股集团|控股|集团|股份|有限|公司|"
+    r"\b(inc|ltd|limited|corp|corporation|company|co|group|holdings?|plc)\b|"
+    r"[,.\-－()（）]|[-－]?[WHSAN]+$|\s+)",
+    flags=re.IGNORECASE,
+)
+# Generic normalized names that must NOT anchor a fuzzy cross-market link.
+_FUZZY_NAME_STOPWORDS = frozenset({"china", "bank", "international", "中国", "国际", "银行"})
+
+
+def _fuzzy_name_key(name: object) -> str | None:
+    text = str(name or "").strip()
+    if not text:
+        return None
+    text = _NAME_NOISE.sub("", text).lower()
+    if len(text) < 2 or text in _FUZZY_NAME_STOPWORDS:
+        return None
+    return text
+
+
+def derive_fuzzy_identity_mappings(
+    securities: pd.DataFrame, curated: pd.DataFrame | None = None
+) -> pd.DataFrame:
+    """Infer cross-market same-entity links by normalized-name equality.
+
+    Curated mappings (``default_identity_mappings``) always win: a security already
+    covered by a curated link is skipped here. Only normalized names that match across
+    two or more *different* markets produce a fuzzy link (``confidence="fuzzy"``), so a
+    single-market name collision never creates one. This augments — never overrides —
+    the hand-curated table, and stays traceable via ``source``/``confidence``.
+    """
+    if securities is None or securities.empty:
+        return pd.DataFrame()
+    if not {"market", "symbol", "name"}.issubset(securities.columns):
+        return pd.DataFrame()
+
+    covered: set[tuple[str, str]] = set()
+    if curated is not None and not curated.empty:
+        covered = {
+            (str(m), _normalize_symbol(str(m), str(s)))
+            for m, s in zip(curated["market"], curated["symbol"])
+        }
+
+    frame = securities[["market", "symbol", "name"]].copy()
+    frame["market"] = frame["market"].astype(str)
+    frame["symbol"] = [
+        _normalize_symbol(str(m), str(s)) for m, s in zip(frame["market"], frame["symbol"])
+    ]
+    frame["key"] = frame["name"].map(_fuzzy_name_key)
+    frame = frame.dropna(subset=["key"])
+    keep_mask = [(m, s) not in covered for m, s in zip(frame["market"], frame["symbol"])]
+    frame = frame[pd.Series(keep_mask, index=frame.index)]
+    frame = frame.drop_duplicates(["market", "symbol"])
+    if frame.empty:
+        return pd.DataFrame()
+
+    updated_at = pd.Timestamp(datetime.now())
+    rows: list[dict[str, object]] = []
+    for key, group in frame.groupby("key"):
+        if group["market"].nunique() < 2:
+            continue
+        canonical_id = f"fuzzy:{key}"
+        for _, row in group.iterrows():
+            rows.append(
+                {
+                    "canonical_id": canonical_id,
+                    "market": row["market"],
+                    "symbol": row["symbol"],
+                    "name": row["name"],
+                    "listing_type": "fuzzy_cross_market",
+                    "source": "fuzzy_name_match",
+                    "confidence": "fuzzy",
+                    "updated_at": updated_at,
+                }
+            )
+    return pd.DataFrame(rows)
 
 
 def _normalize_symbol(market: str, symbol: str) -> str:

@@ -21,8 +21,14 @@
 - 提供全市场覆盖率、候选变化和带成本/滑点/行业分散约束的等权回测命令。
 - 区分自然生成候选快照和历史回放快照，回测默认排除回放数据，历史回放需显式 `--include-replay`。
 - 输出候选池、观察池、剔除池和提炼候选池。
-- 提供本地 Streamlit 研究台，支持按市场、类型、板块、港股通和 ST 状态筛选。
-- 生成 Markdown 研究报告。
+- 风险闸（先排雷）接入退市/摘牌生命周期，并覆盖港股仙股/低价、美股低价退市风险和清盘类风险名，不再只对 A 股名称匹配。
+- 数据缺失按不确定性折扣处理（缺失 ≠ 中性），技术与基本面均缺失的标的视为不可评估并降权。
+- 模型权重、决策阈值、大师代理和风险罚分集中在 `src/ah_screener/weights.py`，附来源标注，便于审阅与敏感度分析。
+- 主题的优先级与风格桶归属随主题定义（`HotTheme`）维护，单一真相源，避免散落字符串 drift。
+- A/H/US 同主体在策展映射之外，按规范化名称做跨市场模糊匹配补充（策展优先、停用词防误配）。
+- 生成 Markdown 研究报告，同时产出结构化 JSON（每候选含评分拆解与证据链）和固定的 `latest` 指针，供 AI 直接读取。
+- 提供本地 Streamlit 报告查看器：默认展示最新筛选报告（核心/提炼/潜力/ETF 候选卡 + 完整 Markdown），只读、不做实时筛选。
+- 用 `expert-validate` 对专家决策分桶做前瞻超额收益验证，用 `ingest-status` 查看采集失败、定位覆盖率下降原因。
 - 支持一键全量刷新和 macOS 定时更新。
 
 ## 安装
@@ -109,6 +115,8 @@ ah-screener backfill-refined-snapshots --min-snapshots 6 --rebalance quarterly
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
 ah-screener backtest --include-replay --rebalance quarterly
 ah-screener potential-walk-forward
+ah-screener expert-validate
+ah-screener ingest-status
 ```
 
 结果会落库到：
@@ -126,6 +134,7 @@ company_documents
 document_extractions
 refined_candidates
 potential_candidates
+ingest_failures
 ```
 
 `refined_candidates` 会按主题桶、风格桶和 A/H/US 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H/US 多地上市或同名主体只保留专家分最高的一只。
@@ -155,7 +164,18 @@ ah-screener report
 默认输出到：
 
 ```text
-reports/ah-screening-report-YYYY-MM-DD.md
+reports/ah-screening-report-YYYY-MM-DD.md      # 给人读的 Markdown
+reports/ah-screening-report-YYYY-MM-DD.json    # 给程序/AI 读的结构化报告
+reports/ah-screening-report-latest.md          # 固定指针，始终指向最新
+reports/ah-screening-report-latest.json        # 固定指针，始终指向最新
+```
+
+JSON 用稳定英文键，每只候选携带评分拆解和 `reasons` 证据链，并包含结论、偏差说明、决策分布、各市场数据新鲜度、提炼/核心/潜力候选和 ETF 精选。AI 消费时直接读 `reports/ah-screening-report-latest.json` 即可，无需按日期 glob。
+
+本地报告查看器（只读，默认展示最新报告，可切换日期）：
+
+```bash
+uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
 ```
 
 后续事项统一记录在 [docs/todo.md](docs/todo.md)。

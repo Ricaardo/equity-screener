@@ -11,6 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from ah_screener import weights
 from ah_screener.config import Settings
 
 
@@ -37,16 +38,39 @@ def _liquidity_score(df: pd.DataFrame) -> pd.Series:
     return _rank_score(log_amount, ascending=True)
 
 
-def _risk_penalty(row: pd.Series, settings: Settings) -> tuple[float, list[str]]:
+def _risk_penalty(
+    row: pd.Series,
+    settings: Settings,
+    delisted_keys: frozenset[tuple[str, str]] = frozenset(),
+) -> tuple[float, list[str]]:
+    """Pre-rank risk gate ("先排雷").
+
+    ``delisted_keys`` are ``(market, symbol)`` pairs found in
+    ``security_lifecycle_events`` (P2-1): a live snapshot row overlapping a delisted
+    record is a hard red flag. HK/US also get penny-price and distress-name rules so
+    the gate is not A-share-only.
+    """
     reasons: list[str] = []
     penalty = 0.0
+    p = weights.RISK_PENALTY
     name = str(row.get("name") or "")
     amount = float(row.get("amount") or 0)
-    market = row["market"]
+    market = str(row["market"])
+    symbol = str(row.get("symbol") or "")
 
     if market == "A" and ("ST" in name.upper() or "退" in name):
-        penalty += 100
+        penalty += p["a_st_name"]
         reasons.append("A股 ST/退市风险名称")
+
+    if (market, symbol) in delisted_keys:
+        penalty += p["delisted_lifecycle"]
+        reasons.append("命中退市/摘牌生命周期记录")
+
+    if weights.NAME_DISTRESS_MARKERS and any(
+        marker.lower() in name.lower() for marker in weights.NAME_DISTRESS_MARKERS
+    ):
+        penalty += p["name_distress"]
+        reasons.append("名称含清盘/除牌/退市/破产等风险词")
 
     if market == "A":
         min_amount = settings.min_a_amount
@@ -55,15 +79,23 @@ def _risk_penalty(row: pd.Series, settings: Settings) -> tuple[float, list[str]]
     else:
         min_amount = settings.min_hk_amount
     if amount <= 0:
-        penalty += 60
+        penalty += p["amount_missing"]
         reasons.append("成交额缺失或为0")
     elif amount < min_amount:
-        penalty += 35
+        penalty += p["amount_below_floor"]
         reasons.append(f"成交额低于阈值 {min_amount:,.0f}")
 
     last_price = row.get("last_price")
     if pd.isna(last_price) or float(last_price) <= 0:
-        penalty += 50
+        penalty += p["price_missing"]
         reasons.append("最新价缺失或异常")
+    else:
+        price = float(last_price)
+        if market == "HK" and price < weights.HK_PENNY_PRICE:
+            penalty += p["hk_penny"]
+            reasons.append(f"港股仙股价格(<{weights.HK_PENNY_PRICE})")
+        elif market == "US" and price < weights.US_PENNY_PRICE:
+            penalty += p["us_penny"]
+            reasons.append(f"美股低价股(<${weights.US_PENNY_PRICE:.0f})退市风险")
 
     return penalty, reasons

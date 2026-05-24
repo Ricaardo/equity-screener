@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from ah_screener.config import get_settings
@@ -37,16 +39,73 @@ EXTERNAL_CONTEXT = [
 ]
 
 
+REPORT_SCHEMA_VERSION = "1.0"
+DISCLAIMER = "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。"
+CONCLUSION_LINES = [
+    "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
+    "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
+]
+
+
 def _json_list(value: object) -> str:
+    return "、".join(_parse_json_list(value))
+
+
+def _clean(value: object) -> object:
+    """Coerce a single cell into a JSON-serializable scalar (NaN/NaT -> None)."""
+    if value is None:
+        return None
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating, float)):
+        number = float(value)
+        return None if (math.isnan(number) or math.isinf(number)) else number
+    if isinstance(value, (np.bool_, bool)):
+        return bool(value)
+    if isinstance(value, (pd.Timestamp,)):
+        return None if pd.isna(value) else value.strftime("%Y-%m-%d")
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    return str(value) if not isinstance(value, (int, str)) else value
+
+
+def _parse_json_list(value: object) -> list[str]:
+    """Parse a JSON-string list column (theme_matches / reasons) into a Python list."""
     if not isinstance(value, str) or not value:
-        return ""
+        return []
     try:
         parsed = json.loads(value)
     except json.JSONDecodeError:
-        return str(value)
+        return [value]
     if isinstance(parsed, list):
-        return "、".join(str(item) for item in parsed)
-    return str(parsed)
+        return [str(item) for item in parsed if item is not None and str(item) != ""]
+    return [str(parsed)]
+
+
+def _records(
+    df: pd.DataFrame, fields: list[str], list_fields: tuple[str, ...] = ()
+) -> list[dict[str, object]]:
+    """Project a frame into JSON-safe records, keeping only present fields.
+
+    ``list_fields`` are JSON-string columns (e.g. theme_matches / reasons) that get
+    parsed back into real lists so an AI consumer reads the evidence chain directly.
+    """
+    if df is None or df.empty:
+        return []
+    present = [field for field in fields if field in df.columns]
+    rows: list[dict[str, object]] = []
+    for _, row in df.iterrows():
+        record: dict[str, object] = {}
+        for field in present:
+            if field in list_fields:
+                record[field] = _parse_json_list(row.get(field))
+            else:
+                record[field] = _clean(row.get(field))
+        rows.append(record)
+    return rows
 
 
 def _fmt(value: object, digits: int = 1) -> str:
@@ -567,18 +626,23 @@ def generate_report(output_dir: Path | None = None) -> Path:
         )
     change_display = _candidate_changes(refined_all)
 
+    bias_notes = [
+        "回测默认只使用定时/手动自然生成的候选快照；历史回放快照必须显式传 `--include-replay`，只作诊断，不作 edge 证明。",
+        "`potential-sweep` 是同一历史样本内的阈值扫描；RS 阈值证据必须以 `potential-walk-forward` 的样本外结果为准。",
+        lifecycle_note,
+    ]
+
     lines = [
         "# A/H/US 股票筛选研究报告",
         "",
         f"- 生成时间：{generated_at:%Y-%m-%d %H:%M:%S}",
         f"- 数据库：`{settings.db_path}`",
         f"- 策略：`{STRATEGY_NAME}`",
-        "- 声明：本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。",
+        f"- 声明：{DISCLAIMER}",
         "",
         "## 1. 当前结论",
         "",
-        "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
-        "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
+        *CONCLUSION_LINES,
         "",
         "## 2. 外部背景（不计入评分）",
         "",
@@ -613,9 +677,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "",
             "### 3.2 证据口径与偏差控制",
             "",
-            "- 回测默认只使用定时/手动自然生成的候选快照；历史回放快照必须显式传 `--include-replay`，只作诊断，不作 edge 证明。",
-            "- `potential-sweep` 是同一历史样本内的阈值扫描；RS 阈值证据必须以 `potential-walk-forward` 的样本外结果为准。",
-            f"- {lifecycle_note}",
+            *[f"- {note}" for note in bias_notes],
             "",
             _table(snapshot_sources, ["来源", "回放", "行数", "快照数", "最早日期", "最新日期"])
             if not snapshot_sources.empty
@@ -805,5 +867,191 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "本项目已提供 `ah-screener update-all` 与 `ah-screener install-schedule` 两个命令用于自动化。",
         ]
     )
-    path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
+    markdown_text = "\n".join(lines).strip() + "\n"
+    path.write_text(markdown_text, encoding="utf-8")
+
+    payload = _build_payload(
+        generated_at=generated_at,
+        report_date=report_date,
+        db_path=str(settings.db_path),
+        refined=refined,
+        expert=expert,
+        potential=potential,
+        etf_leaders=etf_deduped,
+        change_display=change_display,
+        date_table=date_table,
+        date_warning=date_warning,
+        coverage=coverage,
+        decision_counts=expert,
+        bias_notes=bias_notes,
+        markdown_relpath=path.name,
+    )
+    json_path = output / f"ah-screening-report-{report_date}.json"
+    json_path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+    # Stable pointers so an AI consumer / the UI can always read the freshest report
+    # at a fixed path without globbing by date.
+    (output / "ah-screening-report-latest.json").write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (output / "ah-screening-report-latest.md").write_text(markdown_text, encoding="utf-8")
     return path
+
+
+def _build_payload(
+    *,
+    generated_at: datetime,
+    report_date: str,
+    db_path: str,
+    refined: pd.DataFrame,
+    expert: pd.DataFrame,
+    potential: pd.DataFrame,
+    etf_leaders: pd.DataFrame,
+    change_display: pd.DataFrame,
+    date_table: pd.DataFrame,
+    date_warning: str,
+    coverage: dict[str, int],
+    decision_counts: pd.DataFrame,
+    bias_notes: list[str],
+    markdown_relpath: str,
+) -> dict[str, object]:
+    """Assemble the machine-readable report payload (stable English keys).
+
+    This is the AI-facing product: every candidate carries its score breakdown and
+    parsed ``reasons`` evidence chain, mirroring exactly what the Markdown shows.
+    """
+    refined_fields = [
+        "bucket",
+        "rank_in_bucket",
+        "style_bucket",
+        "market",
+        "symbol",
+        "name",
+        "expert_score",
+        "fundamental_score",
+        "technical_score",
+        "detailed_industry",
+        "industry_peer_group",
+        "peer_score",
+        "industry_fit_score",
+        "valuation_percentile",
+        "theme_matches",
+        "reasons",
+        "selection_note",
+    ]
+    core = (
+        expert[expert["decision"] == "core_candidate"].head(20)
+        if not expert.empty and "decision" in expert.columns
+        else expert.head(0)
+    )
+    core_fields = [
+        "market",
+        "symbol",
+        "name",
+        "expert_score",
+        "master_score",
+        "china_master_score",
+        "fundamental_score",
+        "technical_score",
+        "detailed_industry",
+        "industry_peer_group",
+        "peer_score",
+        "industry_fit_score",
+        "valuation_percentile",
+        "decision",
+        "theme_matches",
+        "reasons",
+    ]
+    potential_fields = [
+        "market",
+        "symbol",
+        "name",
+        "potential_score",
+        "technical_setup_score",
+        "relative_strength_score",
+        "fundamental_turn_score",
+        "theme_early_score",
+        "pivot_price",
+        "target_price",
+        "stop_price",
+        "rr_ratio",
+        "time_stop_days",
+        "hist_win_rate",
+        "bias_note",
+    ]
+    etf_fields = [
+        "symbol",
+        "name",
+        "etf_cluster",
+        "etf_track",
+        "etf_score",
+        "etf_recommendation",
+        "peer_count",
+        "peer_alternatives",
+        "pct_change",
+        "amount",
+    ]
+
+    freshness = []
+    if not date_table.empty:
+        for _, row in date_table.iterrows():
+            freshness.append(
+                {"market": _clean(row.get("市场")), "latest_date": _clean(row.get("最新日期"))}
+            )
+
+    decision_distribution = []
+    if not decision_counts.empty and "decision" in decision_counts.columns:
+        counts = decision_counts.groupby("decision").size().sort_values(ascending=False)
+        decision_distribution = [
+            {"decision": str(name), "count": int(value)} for name, value in counts.items()
+        ]
+
+    changes = []
+    change_key_map = {
+        "变化": "change",
+        "主题桶": "bucket",
+        "市场": "market",
+        "代码": "symbol",
+        "名称": "name",
+        "最新分": "latest_score",
+        "上期分": "previous_score",
+        "分数变化": "score_delta",
+    }
+    if not change_display.empty:
+        renamed = change_display.rename(columns=change_key_map)
+        changes = _records(renamed, list(change_key_map.values()))
+
+    return {
+        "schema_version": REPORT_SCHEMA_VERSION,
+        "report_type": "ah-screening",
+        "generated_at": generated_at.isoformat(timespec="seconds"),
+        "report_date": report_date,
+        "strategy": STRATEGY_NAME,
+        "database": db_path,
+        "disclaimer": DISCLAIMER,
+        "markdown_report": markdown_relpath,
+        "conclusion": CONCLUSION_LINES,
+        "bias_notes": bias_notes,
+        "external_context": EXTERNAL_CONTEXT,
+        "data_freshness": freshness,
+        "data_freshness_warning": date_warning or None,
+        "coverage_counts": {key: int(value) for key, value in coverage.items()},
+        "decision_distribution": decision_distribution,
+        "counts": {
+            "refined_candidates": int(len(refined)),
+            "core_candidates": int(len(core)),
+            "potential_candidates": int(len(potential)),
+            "etf_leaders": int(len(etf_leaders)),
+        },
+        "refined_candidates": _records(
+            refined, refined_fields, list_fields=("theme_matches", "reasons")
+        ),
+        "core_candidates": _records(
+            core, core_fields, list_fields=("theme_matches", "reasons")
+        ),
+        "potential_candidates": _records(potential, potential_fields),
+        "etf_leaders": _records(etf_leaders, etf_fields),
+        "candidate_changes": changes,
+    }
