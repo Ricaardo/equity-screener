@@ -682,7 +682,15 @@ def run_expert_model(
     snapshot_date = snapshots["trade_date"].max()
     df = snapshots.copy()
     df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
-    df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
+    # Keep the global latest snapshot label above, but choose the quote row per security:
+    # latest valid-price row wins; if a security has no valid price at all, keep its latest
+    # invalid row so the risk gate can explicitly reject it instead of silently dropping it.
+    priced = pd.to_numeric(df["last_price"], errors="coerce")
+    df["_has_price"] = priced.notna() & (priced > 0)
+    df = df.sort_values(["market", "symbol", "_has_price", "trade_date"]).drop_duplicates(
+        ["market", "symbol"], keep="last"
+    )
+    df = df.drop(columns=["_has_price"])
     df = df.set_index(["market", "symbol"], drop=False)
 
     tag_text = (

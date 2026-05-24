@@ -147,3 +147,78 @@ class ExpertRiskTest(TestCase):
 
         self.assertGreaterEqual(float(results.iloc[0]["risk_score"]), 30.0)
         self.assertIn("审计意见异常", str(results.iloc[0]["reasons"]))
+
+
+class StaleEmptySnapshotTest(TestCase):
+    """A price-less later snapshot row must not shadow the last valid quote."""
+
+    def test_priceless_latest_row_does_not_reject_strong_name(self) -> None:
+        snapshots = pd.DataFrame(
+            [
+                # Valid quote on the earlier date.
+                {
+                    "market": "US", "symbol": "NVDA", "trade_date": "2026-05-22",
+                    "name": "NVIDIA", "board": "US", "last_price": 215.0,
+                    "amount": 3.6e10, "pe_ttm": 40, "pb": 30, "market_cap": 3.5e12,
+                },
+                # Later partial/empty sync wrote a NaN-price row for the same name.
+                {
+                    "market": "US", "symbol": "NVDA", "trade_date": "2026-05-24",
+                    "name": "NVIDIA", "board": "US", "last_price": float("nan"),
+                    "amount": float("nan"), "pe_ttm": float("nan"), "pb": float("nan"),
+                    "market_cap": float("nan"),
+                },
+            ]
+        )
+        results, _ = run_expert_model(
+            snapshots=snapshots,
+            tags=pd.DataFrame(),
+            technicals=pd.DataFrame(),
+            fundamentals=pd.DataFrame(),
+            settings=_SETTINGS,
+        )
+        row = results.iloc[0]
+        # The valid 05-22 quote is used, so no spurious price-missing (50) penalty.
+        self.assertNotIn("最新价缺失或异常", str(row["reasons"]))
+
+    def test_price_less_only_security_is_kept_and_rejected(self) -> None:
+        snapshots = pd.DataFrame(
+            [
+                {
+                    "market": "US",
+                    "symbol": "GOOD",
+                    "trade_date": "2026-05-22",
+                    "name": "GoodCo",
+                    "board": "US",
+                    "last_price": 100.0,
+                    "amount": 100_000_000,
+                    "pe_ttm": 20,
+                    "pb": 4,
+                    "market_cap": 50_000_000_000,
+                },
+                {
+                    "market": "US",
+                    "symbol": "BAD",
+                    "trade_date": "2026-05-24",
+                    "name": "BadCo",
+                    "board": "US",
+                    "last_price": float("nan"),
+                    "amount": float("nan"),
+                    "pe_ttm": float("nan"),
+                    "pb": float("nan"),
+                    "market_cap": float("nan"),
+                },
+            ]
+        )
+        results, _ = run_expert_model(
+            snapshots=snapshots,
+            tags=pd.DataFrame(),
+            technicals=pd.DataFrame(),
+            fundamentals=pd.DataFrame(),
+            settings=_SETTINGS,
+        )
+        by_symbol = results.set_index("symbol")
+        self.assertIn("GOOD", by_symbol.index)
+        self.assertIn("BAD", by_symbol.index)
+        self.assertIn("最新价缺失或异常", str(by_symbol.loc["BAD", "reasons"]))
+        self.assertEqual(by_symbol.loc["BAD", "decision"], "reject")
