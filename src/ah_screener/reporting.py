@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from ah_screener.aggregations import candidate_diff
 from ah_screener.config import get_settings
 from ah_screener.selection import dedup_etf_pool, etf_category_overview
 from ah_screener.universe import ETFS, select_assets
@@ -368,36 +369,23 @@ def _coverage_by_board(
 
 
 def _candidate_changes(refined: pd.DataFrame) -> pd.DataFrame:
-    if refined.empty or refined["snapshot_date"].nunique() < 2:
+    """Markdown/Chinese view of the canonical cross-snapshot diff (single source)."""
+    diff = candidate_diff(refined)
+    if diff.empty:
         return pd.DataFrame()
-    dates = sorted(refined["snapshot_date"].dropna().unique())
-    previous_date, latest_date = dates[-2], dates[-1]
-    previous = refined[refined["snapshot_date"] == previous_date]
-    latest = refined[refined["snapshot_date"] == latest_date]
-    key_columns = ["bucket", "market", "symbol"]
-    merged = latest.merge(
-        previous[key_columns + ["name", "expert_score"]].rename(
-            columns={"name": "name_previous", "expert_score": "previous_score"}
-        ),
-        on=key_columns,
-        how="outer",
-        indicator=True,
-    )
-    merged["变化"] = merged["_merge"].map(
-        {"left_only": "新增", "right_only": "移出", "both": "保留"}
-    )
-    merged["分数变化"] = pd.to_numeric(merged.get("expert_score"), errors="coerce") - pd.to_numeric(
-        merged.get("previous_score"), errors="coerce"
-    )
-    merged["name"] = merged["name"].fillna(merged.get("name_previous"))
-    return merged.rename(
+    status_cn = {"new": "新增", "removed": "移出", "kept": "保留"}
+    out = diff.copy()
+    out["status"] = out["status"].map(status_cn)
+    return out.rename(
         columns={
+            "status": "变化",
             "bucket": "主题桶",
             "market": "市场",
             "symbol": "代码",
             "name": "名称",
-            "expert_score": "最新分",
+            "latest_score": "最新分",
             "previous_score": "上期分",
+            "score_delta": "分数变化",
         }
     )[["变化", "主题桶", "市场", "代码", "名称", "最新分", "上期分", "分数变化"]]
 

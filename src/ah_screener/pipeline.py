@@ -9,8 +9,8 @@ import pandas as pd
 
 from ah_screener.classification import enrich_security_metadata
 from ah_screener.config import get_settings
+from ah_screener.db import get_store, init_db as init_db, latest_table as _latest_table
 from ah_screener.documents import build_document_records
-from ah_screener.etf_model import consolidate_etf_candidates, enrich_etf_snapshot
 from ah_screener.expert_model import (
     CURATED_THEME_OVERRIDES,
     STRATEGY_NAME,
@@ -57,18 +57,23 @@ from ah_screener.backtest import (  # re-exported for backward compat
     backtest_refined_candidates as backtest_refined_candidates,
 )
 
+# Read-only view layer lives in exports.py; re-exported here so cli.py and tests can
+# keep importing these names from ah_screener.pipeline.
+from ah_screener.exports import (
+    candidate_changes as candidate_changes,
+    coverage_status as coverage_status,
+    export_etf_candidates as export_etf_candidates,
+    export_expert_scores as export_expert_scores,
+    export_potential_candidates as export_potential_candidates,
+    export_refined_candidates as export_refined_candidates,
+    fundamentals_status as fundamentals_status,
+    ingest_failure_status as ingest_failure_status,
+)
+
 
 MarketArg = Literal["A", "HK", "US", "ETF", "all"]
 
 logger = logging.getLogger("ah_screener.pipeline")
-
-
-def get_store() -> Store:
-    return Store(get_settings().db_path)
-
-
-def init_db() -> None:
-    get_store().init_db()
 
 
 def sync_delisted_universe() -> dict[str, int | str]:
@@ -423,21 +428,6 @@ def run_expert_validation(forward_days: int = 40) -> tuple[pd.DataFrame, dict[st
     return validate_expert_decisions(expert, prices, forward_days=forward_days)
 
 
-def ingest_failure_status(limit: int = 30) -> pd.DataFrame:
-    """Recent ingest-step failures, newest first."""
-    store = get_store()
-    store.init_db()
-    return store.query_df(
-        """
-        SELECT run_date, step, message, occurred_at
-        FROM ingest_failures
-        ORDER BY occurred_at DESC
-        LIMIT ?
-        """,
-        [limit],
-    )
-
-
 def _identity_mapping_frame(store: Store) -> pd.DataFrame:
     mappings = store.query_df(
         "SELECT market, symbol, canonical_id, confidence FROM company_identity_mappings"
@@ -738,146 +728,6 @@ def sync_fundamentals(
     return result
 
 
-def fundamentals_status(top: int = 120) -> pd.DataFrame:
-    store = get_store()
-    metrics = store.query_df(
-        """
-        SELECT market, COUNT(*) AS metric_rows
-        FROM financial_metrics
-        GROUP BY market
-        """
-    )
-    items = store.query_df(
-        """
-        SELECT market, COUNT(*) AS statement_items
-        FROM financial_statement_items
-        GROUP BY market
-        """
-    )
-    markets = pd.DataFrame({"market": ["A", "HK", "US"]})
-    status = markets.merge(metrics, on="market", how="left").merge(items, on="market", how="left")
-    status["metric_rows"] = status["metric_rows"].fillna(0).astype(int)
-    status["statement_items"] = status["statement_items"].fillna(0).astype(int)
-    status["target"] = top
-    status["remaining_estimate"] = (status["target"] - status["metric_rows"]).clip(lower=0)
-    status["progress_pct"] = (
-        (status["metric_rows"] / status["target"] * 100).clip(upper=100).round(1)
-    )
-    return status[
-        ["market", "metric_rows", "target", "remaining_estimate", "progress_pct", "statement_items"]
-    ]
-
-
-def _latest_table(store: Store, table: str, date_column: str) -> pd.DataFrame:
-    df = store.query_df(f"SELECT * FROM {table}")
-    if df.empty or date_column not in df.columns:
-        return df
-    return df[df[date_column] == df[date_column].max()].copy()
-
-
-def coverage_status() -> pd.DataFrame:
-    store = get_store()
-    snapshots = store.query_df("SELECT * FROM market_snapshots")
-    if snapshots.empty:
-        return pd.DataFrame(
-            columns=[
-                "market",
-                "asset_type",
-                "board",
-                "universe",
-                "technical_covered",
-                "technical_pct",
-                "fundamental_covered",
-                "fundamental_pct",
-                "expert_covered",
-                "expert_pct",
-            ]
-        )
-
-    snapshots = snapshots.copy()
-    snapshots["trade_date"] = pd.to_datetime(snapshots["trade_date"], errors="coerce")
-    snapshots = snapshots.sort_values("trade_date").drop_duplicates(
-        ["market", "symbol"], keep="last"
-    )
-    securities = store.query_df("SELECT * FROM securities")
-    if not securities.empty:
-        securities = enrich_security_metadata(securities)
-        metadata_columns = [
-            column
-            for column in ["asset_type", "board", "exchange", "status", "is_st", "is_hk_connect"]
-            if column in securities.columns
-        ]
-        snapshots = snapshots.drop(
-            columns=[column for column in metadata_columns if column in snapshots.columns]
-        )
-        snapshots = snapshots.merge(
-            securities[["market", "symbol", *metadata_columns]].drop_duplicates(
-                ["market", "symbol"]
-            ),
-            on=["market", "symbol"],
-            how="left",
-        )
-
-    if "asset_type" not in snapshots.columns:
-        snapshots["asset_type"] = "stock"
-    if "board" not in snapshots.columns:
-        snapshots["board"] = "未分类"
-    snapshots["asset_type"] = snapshots["asset_type"].fillna("stock")
-    snapshots["board"] = snapshots["board"].fillna("未分类")
-
-    technicals = _latest_table(store, "technical_indicators", "snapshot_date")
-    fundamentals = _latest_table(store, "financial_metrics", "snapshot_date")
-    expert = _latest_table(store, "expert_screening_results", "snapshot_date")
-    if not expert.empty and "strategy" in expert.columns:
-        expert = expert[expert["strategy"] == STRATEGY_NAME]
-
-    for name, df in [
-        ("technical", technicals),
-        ("fundamental", fundamentals),
-        ("expert", expert),
-    ]:
-        flag = f"has_{name}"
-        keys = (
-            df[["market", "symbol"]].drop_duplicates().assign(**{flag: True})
-            if not df.empty
-            else pd.DataFrame(columns=["market", "symbol", flag])
-        )
-        snapshots = snapshots.merge(keys, on=["market", "symbol"], how="left")
-        snapshots[flag] = snapshots[flag].eq(True)
-
-    status = (
-        snapshots.groupby(["market", "asset_type", "board"], dropna=False)
-        .agg(
-            universe=("symbol", "count"),
-            technical_covered=("has_technical", "sum"),
-            fundamental_covered=("has_fundamental", "sum"),
-            expert_covered=("has_expert", "sum"),
-        )
-        .reset_index()
-    )
-    for prefix in ["technical", "fundamental", "expert"]:
-        status[f"{prefix}_pct"] = (
-            (status[f"{prefix}_covered"] / status["universe"].replace(0, pd.NA) * 100)
-            .fillna(0)
-            .round(1)
-        )
-
-    return status[
-        [
-            "market",
-            "asset_type",
-            "board",
-            "universe",
-            "technical_covered",
-            "technical_pct",
-            "fundamental_covered",
-            "fundamental_pct",
-            "expert_covered",
-            "expert_pct",
-        ]
-    ].sort_values(["market", "asset_type", "universe"], ascending=[True, True, False])
-
-
 def compute_industry_valuation_stats() -> int:
     store = get_store()
     store.init_db()
@@ -1039,19 +889,6 @@ def run_potential_scan(top: int = 80) -> dict[str, int]:
     return {"potential_candidates": store.upsert_dataframe("potential_candidates", candidates)}
 
 
-def export_potential_candidates(top: int = 80) -> pd.DataFrame:
-    store = get_store()
-    return store.query_df(
-        """
-        SELECT *
-        FROM potential_candidates
-        ORDER BY snapshot_date DESC, potential_score DESC
-        LIMIT ?
-        """,
-        [top],
-    )
-
-
 def validate_etf_cluster_table(min_corr: float = 0.9) -> pd.DataFrame:
     store = get_store()
     snapshots = _latest_table(store, "market_snapshots", "trade_date")
@@ -1060,118 +897,6 @@ def validate_etf_cluster_table(min_corr: float = 0.9) -> pd.DataFrame:
     pool = select_assets(snapshots, ETFS)
     prices = store.query_df("SELECT market, symbol, trade_date, close FROM daily_prices")
     return validate_etf_clusters(pool, prices, min_corr=min_corr)
-
-
-def export_etf_candidates(
-    top: int = 100,
-    category: str | None = None,
-    grouped: bool = True,
-    market: str | None = None,
-) -> pd.DataFrame:
-    store = get_store()
-    snapshots = _latest_table(store, "market_snapshots", "trade_date")
-    if snapshots.empty or "asset_type" not in snapshots.columns:
-        return pd.DataFrame()
-    etfs = select_assets(snapshots, ETFS).copy()
-    if market and market.upper() != "ALL":
-        etfs = etfs[etfs["market"].astype(str).str.upper().eq(market.upper())]
-    # Pass real technical scores so CLI etf_score matches the report/UI (review #1).
-    technicals = store.query_df("SELECT * FROM technical_indicators")
-    if grouped:
-        return consolidate_etf_candidates(etfs, top=top, category=category, technicals=technicals)
-    etfs = enrich_etf_snapshot(etfs, technicals=technicals)
-    if category:
-        etfs = etfs[etfs["etf_category"].eq(category)]
-    return etfs.sort_values(["etf_score", "amount"], ascending=[False, False]).head(top)
-
-
-def candidate_changes() -> pd.DataFrame:
-    store = get_store()
-    refined = store.query_df(
-        """
-        SELECT *
-        FROM refined_candidates
-        WHERE strategy = ?
-        """,
-        [STRATEGY_NAME],
-    )
-    if refined.empty or refined["snapshot_date"].nunique() < 2:
-        return pd.DataFrame(
-            columns=[
-                "status",
-                "bucket",
-                "market",
-                "symbol",
-                "name",
-                "latest_score",
-                "previous_score",
-                "score_delta",
-            ]
-        )
-
-    dates = sorted(refined["snapshot_date"].dropna().unique())
-    previous_date, latest_date = dates[-2], dates[-1]
-    previous = refined[refined["snapshot_date"] == previous_date].copy()
-    latest = refined[refined["snapshot_date"] == latest_date].copy()
-    key_columns = ["bucket", "market", "symbol"]
-    merged = latest.merge(
-        previous[key_columns + ["expert_score"]].rename(columns={"expert_score": "previous_score"}),
-        on=key_columns,
-        how="outer",
-        indicator=True,
-        suffixes=("", "_previous"),
-    )
-    merged["status"] = merged["_merge"].map(
-        {"left_only": "new", "right_only": "removed", "both": "kept"}
-    )
-    merged["latest_score"] = pd.to_numeric(merged.get("expert_score"), errors="coerce")
-    merged["previous_score"] = pd.to_numeric(merged.get("previous_score"), errors="coerce")
-    merged["score_delta"] = (merged["latest_score"] - merged["previous_score"]).round(1)
-    merged["name"] = merged["name"].fillna(merged.get("name_previous"))
-    return merged[
-        [
-            "status",
-            "bucket",
-            "market",
-            "symbol",
-            "name",
-            "latest_score",
-            "previous_score",
-            "score_delta",
-        ]
-    ].sort_values(["status", "bucket", "latest_score"], ascending=[True, True, False])
-
-
-def export_expert_scores(top: int = 100, decision: str | None = None) -> pd.DataFrame:
-    store = get_store()
-    where = "WHERE strategy = ?"
-    params: list[object] = [STRATEGY_NAME]
-    if decision:
-        where += " AND decision = ?"
-        params.append(decision)
-    return store.query_df(
-        f"""
-        SELECT *
-        FROM expert_screening_results
-        {where}
-        ORDER BY snapshot_date DESC, expert_score DESC
-        LIMIT ?
-        """,
-        [*params, top],
-    )
-
-
-def export_refined_candidates(top: int = 50) -> pd.DataFrame:
-    store = get_store()
-    return store.query_df(
-        """
-        SELECT *
-        FROM refined_candidates
-        ORDER BY snapshot_date DESC, bucket, rank_in_bucket
-        LIMIT ?
-        """,
-        [top],
-    )
 
 
 def run_full_update(
