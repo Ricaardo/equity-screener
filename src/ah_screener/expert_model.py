@@ -682,14 +682,15 @@ def run_expert_model(
     snapshot_date = snapshots["trade_date"].max()
     df = snapshots.copy()
     df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
-    # A later snapshot row with no price (e.g. a partial/empty sync that wrote NaN
-    # rows for a market that returned no data) must not shadow the last valid quote —
-    # otherwise an otherwise-strong name is rejected on a spurious "price missing"
-    # penalty. Keep only priced rows before taking the latest per security.
+    # Keep the global latest snapshot label above, but choose the quote row per security:
+    # latest valid-price row wins; if a security has no valid price at all, keep its latest
+    # invalid row so the risk gate can explicitly reject it instead of silently dropping it.
     priced = pd.to_numeric(df["last_price"], errors="coerce")
-    valid = df[priced.notna() & (priced > 0)]
-    df = valid if not valid.empty else df
-    df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
+    df["_has_price"] = priced.notna() & (priced > 0)
+    df = df.sort_values(["market", "symbol", "_has_price", "trade_date"]).drop_duplicates(
+        ["market", "symbol"], keep="last"
+    )
+    df = df.drop(columns=["_has_price"])
     df = df.set_index(["market", "symbol"], drop=False)
 
     tag_text = (

@@ -180,3 +180,45 @@ class StaleEmptySnapshotTest(TestCase):
         row = results.iloc[0]
         # The valid 05-22 quote is used, so no spurious price-missing (50) penalty.
         self.assertNotIn("最新价缺失或异常", str(row["reasons"]))
+
+    def test_price_less_only_security_is_kept_and_rejected(self) -> None:
+        snapshots = pd.DataFrame(
+            [
+                {
+                    "market": "US",
+                    "symbol": "GOOD",
+                    "trade_date": "2026-05-22",
+                    "name": "GoodCo",
+                    "board": "US",
+                    "last_price": 100.0,
+                    "amount": 100_000_000,
+                    "pe_ttm": 20,
+                    "pb": 4,
+                    "market_cap": 50_000_000_000,
+                },
+                {
+                    "market": "US",
+                    "symbol": "BAD",
+                    "trade_date": "2026-05-24",
+                    "name": "BadCo",
+                    "board": "US",
+                    "last_price": float("nan"),
+                    "amount": float("nan"),
+                    "pe_ttm": float("nan"),
+                    "pb": float("nan"),
+                    "market_cap": float("nan"),
+                },
+            ]
+        )
+        results, _ = run_expert_model(
+            snapshots=snapshots,
+            tags=pd.DataFrame(),
+            technicals=pd.DataFrame(),
+            fundamentals=pd.DataFrame(),
+            settings=_SETTINGS,
+        )
+        by_symbol = results.set_index("symbol")
+        self.assertIn("GOOD", by_symbol.index)
+        self.assertIn("BAD", by_symbol.index)
+        self.assertIn("最新价缺失或异常", str(by_symbol.loc["BAD", "reasons"]))
+        self.assertEqual(by_symbol.loc["BAD", "decision"], "reject")
