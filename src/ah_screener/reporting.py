@@ -46,7 +46,9 @@ DISCLAIMER = "本报告仅用于研究和候选筛选，不构成投资建议或
 T0_ETF_CATEGORIES = frozenset({"跨境ETF", "债券ETF", "商品ETF", "货币ETF"})
 
 
-def _trading_system(market: object, asset_type: object = "stock", etf_category: object = None) -> str:
+def _trading_system(
+    market: object, asset_type: object = "stock", etf_category: object = None
+) -> str:
     """Trading settlement regime shown at a glance: HK/US intraday round-trip = T+0;
     A-share stocks = T+1; A-share ETFs depend on category."""
     m = str(market or "").upper()
@@ -57,6 +59,8 @@ def _trading_system(market: object, asset_type: object = "stock", etf_category: 
             return "T+0" if str(etf_category) in T0_ETF_CATEGORIES else "T+1"
         return "T+1"
     return "T+1"
+
+
 CONCLUSION_LINES = [
     "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
     "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
@@ -398,9 +402,25 @@ def _candidate_changes(refined: pd.DataFrame) -> pd.DataFrame:
     )[["变化", "主题桶", "市场", "代码", "名称", "最新分", "上期分", "分数变化"]]
 
 
-def generate_report(output_dir: Path | None = None) -> Path:
-    settings = get_settings()
-    store = Store(settings.db_path)
+def build_report_payload(store: Store | None = None) -> dict:
+    """Return the machine-readable report payload (the AI product) — no file IO.
+
+    Programmatic entry point for AI consumers / tests. ``generate_report`` runs the
+    same path and additionally writes the Markdown, JSON and ``latest`` pointers.
+    The JSON contract is documented in ``docs/report-schema.md``.
+    """
+    store = store or Store(get_settings().db_path)
+    _, payload = _report_artifacts(store, datetime.now())
+    validate_report_payload(payload)
+    return payload
+
+
+def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, dict]:
+    """Build ``(markdown_text, json_payload)`` from the database; pure, no file IO.
+
+    The Markdown and the JSON product are rendered from the same prepared frames, so
+    the two views cannot drift apart.
+    """
     data = _load_report_data(store)
 
     refined_all = data["refined"]
@@ -427,11 +447,8 @@ def generate_report(output_dir: Path | None = None) -> Path:
     potential = _latest(data["potential"], "snapshot_date")
     lifecycle = data["lifecycle"]
 
-    generated_at = datetime.now()
     report_date = generated_at.strftime("%Y-%m-%d")
-    output = output_dir or Path("reports")
-    output.mkdir(parents=True, exist_ok=True)
-    path = output / f"ah-screening-report-{report_date}.md"
+    markdown_relpath = f"ah-screening-report-{report_date}.md"
 
     refined_display = refined.copy()
     if not refined_display.empty:
@@ -652,7 +669,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
         "# A/H/US 股票筛选研究报告",
         "",
         f"- 生成时间：{generated_at:%Y-%m-%d %H:%M:%S}",
-        f"- 数据库：`{settings.db_path}`",
+        f"- 数据库：`{store.db_path}`",
         f"- 策略：`{STRATEGY_NAME}`",
         f"- 声明：{DISCLAIMER}",
         "",
@@ -884,12 +901,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
         ]
     )
     markdown_text = "\n".join(lines).strip() + "\n"
-    path.write_text(markdown_text, encoding="utf-8")
-
     payload = _build_payload(
         generated_at=generated_at,
         report_date=report_date,
-        db_path=str(settings.db_path),
+        db_path=str(store.db_path),
         refined=refined,
         expert=expert,
         potential=potential,
@@ -900,18 +915,29 @@ def generate_report(output_dir: Path | None = None) -> Path:
         coverage=coverage,
         decision_counts=expert,
         bias_notes=bias_notes,
-        markdown_relpath=path.name,
+        markdown_relpath=markdown_relpath,
     )
-    json_path = output / f"ah-screening-report-{report_date}.json"
-    json_path.write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    return markdown_text, payload
 
+
+def generate_report(output_dir: Path | None = None) -> Path:
+    """Render the report and write Markdown + JSON + stable ``latest`` pointers."""
+    store = Store(get_settings().db_path)
+    generated_at = datetime.now()
+    report_date = generated_at.strftime("%Y-%m-%d")
+    output = output_dir or Path("reports")
+    output.mkdir(parents=True, exist_ok=True)
+
+    markdown_text, payload = _report_artifacts(store, generated_at)
+    validate_report_payload(payload)
+
+    path = output / f"ah-screening-report-{report_date}.md"
+    path.write_text(markdown_text, encoding="utf-8")
+    json_text = json.dumps(payload, ensure_ascii=False, indent=2)
+    (output / f"ah-screening-report-{report_date}.json").write_text(json_text, encoding="utf-8")
     # Stable pointers so an AI consumer / the UI can always read the freshest report
     # at a fixed path without globbing by date.
-    (output / "ah-screening-report-latest.json").write_text(
-        json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    (output / "ah-screening-report-latest.json").write_text(json_text, encoding="utf-8")
     (output / "ah-screening-report-latest.md").write_text(markdown_text, encoding="utf-8")
     return path
 
@@ -1098,10 +1124,61 @@ def _build_payload(
         "refined_candidates": _records(
             refined, refined_fields, list_fields=("theme_matches", "reasons")
         ),
-        "core_candidates": _records(
-            core, core_fields, list_fields=("theme_matches", "reasons")
-        ),
+        "core_candidates": _records(core, core_fields, list_fields=("theme_matches", "reasons")),
         "potential_candidates": _records(potential, potential_fields),
         "etf_leaders": _records(etf_leaders, etf_fields),
         "candidate_changes": changes,
     }
+
+
+# --- JSON product contract (see docs/report-schema.md) --------------------------
+
+REPORT_REQUIRED_TOP_KEYS: tuple[str, ...] = (
+    "schema_version",
+    "report_type",
+    "generated_at",
+    "report_date",
+    "strategy",
+    "database",
+    "disclaimer",
+    "conclusion",
+    "bias_notes",
+    "coverage_counts",
+    "decision_distribution",
+    "counts",
+    "refined_candidates",
+    "core_candidates",
+    "potential_candidates",
+    "etf_leaders",
+    "candidate_changes",
+)
+
+# Fields every record in a candidate list must carry (the consumer-facing contract).
+REPORT_REQUIRED_RECORD_FIELDS: dict[str, tuple[str, ...]] = {
+    "refined_candidates": ("market", "trading_system", "symbol", "name", "expert_score", "bucket"),
+    "core_candidates": ("market", "trading_system", "symbol", "name", "expert_score", "decision"),
+    "potential_candidates": ("market", "trading_system", "symbol", "name", "potential_score"),
+    "etf_leaders": ("market", "trading_system", "symbol", "name"),
+}
+
+
+def validate_report_payload(payload: dict) -> None:
+    """Fail loudly if the JSON product drifts from its documented contract.
+
+    Called before the payload is written/returned so a schema regression surfaces at
+    generation time instead of silently breaking an AI consumer. See
+    ``docs/report-schema.md`` for the field reference.
+    """
+    missing = [key for key in REPORT_REQUIRED_TOP_KEYS if key not in payload]
+    if missing:
+        raise ValueError(f"report payload missing required keys: {missing}")
+    if not str(payload.get("schema_version") or "").strip():
+        raise ValueError("report payload missing schema_version")
+    for list_key, required_fields in REPORT_REQUIRED_RECORD_FIELDS.items():
+        records = payload.get(list_key) or []
+        if not isinstance(records, list):
+            raise ValueError(f"{list_key} must be a list")
+        for index, record in enumerate(records):
+            absent = [field for field in required_fields if field not in record]
+            if absent:
+                raise ValueError(f"{list_key}[{index}] missing fields: {absent}")
