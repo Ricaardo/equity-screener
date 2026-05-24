@@ -316,7 +316,7 @@ def backtest_refined_candidates(
     industry_neutral: bool = False,
     max_per_group: int = 2,
     benchmark: str | None = None,
-    include_replay: bool = True,
+    include_replay: bool = False,
 ) -> pd.DataFrame:
     store = get_store()
     refined = store.query_df(

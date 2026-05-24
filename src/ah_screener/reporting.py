@@ -78,7 +78,9 @@ def _table(df: pd.DataFrame, columns: list[str]) -> str:
     return out.to_markdown(index=False)
 
 
-def market_date_health(snapshots: pd.DataFrame, max_spread_days: int = 3) -> tuple[pd.DataFrame, str]:
+def market_date_health(
+    snapshots: pd.DataFrame, max_spread_days: int = 3
+) -> tuple[pd.DataFrame, str]:
     """Per-market latest snapshot date + a warning when markets diverge.
 
     expert/report use the global-latest snapshot date, so if markets sit on
@@ -137,6 +139,7 @@ def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
         LIMIT 30
         """
     )
+    lifecycle = store.query_df("SELECT * FROM security_lifecycle_events")
     return {
         "refined": refined,
         "expert": expert,
@@ -145,6 +148,7 @@ def _load_report_data(store: Store) -> dict[str, pd.DataFrame]:
         "technicals": technicals,
         "securities": securities,
         "potential": potential,
+        "lifecycle": lifecycle,
     }
 
 
@@ -210,13 +214,17 @@ def _portfolio_notes(refined: pd.DataFrame) -> list[str]:
         "买入前应逐只复核最新公告、业绩会、估值分位、股东结构、减持和再融资风险。",
     ]
     if len(ai_like) >= 6:
-        notes.append("AI/半导体相关候选较多，容易出现同涨同跌和估值拥挤，适合用分批和回撤条件控制节奏。")
+        notes.append(
+            "AI/半导体相关候选较多，容易出现同涨同跌和估值拥挤，适合用分批和回撤条件控制节奏。"
+        )
     if len(defensive) >= 4:
         notes.append("红利和能源资产提供防御属性，但仍需关注油煤价格、利率和分红可持续性。")
     if not healthcare.empty:
         notes.append("创新药候选基本面分较高，但港股医药波动大，需要关注临床、BD、集采和现金消耗。")
     if not resource.empty:
-        notes.append("资源品候选受价格周期影响明显，不能只看历史 ROE，要同步跟踪商品价格和资本开支。")
+        notes.append(
+            "资源品候选受价格周期影响明显，不能只看历史 ROE，要同步跟踪商品价格和资本开支。"
+        )
     return notes
 
 
@@ -299,9 +307,8 @@ def _candidate_changes(refined: pd.DataFrame) -> pd.DataFrame:
     merged["变化"] = merged["_merge"].map(
         {"left_only": "新增", "right_only": "移出", "both": "保留"}
     )
-    merged["分数变化"] = (
-        pd.to_numeric(merged.get("expert_score"), errors="coerce")
-        - pd.to_numeric(merged.get("previous_score"), errors="coerce")
+    merged["分数变化"] = pd.to_numeric(merged.get("expert_score"), errors="coerce") - pd.to_numeric(
+        merged.get("previous_score"), errors="coerce"
     )
     merged["name"] = merged["name"].fillna(merged.get("name_previous"))
     return merged.rename(
@@ -343,6 +350,7 @@ def generate_report(output_dir: Path | None = None) -> Path:
     technicals = _latest(data["technicals"], "snapshot_date")
     securities = data["securities"]
     potential = _latest(data["potential"], "snapshot_date")
+    lifecycle = data["lifecycle"]
 
     generated_at = datetime.now()
     report_date = generated_at.strftime("%Y-%m-%d")
@@ -411,9 +419,13 @@ def generate_report(output_dir: Path | None = None) -> Path:
                 "theme_matches_text": "匹配主题",
             }
         )
-    fundamental_display = fundamentals.sort_values(
-        ["fundamental_score", "fundamental_trend_score"], ascending=False
-    ).head(20).copy() if not fundamentals.empty else pd.DataFrame()
+    fundamental_display = (
+        fundamentals.sort_values(["fundamental_score", "fundamental_trend_score"], ascending=False)
+        .head(20)
+        .copy()
+        if not fundamentals.empty
+        else pd.DataFrame()
+    )
     if not fundamental_display.empty:
         fundamental_display = fundamental_display.rename(
             columns={
@@ -441,7 +453,39 @@ def generate_report(output_dir: Path | None = None) -> Path:
         "标准化基本面": len(fundamentals),
         "专家评分": len(expert),
         "提炼候选": len(refined),
+        "退市生命周期": len(lifecycle),
     }
+    snapshot_sources = pd.DataFrame()
+    if not refined_all.empty and "snapshot_source" in refined_all.columns:
+        source_frame = refined_all.copy()
+        source_frame["snapshot_source"] = source_frame["snapshot_source"].fillna("natural")
+        if "is_replay" not in source_frame.columns:
+            source_frame["is_replay"] = False
+        snapshot_sources = (
+            source_frame.groupby(["snapshot_source", "is_replay"], dropna=False)
+            .agg(
+                行数=("symbol", "count"),
+                快照数=("snapshot_date", "nunique"),
+                最早日期=("snapshot_date", "min"),
+                最新日期=("snapshot_date", "max"),
+            )
+            .reset_index()
+            .rename(columns={"snapshot_source": "来源", "is_replay": "回放"})
+        )
+    if lifecycle.empty:
+        lifecycle_note = "暂无退市/摘牌生命周期记录；历史验证仍保留幸存者偏差。"
+    else:
+        lifecycle_counts = (
+            lifecycle.groupby("market", dropna=False)["symbol"].nunique().sort_index().to_dict()
+        )
+        lifecycle_parts = ", ".join(
+            f"{market} {int(count):,}" for market, count in lifecycle_counts.items()
+        )
+        lifecycle_note = (
+            "当前 active universe 已按日期留痕；退市/摘牌生命周期已入库"
+            f"（{lifecycle_parts}）。US 历史摘牌依赖 `AH_SCREENER_ALPHA_VANTAGE_KEY`；"
+            "自然快照样本积累前，早期历史验证仍保留幸存者偏差。"
+        )
     coverage_board = _coverage_by_board(snapshots, technicals, fundamentals, expert)
     board_counts = (
         securities.groupby(["market", "asset_type", "board"]).size().rename("数量").reset_index()
@@ -453,7 +497,11 @@ def generate_report(output_dir: Path | None = None) -> Path:
             columns={"market": "市场", "asset_type": "类型", "board": "板块"}
         ).sort_values("数量", ascending=False)
     decision_counts = (
-        expert.groupby("decision").size().rename("数量").reset_index().sort_values("数量", ascending=False)
+        expert.groupby("decision")
+        .size()
+        .rename("数量")
+        .reset_index()
+        .sort_values("数量", ascending=False)
         if not expert.empty
         else pd.DataFrame(columns=["decision", "数量"])
     )
@@ -470,9 +518,9 @@ def generate_report(output_dir: Path | None = None) -> Path:
             lambda value: f"{float(value):.2f}%" if pd.notna(value) else ""
         )
         etf_display["成交额"] = etf_display.get("amount").map(_fmt_amount)
-        etf_display["同组数"] = pd.to_numeric(
-            etf_display.get("peer_count"), errors="coerce"
-        ).fillna(1).astype(int)
+        etf_display["同组数"] = (
+            pd.to_numeric(etf_display.get("peer_count"), errors="coerce").fillna(1).astype(int)
+        )
         etf_display = etf_display.rename(
             columns={
                 "symbol": "代码",
@@ -499,9 +547,9 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "rr_ratio",
             "hist_win_rate",
         ]:
-            potential_display[column] = pd.to_numeric(potential_display[column], errors="coerce").map(
-                lambda value: f"{float(value):.1f}" if pd.notna(value) else ""
-            )
+            potential_display[column] = pd.to_numeric(
+                potential_display[column], errors="coerce"
+            ).map(lambda value: f"{float(value):.1f}" if pd.notna(value) else "")
         potential_display = potential_display.rename(
             columns={
                 "market": "市场",
@@ -532,7 +580,9 @@ def generate_report(output_dir: Path | None = None) -> Path:
         "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
         "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
         "",
-        "## 2. 外部背景",
+        "## 2. 外部背景（不计入评分）",
+        "",
+        "本节只作为阅读报告时的宏观和产业上下文，不参与专家分、ETF 分、潜力分或回测。",
         "",
     ]
     for item in EXTERNAL_CONTEXT:
@@ -561,13 +611,32 @@ def generate_report(output_dir: Path | None = None) -> Path:
     lines.extend(
         [
             "",
+            "### 3.2 证据口径与偏差控制",
+            "",
+            "- 回测默认只使用定时/手动自然生成的候选快照；历史回放快照必须显式传 `--include-replay`，只作诊断，不作 edge 证明。",
+            "- `potential-sweep` 是同一历史样本内的阈值扫描；RS 阈值证据必须以 `potential-walk-forward` 的样本外结果为准。",
+            f"- {lifecycle_note}",
+            "",
+            _table(snapshot_sources, ["来源", "回放", "行数", "快照数", "最早日期", "最新日期"])
+            if not snapshot_sources.empty
+            else "暂无提炼快照来源明细。",
+        ]
+    )
+
+    lines.extend(
+        [
+            "",
             "## 4. 专家评分分布",
             "",
-            _table(decision_counts, ["决策", "数量"]) if not decision_counts.empty else "暂无数据。",
+            _table(decision_counts, ["决策", "数量"])
+            if not decision_counts.empty
+            else "暂无数据。",
             "",
             "## 5. 市场与板块覆盖",
             "",
-            _table(board_counts, ["市场", "类型", "板块", "数量"]) if not board_counts.empty else "暂无数据。",
+            _table(board_counts, ["市场", "类型", "板块", "数量"])
+            if not board_counts.empty
+            else "暂无数据。",
             "",
             "### 5.1 覆盖率明细",
             "",
@@ -593,24 +662,49 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "",
             "### 6.1 完整池规模（按分类）",
             "",
-            _table(etf_category_counts, ["分类", "数量"]) if not etf_category_counts.empty else "暂无数据。",
+            _table(etf_category_counts, ["分类", "数量"])
+            if not etf_category_counts.empty
+            else "暂无数据。",
             "",
             "### 6.2 双层去重精选（同指数折叠 → 相关簇代表）",
             "",
             _table(
                 etf_display,
-                ["代码", "名称", "簇", "跟踪", "ETF分", "建议", "同组数", "涨跌幅", "成交额", "同类备选"],
+                [
+                    "代码",
+                    "名称",
+                    "簇",
+                    "跟踪",
+                    "ETF分",
+                    "建议",
+                    "同组数",
+                    "涨跌幅",
+                    "成交额",
+                    "同类备选",
+                ],
             )
             if not etf_display.empty
             else "暂无 ETF 数据。",
             "",
             "## 7. 潜力扫描（价格形态试运行）",
             "",
-            "- 口径：price-only；历史胜率含幸存者偏差，仅作相对参考；基本面/题材在 v1 中为中性占位。",
+            "- 口径：price-only；RS 阈值仍是运行参数，不是 edge 证明；历史胜率含幸存者偏差，仅作相对参考；基本面/题材在 v1 中为中性占位。",
             "",
             _table(
                 potential_display,
-                ["市场", "代码", "名称", "潜力分", "筑底", "RS", "触发价", "目标价", "止损价", "RR", "历史胜率"],
+                [
+                    "市场",
+                    "代码",
+                    "名称",
+                    "潜力分",
+                    "筑底",
+                    "RS",
+                    "触发价",
+                    "目标价",
+                    "止损价",
+                    "RR",
+                    "历史胜率",
+                ],
             )
             if not potential_display.empty
             else "暂无潜力扫描结果。运行 `ah-screener potential-scan` 后刷新。",
@@ -669,7 +763,10 @@ def generate_report(output_dir: Path | None = None) -> Path:
             "",
             "## 11. 候选变化",
             "",
-            _table(change_display, ["变化", "主题桶", "市场", "代码", "名称", "最新分", "上期分", "分数变化"])
+            _table(
+                change_display,
+                ["变化", "主题桶", "市场", "代码", "名称", "最新分", "上期分", "分数变化"],
+            )
             if not change_display.empty
             else "当前只有一个提炼快照，下一次定时更新后会生成新增、移出和分数变化。",
             "",

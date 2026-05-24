@@ -17,10 +17,37 @@ import pandas as pd
 SNAPSHOT_SOURCE = "potential_v1_price_only"
 FORWARD_DAYS = 40  # ~8 trading weeks
 SETUP_STEP_DAYS = 20
-# Calibrated by sweep_potential_thresholds on real history (stage 9): rank>=70 gave
-# ~76% win / +10.7% median 8w excess vs ~57% at 60. In-sample, price-only.
+# Operating threshold only. It came from an in-sample sweep, so edge claims must
+# use walk_forward_potential_thresholds rather than this constant.
 RS_RANK_CUT = 70.0
 RET_60D_CAP = 0.35
+THRESHOLD_GRID_COLUMNS = [
+    "rs_rank_cut",
+    "ret_60d_cap",
+    "sample_count",
+    "win_rate",
+    "median_excess_40d",
+    "p25_excess_40d",
+    "p75_excess_40d",
+]
+WALK_FORWARD_COLUMNS = [
+    "fold",
+    "train_start",
+    "train_end",
+    "test_start",
+    "test_end",
+    "selected_rs_rank_cut",
+    "selected_ret_60d_cap",
+    "train_sample_count",
+    "train_win_rate",
+    "train_median_excess_40d",
+    "test_sample_count",
+    "test_win_rate",
+    "test_median_excess_40d",
+    "test_p25_excess_40d",
+    "test_p75_excess_40d",
+    "bias_note",
+]
 
 # Per-market pillar weights (master-plan D5). A: fundamentals are a light gate and
 # theme/RS lead; HK balanced; US fundamentals-led (CANSLIM-style).
@@ -106,7 +133,9 @@ def _setup_scores(features: pd.DataFrame) -> pd.DataFrame:
     if features.empty:
         return features
     df = features.copy()
-    tight_score = (100 - (pd.to_numeric(df["box_tightness"], errors="coerce") / 0.30 * 100)).clip(0, 100)
+    tight_score = (100 - (pd.to_numeric(df["box_tightness"], errors="coerce") / 0.30 * 100)).clip(
+        0, 100
+    )
     vol_score = (100 - pd.to_numeric(df["volatility_pct120"], errors="coerce") * 100).clip(0, 100)
     ma_score = pd.Series(0.0, index=df.index)
     ma_score = ma_score.mask(df["close"] > df["ma20"], ma_score + 35)
@@ -133,14 +162,15 @@ def _sampled_setups(prices: pd.DataFrame) -> pd.DataFrame:
     sampled = features.sort_values(["market", "symbol", "trade_date"]).copy()
     sampled["setup_index"] = sampled.groupby(["market", "symbol"]).cumcount()
     sampled = sampled[
-        sampled["setup_index"].ge(120)
-        & ((sampled["setup_index"] - 120) % SETUP_STEP_DAYS == 0)
+        sampled["setup_index"].ge(120) & ((sampled["setup_index"] - 120) % SETUP_STEP_DAYS == 0)
     ]
     sampled = sampled.dropna(subset=["forward_40d_return"])
     if sampled.empty:
         return sampled
     sampled["return_60d_rank"] = sampled.groupby("trade_date")["return_60d"].rank(pct=True) * 100
-    sampled["forward_median"] = sampled.groupby("trade_date")["forward_40d_return"].transform("median")
+    sampled["forward_median"] = sampled.groupby("trade_date")["forward_40d_return"].transform(
+        "median"
+    )
     sampled["excess_40d_return"] = sampled["forward_40d_return"] - sampled["forward_median"]
     return sampled
 
@@ -154,6 +184,41 @@ def _excess_stats(excess: pd.Series) -> dict[str, float]:
         "p25_excess_40d": float(excess.quantile(0.25)) if len(excess) else np.nan,
         "p75_excess_40d": float(excess.quantile(0.75)) if len(excess) else np.nan,
     }
+
+
+def _threshold_mask(frame: pd.DataFrame, rank_cut: float, ret_cap: float) -> pd.Series:
+    return (
+        frame["quiet_setup"]
+        & frame["return_60d_rank"].ge(rank_cut)
+        & frame["return_60d"].fillna(0).lt(ret_cap)
+    )
+
+
+def _threshold_grid_stats(
+    sampled: pd.DataFrame,
+    rank_cuts: tuple[float, ...],
+    ret_caps: tuple[float, ...],
+) -> pd.DataFrame:
+    rows = []
+    for rank_cut in rank_cuts:
+        for ret_cap in ret_caps:
+            group = sampled[_threshold_mask(sampled, rank_cut, ret_cap)]
+            if group.empty:
+                continue
+            rows.append(
+                {
+                    "rs_rank_cut": rank_cut,
+                    "ret_60d_cap": ret_cap,
+                    **_excess_stats(group["excess_40d_return"]),
+                }
+            )
+    if not rows:
+        return pd.DataFrame(columns=THRESHOLD_GRID_COLUMNS)
+    return (
+        pd.DataFrame(rows)
+        .sort_values("median_excess_40d", ascending=False)
+        .reset_index(drop=True)[THRESHOLD_GRID_COLUMNS]
+    )
 
 
 def validate_potential_signals(
@@ -201,7 +266,10 @@ def validate_potential_signals(
             {
                 "signal": signal,
                 **_excess_stats(group["excess_40d_return"]),
-                "bias_note": "price-only; current-listed universe; survivorship bias remains",
+                "bias_note": (
+                    "price-only; current-listed universe; survivorship bias remains; "
+                    "threshold edge requires walk-forward confirmation"
+                ),
             }
         )
     return pd.DataFrame(rows).sort_values("median_excess_40d", ascending=False)
@@ -220,28 +288,86 @@ def sweep_potential_thresholds(
     """
     sampled = _sampled_setups(prices)
     if sampled.empty:
-        return pd.DataFrame()
-    rows = []
-    for rank_cut in rank_cuts:
-        for ret_cap in ret_caps:
-            mask = (
-                sampled["quiet_setup"]
-                & sampled["return_60d_rank"].ge(rank_cut)
-                & sampled["return_60d"].fillna(0).lt(ret_cap)
-            )
-            group = sampled[mask]
-            if group.empty:
-                continue
-            rows.append(
-                {
-                    "rs_rank_cut": rank_cut,
-                    "ret_60d_cap": ret_cap,
-                    **_excess_stats(group["excess_40d_return"]),
-                }
-            )
+        return pd.DataFrame(columns=THRESHOLD_GRID_COLUMNS)
+    return _threshold_grid_stats(sampled, rank_cuts=rank_cuts, ret_caps=ret_caps)
+
+
+def walk_forward_potential_thresholds(
+    prices: pd.DataFrame,
+    rank_cuts: tuple[float, ...] = (50.0, 60.0, 70.0),
+    ret_caps: tuple[float, ...] = (0.25, 0.35, 0.45),
+    folds: int = 3,
+    min_train_samples: int = 20,
+) -> pd.DataFrame:
+    """Select RS thresholds on past dates, then score the next unseen window.
+
+    This is still limited to the current-listed universe, so survivorship bias
+    remains. It does remove the tighter self-confirmation error where the same
+    rows choose and validate RS=70.
+    """
+    sampled = _sampled_setups(prices)
+    if sampled.empty:
+        return pd.DataFrame(columns=WALK_FORWARD_COLUMNS)
+
+    sampled = sampled.copy()
+    sampled["trade_date"] = pd.to_datetime(sampled["trade_date"], errors="coerce")
+    dates = [pd.Timestamp(value) for value in sorted(sampled["trade_date"].dropna().unique())]
+    folds = max(int(folds), 1)
+    if len(dates) < folds + 1:
+        return pd.DataFrame(columns=WALK_FORWARD_COLUMNS)
+
+    chunks = [
+        [pd.Timestamp(value) for value in chunk] for chunk in np.array_split(dates, folds + 1)
+    ]
+    chunks = [chunk for chunk in chunks if chunk]
+    if len(chunks) < 2:
+        return pd.DataFrame(columns=WALK_FORWARD_COLUMNS)
+
+    rows: list[dict[str, object]] = []
+    for fold_index in range(1, len(chunks)):
+        train_start = chunks[0][0]
+        train_end = chunks[fold_index - 1][-1]
+        test_start = chunks[fold_index][0]
+        test_end = chunks[fold_index][-1]
+        train = sampled[
+            (sampled["trade_date"] >= train_start) & (sampled["trade_date"] <= train_end)
+        ]
+        test = sampled[(sampled["trade_date"] >= test_start) & (sampled["trade_date"] <= test_end)]
+        train_stats = _threshold_grid_stats(train, rank_cuts=rank_cuts, ret_caps=ret_caps)
+        if train_stats.empty or test.empty:
+            continue
+        eligible = train_stats[train_stats["sample_count"].ge(min_train_samples)]
+        selected = (eligible if not eligible.empty else train_stats).iloc[0]
+        selected_rank = float(selected["rs_rank_cut"])
+        selected_cap = float(selected["ret_60d_cap"])
+        test_group = test[_threshold_mask(test, selected_rank, selected_cap)]
+        test_stats = _excess_stats(test_group["excess_40d_return"])
+        rows.append(
+            {
+                "fold": fold_index,
+                "train_start": train_start.date(),
+                "train_end": train_end.date(),
+                "test_start": test_start.date(),
+                "test_end": test_end.date(),
+                "selected_rs_rank_cut": selected_rank,
+                "selected_ret_60d_cap": selected_cap,
+                "train_sample_count": int(selected["sample_count"]),
+                "train_win_rate": float(selected["win_rate"]),
+                "train_median_excess_40d": float(selected["median_excess_40d"]),
+                "test_sample_count": int(test_stats["sample_count"]),
+                "test_win_rate": test_stats["win_rate"],
+                "test_median_excess_40d": test_stats["median_excess_40d"],
+                "test_p25_excess_40d": test_stats["p25_excess_40d"],
+                "test_p75_excess_40d": test_stats["p75_excess_40d"],
+                "bias_note": (
+                    "walk-forward OOS threshold selection; current-listed universe only; "
+                    "survivorship bias remains"
+                ),
+            }
+        )
     if not rows:
-        return pd.DataFrame()
-    return pd.DataFrame(rows).sort_values("median_excess_40d", ascending=False).reset_index(drop=True)
+        return pd.DataFrame(columns=WALK_FORWARD_COLUMNS)
+    return pd.DataFrame(rows)[WALK_FORWARD_COLUMNS]
 
 
 def scan_potential_candidates(
@@ -287,32 +413,51 @@ def scan_potential_candidates(
         return latest
 
     meta = snapshots.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
-    meta_cols = [c for c in ["market", "symbol", "name", "asset_type", "amount", "board"] if c in meta.columns]
+    meta_cols = [
+        c
+        for c in ["market", "symbol", "name", "asset_type", "amount", "board"]
+        if c in meta.columns
+    ]
     latest = latest.merge(meta[meta_cols], on=["market", "symbol"], how="left")
     if "asset_type" in latest.columns:
         latest = latest[latest["asset_type"].fillna("stock").eq("stock")]
     if "amount" in latest.columns:
         latest = latest[pd.to_numeric(latest["amount"], errors="coerce").fillna(0) >= 20_000_000]
 
-    val = validation if validation is not None and not validation.empty else validate_potential_signals(prices)
+    val = (
+        validation
+        if validation is not None and not validation.empty
+        else validate_potential_signals(prices)
+    )
     val_index = val.set_index("signal") if val is not None and not val.empty else pd.DataFrame()
     win = float(val_index.loc["rs_quiet", "win_rate"]) if "rs_quiet" in val_index.index else np.nan
-    med = float(val_index.loc["rs_quiet", "median_excess_40d"]) if "rs_quiet" in val_index.index else np.nan
+    med = (
+        float(val_index.loc["rs_quiet", "median_excess_40d"])
+        if "rs_quiet" in val_index.index
+        else np.nan
+    )
 
     # Anchor to the data's latest trade date (matches technical_indicators), not wall-clock.
     latest_trade_date = pd.to_datetime(features["trade_date"], errors="coerce").max()
     latest["snapshot_date"] = (
-        latest_trade_date.date() if pd.notna(latest_trade_date) else pd.Timestamp(datetime.now()).date()
+        latest_trade_date.date()
+        if pd.notna(latest_trade_date)
+        else pd.Timestamp(datetime.now()).date()
     )
     latest["strategy"] = "potential_v1"
     latest["pivot_price"] = latest["pivot"]
     latest["target_price"] = latest["close"] + (latest["pivot"] - latest["stop"]).clip(lower=0)
     latest["stop_price"] = latest["stop"]
-    latest["rr_ratio"] = (latest["target_price"] - latest["close"]) / (latest["close"] - latest["stop_price"]).replace(0, np.nan)
+    latest["rr_ratio"] = (latest["target_price"] - latest["close"]) / (
+        latest["close"] - latest["stop_price"]
+    ).replace(0, np.nan)
     latest["time_stop_days"] = 60
     latest["hist_win_rate"] = win
     latest["hist_median_excess_40d"] = med
-    latest["bias_note"] = "validated signal=rs_quiet; price-only; survivorship bias; fundamentals/themes neutral in v1"
+    latest["bias_note"] = (
+        "validated signal=rs_quiet; RS threshold is in-sample operating parameter; "
+        "price-only; survivorship bias; fundamentals/themes neutral in v1"
+    )
     latest["scenario_json"] = latest.apply(
         lambda row: json.dumps(
             {
@@ -347,4 +492,8 @@ def scan_potential_candidates(
         "bias_note",
         "scenario_json",
     ]
-    return latest.sort_values("potential_score", ascending=False)[cols].head(top).reset_index(drop=True)
+    return (
+        latest.sort_values("potential_score", ascending=False)[cols]
+        .head(top)
+        .reset_index(drop=True)
+    )

@@ -30,7 +30,20 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="AI算力硬件",
         markets=("A", "HK", "US"),
         weight=1.00,
-        keywords=("AI", "人工智能", "算力", "CPO", "光模块", "光通信", "PCB", "服务器", "液冷", "数据中心", "存储", "GPU"),
+        keywords=(
+            "AI",
+            "人工智能",
+            "算力",
+            "CPO",
+            "光模块",
+            "光通信",
+            "PCB",
+            "服务器",
+            "液冷",
+            "数据中心",
+            "存储",
+            "GPU",
+        ),
         rationale="AI 应用扩散先拉动算力、网络、存储、散热和服务器资本开支。",
         source="current_market_theme:ai_compute_infrastructure",
     ),
@@ -38,7 +51,18 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="半导体国产替代",
         markets=("A", "HK", "US"),
         weight=0.90,
-        keywords=("半导体", "芯片", "集成电路", "存储", "海思", "先进封装", "光刻胶", "设备", "材料", "晶圆"),
+        keywords=(
+            "半导体",
+            "芯片",
+            "集成电路",
+            "存储",
+            "海思",
+            "先进封装",
+            "光刻胶",
+            "设备",
+            "材料",
+            "晶圆",
+        ),
         rationale="地缘约束和产业升级使半导体设备、材料、设计和制造长期具备政策与需求双支撑。",
         source="current_market_theme:semiconductor_localization",
     ),
@@ -46,7 +70,16 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="人形机器人与高端制造",
         markets=("A", "HK", "US"),
         weight=0.85,
-        keywords=("机器人", "人形机器人", "伺服", "减速器", "传感器", "执行器", "自动化", "工业母机"),
+        keywords=(
+            "机器人",
+            "人形机器人",
+            "伺服",
+            "减速器",
+            "传感器",
+            "执行器",
+            "自动化",
+            "工业母机",
+        ),
         rationale="AI 与硬件制造结合，机器人链条处在从主题验证到产业订单验证的阶段。",
         source="current_market_theme:robotics",
     ),
@@ -54,7 +87,18 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="创新药与医疗科技",
         markets=("A", "HK", "US"),
         weight=0.78,
-        keywords=("创新药", "CXO", "生物医药", "医疗器械", "AI医疗", "疫苗", "药明", "恒瑞", "百济", "信达"),
+        keywords=(
+            "创新药",
+            "CXO",
+            "生物医药",
+            "医疗器械",
+            "AI医疗",
+            "疫苗",
+            "药明",
+            "恒瑞",
+            "百济",
+            "信达",
+        ),
         rationale="创新药出海、BD 交易和医药估值修复使优质药企重新进入成长筛选池。",
         source="current_market_theme:innovative_healthcare",
     ),
@@ -62,7 +106,19 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="高股息央国企防御",
         markets=("A", "HK", "US"),
         weight=0.72,
-        keywords=("高股息", "央企", "国企", "电力", "煤炭", "银行", "公用事业", "运营商", "石油", "能源", "电信"),
+        keywords=(
+            "高股息",
+            "央企",
+            "国企",
+            "电力",
+            "煤炭",
+            "银行",
+            "公用事业",
+            "运营商",
+            "石油",
+            "能源",
+            "电信",
+        ),
         rationale="低利率和波动市场中，现金流稳定、分红率较高的央国企适合作为防御底仓候选。",
         source="current_market_theme:high_dividend_soe",
     ),
@@ -70,7 +126,18 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="电力储能与能源转型",
         markets=("A", "HK", "US"),
         weight=0.82,
-        keywords=("电力", "储能", "光伏", "风电", "电池", "电网", "新能源", "能源互联网", "钙钛矿", "充电"),
+        keywords=(
+            "电力",
+            "储能",
+            "光伏",
+            "风电",
+            "电池",
+            "电网",
+            "新能源",
+            "能源互联网",
+            "钙钛矿",
+            "充电",
+        ),
         rationale="AI 算力用电增长、能源转型和电网投资共同提升电力与储能链条关注度。",
         source="current_market_theme:power_storage",
     ),
@@ -86,7 +153,20 @@ HOT_THEMES: tuple[HotTheme, ...] = (
         name="港股AI互联网平台",
         markets=("HK",),
         weight=0.88,
-        keywords=("腾讯", "阿里", "美团", "快手", "京东", "网易", "百度", "小米", "联想", "金蝶", "金山云", "哔哩"),
+        keywords=(
+            "腾讯",
+            "阿里",
+            "美团",
+            "快手",
+            "京东",
+            "网易",
+            "百度",
+            "小米",
+            "联想",
+            "金蝶",
+            "金山云",
+            "哔哩",
+        ),
         rationale="港股互联网平台具备 AI 产品化、云业务、现金流和估值修复的交集。",
         source="current_market_theme:hk_ai_internet",
     ),
@@ -533,7 +613,9 @@ def run_expert_model(
     df = df.set_index(["market", "symbol"], drop=False)
 
     tag_text = (
-        tags.groupby(["market", "symbol"])["tag_name"].apply(lambda values: " ".join(map(str, values)))
+        tags.groupby(["market", "symbol"])["tag_name"].apply(
+            lambda values: " ".join(map(str, values))
+        )
         if not tags.empty
         else pd.Series(dtype=object)
     )
@@ -576,13 +658,17 @@ def run_expert_model(
         else 42.0
     )
     df["fundamental_input_score"] = (
-        pd.to_numeric(fundamental["fundamental_score"], errors="coerce").reindex(df.index).fillna(50.0)
+        pd.to_numeric(fundamental["fundamental_score"], errors="coerce")
+        .reindex(df.index)
+        .fillna(50.0)
         if not fundamental.empty and "fundamental_score" in fundamental.columns
         else 50.0
     )
     board_fallback = df["board"] if "board" in df.columns else df["market"]
     df["industry_peer_group"] = pd.Series(industry_tag, dtype=object).reindex(df.index)
-    df["industry_peer_group"] = df["industry_peer_group"].fillna(board_fallback).fillna(df["market"])
+    df["industry_peer_group"] = (
+        df["industry_peer_group"].fillna(board_fallback).fillna(df["market"])
+    )
     detailed_industries: list[str] = []
     precomputed_matches: dict[tuple[str, str], list[HotTheme]] = {}
     for key, row in df.iterrows():
@@ -604,8 +690,12 @@ def run_expert_model(
 
         tech_row = tech.loc[key] if not tech.empty and key in tech.index else None
         technical_score = float(tech_row["technical_score"]) if tech_row is not None else 42.0
-        technical_signal = str(tech_row["technical_signal"]) if tech_row is not None else "missing_history"
-        fundamental_row = fundamental.loc[key] if not fundamental.empty and key in fundamental.index else None
+        technical_signal = (
+            str(tech_row["technical_signal"]) if tech_row is not None else "missing_history"
+        )
+        fundamental_row = (
+            fundamental.loc[key] if not fundamental.empty and key in fundamental.index else None
+        )
         fundamental_score = (
             float(fundamental_row["fundamental_score"]) if fundamental_row is not None else 50.0
         )
@@ -641,10 +731,15 @@ def run_expert_model(
         valuation_percentile = float(row["valuation_percentile"])
         risk_inverse = 100 - min(penalty, 100)
 
-        graham_value = valuation * 0.75 + (100 if any(t.name == "高股息央国企防御" for t in matches) else 45) * 0.25
+        graham_value = (
+            valuation * 0.75
+            + (100 if any(t.name == "高股息央国企防御" for t in matches) else 45) * 0.25
+        )
         buffett_quality_proxy = liquidity * 0.40 + cap * 0.35 + risk_inverse * 0.25
-        fisher_growth = theme_score * 0.60 + technical_score * 0.25 + liquidity * 0.15
-        lynch_garp = theme_score * 0.40 + technical_score * 0.25 + valuation * 0.25 + liquidity * 0.10
+        fisher_growth = fundamental_score * 0.45 + technical_score * 0.35 + liquidity * 0.20
+        lynch_garp = (
+            fundamental_score * 0.35 + valuation * 0.35 + technical_score * 0.20 + liquidity * 0.10
+        )
         oneil_momentum = technical_score * 0.78 + liquidity * 0.22
         master_score = (
             graham_value * 0.18
@@ -657,27 +752,25 @@ def run_expert_model(
             valuation=valuation,
             liquidity=liquidity,
             risk_inverse=risk_inverse,
-            theme_score=theme_score,
             technical_score=technical_score,
             fundamental_score=fundamental_score,
             matches=matches,
         )
         expert_score = (
-            master_score * 0.18
-            + china_master_score * 0.26
-            + fundamental_score * 0.15
-            + industry_fit_score * 0.08
-            + theme_score * 0.16
-            + technical_score * 0.10
-            + liquidity * 0.03
-            + peer_score * 0.04
+            master_score * 0.20
+            + china_master_score * 0.28
+            + fundamental_score * 0.18
+            + industry_fit_score * 0.10
+            + technical_score * 0.14
+            + liquidity * 0.04
+            + peer_score * 0.06
             - penalty
         )
         expert_score = float(np.clip(expert_score, 0, 100))
 
         if penalty >= 80 or expert_score < 42:
             decision = "reject"
-        elif expert_score >= 68 and theme_score >= 55 and technical_score >= 55:
+        elif expert_score >= 68 and technical_score >= 55:
             decision = "core_candidate"
         elif expert_score >= 56:
             decision = "watchlist"
@@ -693,7 +786,7 @@ def run_expert_model(
             f"同类组={industry_peer_group}",
             f"细分行业={detailed_industry}",
             f"估值同类分位={valuation_percentile:.1f}",
-            f"主题分={theme_score:.1f}",
+            f"主题参考分={theme_score:.1f}（不计入综合分）",
             f"技术信号={technical_signal}",
         ]
         reason_parts.extend(industry_fit_reasons)
@@ -738,30 +831,22 @@ def _china_master_score(
     valuation: float,
     liquidity: float,
     risk_inverse: float,
-    theme_score: float,
     technical_score: float,
     fundamental_score: float,
     matches: list[HotTheme],
 ) -> float:
-    theme_names = {theme.name for theme in matches}
-    high_dividend = 100.0 if "高股息央国企防御" in theme_names else 45.0
-    cycle_fit = 90.0 if theme_names.intersection({"资源涨价与安全资产", "电力储能与能源转型"}) else 50.0
-    growth_fit = 90.0 if theme_names.intersection(
-        {"AI算力硬件", "半导体国产替代", "创新药与医疗科技", "港股AI互联网平台", "汽车智能化与出海"}
-    ) else 50.0
+    # Theme membership remains available for context, bucket assignment, and
+    # industry-specific interpretation, but it does not lift the numeric score.
+    _ = matches
 
-    zhang_lei_long_term = (
-        fundamental_score * 0.38 + theme_score * 0.32 + liquidity * 0.12 + risk_inverse * 0.18
-    )
-    qiu_guolu_quality_value = (
-        valuation * 0.34 + fundamental_score * 0.34 + risk_inverse * 0.22 + high_dividend * 0.10
-    )
-    dan_bin_lin_yuan_compounder = fundamental_score * 0.55 + growth_fit * 0.20 + risk_inverse * 0.25
+    zhang_lei_long_term = fundamental_score * 0.52 + liquidity * 0.15 + risk_inverse * 0.33
+    qiu_guolu_quality_value = valuation * 0.36 + fundamental_score * 0.36 + risk_inverse * 0.28
+    dan_bin_lin_yuan_compounder = fundamental_score * 0.65 + risk_inverse * 0.35
     deng_xiaofeng_cycle_quality = (
-        fundamental_score * 0.30 + valuation * 0.22 + cycle_fit * 0.22 + technical_score * 0.16 + risk_inverse * 0.10
+        fundamental_score * 0.36 + valuation * 0.26 + technical_score * 0.23 + risk_inverse * 0.15
     )
     chen_guangming_balanced = (
-        fundamental_score * 0.34 + theme_score * 0.22 + technical_score * 0.18 + liquidity * 0.16 + risk_inverse * 0.10
+        fundamental_score * 0.42 + technical_score * 0.24 + liquidity * 0.20 + risk_inverse * 0.14
     )
     score = (
         zhang_lei_long_term * 0.24
@@ -803,7 +888,10 @@ def _style_bucket(row: pd.Series, themes: list[str]) -> str:
         return "智能汽车"
     if "电力储能与能源转型" in themes:
         return "能源转型"
-    if any(theme in themes for theme in ("AI算力硬件", "半导体国产替代", "港股AI互联网平台", "人形机器人与高端制造")):
+    if any(
+        theme in themes
+        for theme in ("AI算力硬件", "半导体国产替代", "港股AI互联网平台", "人形机器人与高端制造")
+    ):
         if float(row.get("valuation_score", 50) or 50) >= 65:
             return "科技成长偏估值"
         return "科技成长"
@@ -818,7 +906,12 @@ def _normalized_name_key(name: object) -> str | None:
     text = str(name or "").strip()
     if not text:
         return None
-    text = re.sub(r"(股份有限公司|有限公司|控股|集团|股份|有限|公司|[-－]?[WHSA]+$|\s+)", "", text, flags=re.IGNORECASE)
+    text = re.sub(
+        r"(股份有限公司|有限公司|控股|集团|股份|有限|公司|[-－]?[WHSA]+$|\s+)",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    )
     return text if len(text) >= 2 else None
 
 
@@ -837,7 +930,9 @@ def _peer_group(row: pd.Series) -> str:
     return f"{market}:{symbol}"
 
 
-def _select_diverse_bucket(group: pd.DataFrame, max_per_bucket: int, max_per_style: int) -> list[int]:
+def _select_diverse_bucket(
+    group: pd.DataFrame, max_per_bucket: int, max_per_style: int
+) -> list[int]:
     selected: list[int] = []
     style_counts: dict[str, int] = {}
 
@@ -861,12 +956,27 @@ def _select_diverse_bucket(group: pd.DataFrame, max_per_bucket: int, max_per_sty
 
 DOCUMENT_RISK_PENALTIES: tuple[tuple[tuple[str, ...], float, str], ...] = (
     (
-        ("频繁合股", "供股", "配股", "股本融资", "share consolidation", "rights issue", "open offer"),
+        (
+            "频繁合股",
+            "供股",
+            "配股",
+            "股本融资",
+            "share consolidation",
+            "rights issue",
+            "open offer",
+        ),
         12.0,
         "公告风险：频繁合股、供股或股本融资",
     ),
     (
-        ("延迟刊发", "延迟发表", "延期刊发", "未能刊发", "delay in publication", "delayed publication"),
+        (
+            "延迟刊发",
+            "延迟发表",
+            "延期刊发",
+            "未能刊发",
+            "delay in publication",
+            "delayed publication",
+        ),
         16.0,
         "公告风险：延迟刊发财报或业绩",
     ),
@@ -897,18 +1007,24 @@ def _document_risk_penalty(risk_text: str) -> tuple[float, list[str]]:
     return penalty, reasons
 
 
-def refine_candidates(results: pd.DataFrame, max_per_bucket: int = 3, max_per_style: int = 2) -> pd.DataFrame:
+def refine_candidates(
+    results: pd.DataFrame, max_per_bucket: int = 3, max_per_style: int = 2
+) -> pd.DataFrame:
     if results.empty:
         return pd.DataFrame()
 
-    candidates = results[results["decision"].isin(["core_candidate", "watchlist", "reserve"])].copy()
+    candidates = results[
+        results["decision"].isin(["core_candidate", "watchlist", "reserve"])
+    ].copy()
     candidates = candidates[candidates["expert_score"] >= 56]
     if candidates.empty:
         return pd.DataFrame()
 
     candidates["theme_list"] = candidates["theme_matches"].apply(_theme_list)
     candidates["bucket"] = candidates["theme_list"].apply(_primary_bucket)
-    candidates["style_bucket"] = candidates.apply(lambda row: _style_bucket(row, row["theme_list"]), axis=1)
+    candidates["style_bucket"] = candidates.apply(
+        lambda row: _style_bucket(row, row["theme_list"]), axis=1
+    )
     candidates["peer_group"] = candidates.apply(_peer_group, axis=1)
     for column, default in [
         ("peer_score", 50.0),
