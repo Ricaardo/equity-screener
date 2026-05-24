@@ -8,9 +8,9 @@
 
 - A 股：沪深北上市公司。
 - 港股：港交所上市普通股。
-- 美股：以 Nasdaq Trader、AKShare/Stooq 和 SEC EDGAR 为免费源。
-- ETF：第一阶段接入 A 股场内 ETF。
-- 数据源：免费、可脚本化、可本地缓存。
+- 美股：以 Nasdaq Trader、Futu/OpenD、AKShare、SEC EDGAR 和 Alpha Vantage delisted CSV（可选 key）为免费/公开源。
+- ETF：已接入 A 股、港股和美股 ETF。
+- 数据源：本地 OpenD 优先，免费/公开源回退，可脚本化、可本地缓存。
 - 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown 报告和本地看板。
 
 已增强能力：
@@ -31,37 +31,38 @@
 
 ### A 股
 
-| 数据类型 | 首选免费源 | 用途 |
+| 数据类型 | 首选数据源 | 用途 |
 | --- | --- | --- |
-| 股票池 | AKShare、交易所官网 | 建立 securities 主表 |
-| ETF | AKShare 东方财富 ETF 行情 | 建立 ETF 池、成交额和主题替代工具 |
-| 实时快照/行情 | AKShare 东方财富接口 | 估值、成交额、流动性、过滤 |
-| 历史行情 | AKShare | 趋势、相对强弱、回测 |
-| 行业板块 | AKShare 东方财富行业板块 | 行业内分位数 |
-| 概念板块 | AKShare 东方财富/同花顺概念 | 主题候选池 |
+| 股票池 | Futu/OpenD 优先；北交所由 AKShare 补齐 | 建立 securities 主表 |
+| ETF | Futu/OpenD 优先，AKShare 回退 | 建立 ETF 池、成交额和主题替代工具 |
+| 实时快照/行情 | Futu/OpenD 优先，AKShare 回退 | 估值、成交额、流动性、过滤 |
+| 历史行情 | Futu/OpenD 优先，AKShare 回退 | 趋势、相对强弱、回测 |
+| 行业板块 | Futu/OpenD `get_plate_list/get_plate_stock` 优先，AKShare 回退 | 行业内分位数 |
+| 概念板块 | Futu/OpenD `get_plate_list/get_plate_stock` 优先，AKShare 回退 | 主题候选池 |
 | 财报/公告 | 巨潮资讯网、交易所官网、中国资本市场信息披露平台 | 官方校验、后续文本解析 |
 | 三表与财务指标 | AKShare 东方财富财务接口 | 利润表、资产负债表、现金流量表、ROE、利润率、负债率、现金流质量 |
 
 ### 港股
 
-| 数据类型 | 首选免费源 | 用途 |
+| 数据类型 | 首选数据源 | 用途 |
 | --- | --- | --- |
-| 证券列表 | HKEX Securities Lists、AKShare | 港股股票池 |
-| 港股通 | AKShare 港股通成份股、南向持股统计备用 | 标记港股通可投资范围 |
-| 实时快照/行情 | AKShare、yfinance | 估值、成交额、流动性 |
-| 历史行情 | AKShare、yfinance | 趋势、回测 |
+| 证券列表 | Futu/OpenD 优先，HKEX/AKShare 回退 | 港股股票池 |
+| 港股通 | Futu/OpenD `HK.GangGuTong` 优先，AKShare 港股通成份股回退 | 标记港股通可投资范围 |
+| 实时快照/行情 | Futu/OpenD 优先，AKShare 回退 | 估值、成交额、流动性 |
+| 历史行情 | Futu/OpenD 优先、AKShare 回退 | 趋势、回测 |
 | 公告/年报 | HKEXnews 披露易 | 官方校验、后续文本解析 |
-| 行业/主题 | AKShare、yfinance、自建标签 | 初始分类和人工增强 |
+| 行业/主题 | AKShare、自建标签、HKEXnews 文档抽取 | 初始分类和人工增强 |
 | 三表与财务指标 | AKShare 东方财富港股财务接口 | 利润表、资产负债表、现金流量表、ROE、利润率、负债率、现金流质量 |
 
 ### 美股
 
-| 数据类型 | 首选免费源 | 用途 |
+| 数据类型 | 首选数据源 | 用途 |
 | --- | --- | --- |
-| 证券列表 | Nasdaq Trader symbol directory | 建立 `market = US` 主表、交易所和 ETF 标识 |
-| 历史行情/快照 | AKShare `stock_us_daily`，Stooq CSV 备用 | 趋势、回测、最新收盘快照 |
+| 证券列表 | Futu/OpenD 优先，Nasdaq Trader symbol directory 回退 | 建立 `market = US` 主表、交易所和 ETF 标识 |
+| 历史行情/快照 | Futu/OpenD 优先，AKShare `stock_us_daily` 回退 | 趋势、回测、最新收盘快照 |
 | 基本面 | SEC EDGAR Company Facts | 美元收入、利润、资产负债、现金流、研发和资本开支 |
 | 同主体映射 | 内置策展映射表 | A/H/US ADR 或多地上市主体去重 |
+| 摘牌生命周期 | Alpha Vantage `LISTING_STATUS state=delisted`（需 key） | US 幸存者偏差审计 |
 
 ## 4. 数据模型
 
@@ -451,10 +452,10 @@ ah-screener import-tags --path data/custom_tags.csv
 ah-screener import-industry-map --path data/industry_mapping.csv
 ```
 
-第四步：运行基础评分。
+第四步：同步退市/摘牌生命周期。
 
 ```bash
-ah-screener score
+ah-screener sync-delisted-universe
 ```
 
 第五步：同步历史行情、技术指标和三表基本面。
@@ -477,10 +478,10 @@ ah-screener candidate-changes
 ah-screener etf-export --top 50
 ah-screener sync-benchmarks --lookback-days 430
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
-ah-screener backtest --rebalance quarterly --natural-only
+ah-screener backtest --include-replay --rebalance quarterly
 ```
 
-当只有一个自然候选快照时，可先用 `backfill-refined-snapshots` 生成历史回放候选；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时口径用 `--natural-only` 排除。
+当只有一个自然候选快照时，可先用 `backfill-refined-snapshots` 生成历史回放候选；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`。当前严格口径的 `backtest` 默认排除 replay；只有诊断历史回放时才显式传 `--include-replay`。
 
 港股公告可自动从 HKEXnews 搜索下载，并进入同一套 PDF 解析和风险标签流程：
 
@@ -535,10 +536,10 @@ ah-screener install-schedule --hour 18 --minute 30
 
 ## 8. 增强能力完成状态
 
-- 严格点时回测：`refined_candidates` 已记录 `snapshot_source` 和 `is_replay`，`backtest --natural-only` 可只使用自然生成快照。
+- 严格点时回测：`refined_candidates` 已记录 `snapshot_source` 和 `is_replay`，默认 `backtest` 只使用自然生成快照；诊断回放才传 `--include-replay`。
 - 港股公告自动下载：`sync-hkex-documents` 已接入 HKEXnews 官方搜索端点，自动下载 PDF 并复用 `ingest-document` 解析。
 - 行业口径治理：`import-industry-map` 已支持可编辑 CSV，把细分行业映射写入 `company_tags`。
-- 美股覆盖扩展：`sync-us-batch` 已支持按 Nasdaq Trader 全量列表分页同步，遇到免费源限流可调小批次。
+- 美股覆盖扩展：`sync-us-batch` 已支持按证券目录分页同步；OpenD 不可用时回退 Nasdaq Trader，遇到免费源限流可调小批次。
 - 风险规则扩展：PDF/公告解析已识别频繁合股/供股/配股、延迟刊发财报和异常审计意见，并纳入专家模型风险扣分。
 
 ## 9. 看板和自动化

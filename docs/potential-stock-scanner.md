@@ -121,8 +121,8 @@ potential_score = clip(potential_raw − penalties, 0, 100)
 
 ---
 
-## 7. 待评审决策点
+## 7. 已定实现口径
 
-1. 历史覆盖铺到多宽（前 500 / 800 / 全部过流动性地板）？直接影响抓取耗时与限流。
-2. 美股业绩数据：先用 SEC 已披露增速代理，还是引入免费预期源（如 Finnhub/yfinance 免费额度）？
-3. "已被发现"过滤的 60 日涨幅阈值 X 取多少（如 +25%）？
+1. 历史覆盖由 `sync-history --top/--etf-top` 分批控制，日常全量刷新保持增量补齐，避免免费源限流。
+2. 美股业绩数据首版使用 SEC 已披露增速代理；外部预期源不进入当前生产链路。
+3. "已被发现"过滤通过 `potential-sweep` + `potential-walk-forward` 校准；当前固定参数用于后续自然快照 forward validation。

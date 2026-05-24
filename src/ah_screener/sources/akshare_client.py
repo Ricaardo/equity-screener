@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from io import StringIO
+import re
 from time import sleep
 from typing import Literal
 
 import pandas as pd
+import requests
 
 from ah_screener.classification import (
     infer_a_board,
@@ -14,7 +17,14 @@ from ah_screener.classification import (
     is_st_name,
 )
 from ah_screener.etf_model import is_hk_listed_etf
-from ah_screener.sources.futu_client import fetch_futu_history
+from ah_screener.sources.futu_client import (
+    fetch_futu_a_board_tags,
+    fetch_futu_a_etf_spot,
+    fetch_futu_a_spot,
+    fetch_futu_benchmark_history,
+    fetch_futu_history,
+    fetch_futu_hk_connect_symbols,
+)
 from ah_screener.sources.us_client import fetch_us_history, fetch_us_spot
 
 
@@ -31,6 +41,7 @@ DEFAULT_BENCHMARKS = [
     "US:SPY",  # S&P 500 ETF proxy
     "US:QQQ",  # Nasdaq 100 ETF proxy
 ]
+HKEX_DELISTED_STOCKS_URL = "https://di.hkex.com.hk/di/NSDelistedStockList.aspx?lang=EN"
 
 
 def _now() -> pd.Timestamp:
@@ -216,9 +227,37 @@ def _fetch_first_available(calls: list[tuple[str, object]]) -> tuple[pd.DataFram
 
 
 def fetch_spot(market: Market) -> tuple[pd.DataFrame, pd.DataFrame]:
-    import akshare as ak
-
     if market == "A":
+        try:
+            securities, snapshots = fetch_futu_a_spot()
+        except Exception:
+            securities, snapshots = pd.DataFrame(), pd.DataFrame()
+        if not snapshots.empty:
+            # Futu OpenD currently exposes SH/SZ for A-shares, but not BSE.
+            # Preserve the existing Beijing Stock Exchange coverage via AKShare.
+            try:
+                import akshare as ak
+
+                raw, source = _fetch_first_available(
+                    [
+                        ("akshare.stock_zh_a_spot_em", ak.stock_zh_a_spot_em),
+                        ("akshare.stock_zh_a_spot", ak.stock_zh_a_spot),
+                    ]
+                )
+                ak_securities, ak_snapshots = normalize_a_spot(raw, source)
+                bse_securities = ak_securities[ak_securities["exchange"].eq("BSE")]
+                bse_snapshots = ak_snapshots[ak_snapshots["symbol"].map(infer_a_exchange).eq("BSE")]
+                if not bse_snapshots.empty:
+                    securities = pd.concat([securities, bse_securities], ignore_index=True)
+                    snapshots = pd.concat([snapshots, bse_snapshots], ignore_index=True)
+                    securities = securities.drop_duplicates(["market", "symbol"], keep="first")
+                    snapshots = snapshots.drop_duplicates(["market", "symbol"], keep="first")
+            except Exception:
+                pass
+            return securities, snapshots
+
+        import akshare as ak
+
         raw, source = _fetch_first_available(
             [
                 ("akshare.stock_zh_a_spot_em", ak.stock_zh_a_spot_em),
@@ -227,7 +266,26 @@ def fetch_spot(market: Market) -> tuple[pd.DataFrame, pd.DataFrame]:
         )
         return normalize_a_spot(raw, source)
     if market == "HK":
-        hk_connect_symbols, hk_connect_source, hk_connect_confidence = fetch_hk_connect_symbols_with_meta()
+        hk_connect_symbols, hk_connect_source, hk_connect_confidence = (
+            fetch_hk_connect_symbols_with_meta()
+        )
+        from ah_screener.sources.futu_client import fetch_futu_hk_spot
+
+        try:
+            securities, snapshots = fetch_futu_hk_spot(
+                hk_connect_symbols=hk_connect_symbols,
+                hk_connect_source=hk_connect_source,
+                hk_connect_confidence=hk_connect_confidence,
+            )
+        except Exception:
+            securities, snapshots = pd.DataFrame(), pd.DataFrame()
+        if not snapshots.empty:
+            return securities, snapshots
+
+        import akshare as ak
+
+        # OpenD already failed/returned empty above; fall back to AKShare and let
+        # any AKShare failure propagate (a Futu retry here would just be empty again).
         raw, source = _fetch_first_available(
             [
                 ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
@@ -353,6 +411,13 @@ def normalize_hk_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame,
 
 
 def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    try:
+        securities, snapshots = fetch_futu_a_etf_spot()
+    except Exception:
+        securities, snapshots = pd.DataFrame(), pd.DataFrame()
+    if not snapshots.empty:
+        return securities, snapshots
+
     import akshare as ak
 
     raw, source = _fetch_first_available(
@@ -364,8 +429,6 @@ def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
-    import akshare as ak
-
     from ah_screener.sources.futu_client import fetch_futu_hk_etf_spot
 
     # Futu OpenD lists HK ETFs reliably; AKShare's HK ETF spot often returns nothing.
@@ -376,6 +439,8 @@ def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
     if not snapshots.empty:
         return securities, snapshots
 
+    import akshare as ak
+
     raw, source = _fetch_first_available(
         [
             ("akshare.stock_hk_spot_em", ak.stock_hk_spot_em),
@@ -385,7 +450,148 @@ def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
     return normalize_hk_etf_spot(raw, source)
 
 
+def normalize_a_delisted_lifecycle(
+    raw: pd.DataFrame, *, exchange: str, source: str
+) -> pd.DataFrame:
+    if raw.empty:
+        return pd.DataFrame()
+    code_col = "公司代码" if "公司代码" in raw.columns else "证券代码"
+    name_col = "公司简称" if "公司简称" in raw.columns else "证券简称"
+    delist_col = "终止上市日期" if "终止上市日期" in raw.columns else "暂停上市日期"
+    updated_at = _now()
+    frame = pd.DataFrame(
+        {
+            "market": "A",
+            "symbol": _clean_a_symbol(raw[code_col]),
+            "name": raw[name_col].astype(str),
+            "asset_type": "stock",
+            "exchange": exchange,
+            "listing_date": pd.to_datetime(raw.get("上市日期"), errors="coerce").dt.date,
+            "delist_date": pd.to_datetime(raw.get(delist_col), errors="coerce").dt.date,
+            "status": "delisted",
+            "event_type": "delisting",
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+    return frame.dropna(subset=["symbol"]).drop_duplicates(
+        ["market", "symbol", "event_type", "source"]
+    )
+
+
+def fetch_a_delisted_lifecycle() -> pd.DataFrame:
+    import akshare as ak
+
+    frames: list[pd.DataFrame] = []
+    calls = [
+        ("akshare.stock_info_sh_delist", "SSE", ak.stock_info_sh_delist),
+        ("akshare.stock_info_sz_delist", "SZSE", ak.stock_info_sz_delist),
+    ]
+    errors: list[str] = []
+    for source, exchange, func in calls:
+        try:
+            raw = func()
+            if raw is not None and not raw.empty:
+                frames.append(normalize_a_delisted_lifecycle(raw, exchange=exchange, source=source))
+        except Exception as exc:  # noqa: BLE001 - one exchange must not block the other
+            errors.append(f"{source}: {exc}")
+    if frames:
+        return pd.concat(frames, ignore_index=True)
+    if errors:
+        raise RuntimeError("; ".join(errors))
+    return pd.DataFrame()
+
+
+def normalize_hk_delisted_lifecycle(raw: pd.DataFrame, *, source: str) -> pd.DataFrame:
+    if raw.empty:
+        return pd.DataFrame()
+    frame = raw.copy()
+    frame.columns = [
+        " ".join(str(part) for part in column if str(part) != "nan")
+        if isinstance(column, tuple)
+        else str(column)
+        for column in frame.columns
+    ]
+    normalized = {column.lower().strip().replace("_", " "): column for column in frame.columns}
+    code_col = normalized.get("stock code") or normalized.get("code") or frame.columns[0]
+    name_col = normalized.get("stock name") or normalized.get("name") or frame.columns[-1]
+    updated_at = _now()
+
+    symbol = _clean_hk_symbol(frame[code_col])
+    name = frame[name_col].astype(str).str.strip()
+    out = pd.DataFrame(
+        {
+            "market": "HK",
+            "symbol": symbol,
+            "name": name,
+            "asset_type": "stock",
+            "exchange": "HKEX",
+            "listing_date": pd.NaT,
+            "delist_date": pd.NaT,
+            "status": "delisted",
+            "event_type": "delisting",
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+    out = out[out["symbol"].str.fullmatch(r"\d{5}", na=False)]
+    out = out[out["symbol"].ne("00000") & out["name"].ne("")]
+    # HK stock codes can be reused. Keep source row identity stable so lifecycle
+    # rows do not collapse solely by symbol under the existing table key.
+    source_key = (
+        out["symbol"]
+        + ":"
+        + out["name"].str.lower().str.replace(r"[^a-z0-9]+", "-", regex=True).str.strip("-")
+    )
+    out["source"] = source + ":" + source_key
+    return out.drop_duplicates(["market", "symbol", "name", "event_type", "source"])
+
+
+def _parse_hkex_delisted_html(text: str) -> pd.DataFrame:
+    try:
+        tables = pd.read_html(StringIO(text))
+    except ValueError:
+        tables = []
+    for table in tables:
+        cols = " ".join(str(column).lower() for column in table.columns)
+        if "stock code" in cols and "stock name" in cols:
+            return table
+        if not table.empty:
+            first_row = [str(value).lower().strip() for value in table.iloc[0].tolist()]
+            if "stock code" in first_row and "stock name" in first_row:
+                out = table.iloc[1:].copy()
+                out.columns = table.iloc[0].tolist()
+                return out
+
+    rows: list[dict[str, str]] = []
+    for line in text.splitlines():
+        match = re.match(r"^\s*(\d{5})\s+(.+?)\s*$", line)
+        if match:
+            rows.append({"Stock Code": match.group(1), "Stock Name": match.group(2)})
+    return pd.DataFrame(rows)
+
+
+def fetch_hk_delisted_lifecycle() -> pd.DataFrame:
+    response = requests.get(
+        HKEX_DELISTED_STOCKS_URL,
+        headers={"User-Agent": "ah-stock-screener/0.1 research-tool"},
+        timeout=20,
+    )
+    response.raise_for_status()
+    raw = _parse_hkex_delisted_html(response.text)
+    if raw.empty:
+        return pd.DataFrame()
+    return normalize_hk_delisted_lifecycle(raw, source="hkex.di.delisted_stock_list")
+
+
 def fetch_hk_connect_symbols_with_meta() -> tuple[set[str], str, str]:
+    try:
+        symbols, source, confidence = fetch_futu_hk_connect_symbols()
+        if symbols:
+            return symbols, source, confidence
+    except Exception:
+        pass
+
     import akshare as ak
 
     calls = [
@@ -505,20 +711,20 @@ def fetch_history(
     adjust: str = "qfq",
     asset_type: str = "stock",
 ) -> pd.DataFrame:
-    import akshare as ak
-
     is_etf = str(asset_type or "stock").lower() == "etf"
 
-    # HK: prefer local Futu OpenD; fall through to AKShare when unavailable/empty.
-    if market == "HK":
+    # HK/A: prefer local Futu OpenD; fall through to AKShare when unavailable/empty.
+    if market in {"HK", "A"}:
         try:
-            futu_hist = fetch_futu_history("HK", symbol, start_date, end_date, adjust=adjust)
+            futu_hist = fetch_futu_history(market, symbol, start_date, end_date, adjust=adjust)
         except Exception:
             futu_hist = pd.DataFrame()
         if not futu_hist.empty:
             start = pd.to_datetime(start_date)
             end = pd.to_datetime(end_date)
             return futu_hist[(futu_hist["trade_date"] >= start) & (futu_hist["trade_date"] <= end)]
+
+    import akshare as ak
 
     if market == "A" and is_etf:
         # A-share ETFs use the fund history endpoints, not the stock ones.
@@ -594,7 +800,9 @@ def fetch_history(
             ),
         ]
     elif market == "US":
-        return fetch_us_history(symbol=symbol, start_date=start_date, end_date=end_date, adjust=adjust)
+        return fetch_us_history(
+            symbol=symbol, start_date=start_date, end_date=end_date, adjust=adjust
+        )
     else:
         raise ValueError(f"Unsupported market: {market}")
 
@@ -602,7 +810,9 @@ def fetch_history(
     for source, func in calls:
         try:
             raw = func()
-            history = _normalize_history(raw, market=market, symbol=symbol, source=source, adj_type=adjust)
+            history = _normalize_history(
+                raw, market=market, symbol=symbol, source=source, adj_type=adjust
+            )
             if history.empty:
                 raise RuntimeError(f"{source} returned empty history")
             start = pd.to_datetime(start_date)
@@ -611,13 +821,26 @@ def fetch_history(
         except Exception as exc:
             last_error = exc
             sleep(0.3)
-    raise RuntimeError(f"All history sources failed for {market}:{symbol}. Last error: {last_error}")
+    raise RuntimeError(
+        f"All history sources failed for {market}:{symbol}. Last error: {last_error}"
+    )
 
 
 def fetch_benchmark_history(benchmark: str, start_date: str, end_date: str) -> pd.DataFrame:
+    market, symbol = parse_benchmark(benchmark)
+    try:
+        futu_history = fetch_futu_benchmark_history(market, symbol, start_date, end_date)
+    except Exception:
+        futu_history = pd.DataFrame()
+    if not futu_history.empty:
+        start = pd.to_datetime(start_date)
+        end = pd.to_datetime(end_date)
+        return futu_history[
+            (futu_history["trade_date"] >= start) & (futu_history["trade_date"] <= end)
+        ]
+
     import akshare as ak
 
-    market, symbol = parse_benchmark(benchmark)
     if market == "A":
         clean = _clean_benchmark_symbol(market, symbol)
         calls = [
@@ -639,7 +862,10 @@ def fetch_benchmark_history(benchmark: str, start_date: str, end_date: str) -> p
         clean = _clean_benchmark_symbol(market, symbol)
         calls = [
             ("akshare.stock_hk_index_daily_em", lambda: ak.stock_hk_index_daily_em(symbol=clean)),
-            ("akshare.stock_hk_index_daily_sina", lambda: ak.stock_hk_index_daily_sina(symbol=clean)),
+            (
+                "akshare.stock_hk_index_daily_sina",
+                lambda: ak.stock_hk_index_daily_sina(symbol=clean),
+            ),
         ]
     else:
         history = fetch_us_history(symbol=symbol, start_date=start_date, end_date=end_date)
@@ -662,7 +888,9 @@ def fetch_benchmark_history(benchmark: str, start_date: str, end_date: str) -> p
         except Exception as exc:
             last_error = exc
             sleep(0.3)
-    raise RuntimeError(f"All benchmark sources failed for {market}:{symbol}. Last error: {last_error}")
+    raise RuntimeError(
+        f"All benchmark sources failed for {market}:{symbol}. Last error: {last_error}"
+    )
 
 
 def _empty_tags() -> pd.DataFrame:
@@ -778,7 +1006,16 @@ def _fetch_a_board_tags_sina(
     )
 
 
-def fetch_a_board_tags(kind: Literal["industry", "concept"], limit: int | None = None) -> pd.DataFrame:
+def fetch_a_board_tags(
+    kind: Literal["industry", "concept"], limit: int | None = None
+) -> pd.DataFrame:
+    try:
+        futu_tags = fetch_futu_a_board_tags(kind=kind, limit=limit)
+        if not futu_tags.empty:
+            return futu_tags
+    except Exception:
+        pass
+
     try:
         em_tags = _fetch_a_board_tags_em(kind=kind, limit=limit)
         if not em_tags.empty:

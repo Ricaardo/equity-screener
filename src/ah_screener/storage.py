@@ -44,6 +44,40 @@ CREATE TABLE IF NOT EXISTS market_snapshots (
     PRIMARY KEY (market, symbol, trade_date, source)
 );
 
+CREATE TABLE IF NOT EXISTS security_universe_snapshots (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    name VARCHAR,
+    asset_type VARCHAR DEFAULT 'stock',
+    board VARCHAR,
+    exchange VARCHAR,
+    currency VARCHAR,
+    status VARCHAR,
+    is_st BOOLEAN DEFAULT false,
+    is_hk_connect BOOLEAN DEFAULT false,
+    metadata_source VARCHAR,
+    metadata_confidence VARCHAR,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, symbol)
+);
+
+CREATE TABLE IF NOT EXISTS security_lifecycle_events (
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    name VARCHAR,
+    asset_type VARCHAR DEFAULT 'stock',
+    exchange VARCHAR,
+    listing_date DATE,
+    delist_date DATE,
+    status VARCHAR,
+    event_type VARCHAR NOT NULL,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (market, symbol, event_type, source)
+);
+
 CREATE TABLE IF NOT EXISTS daily_prices (
     market VARCHAR NOT NULL,
     symbol VARCHAR NOT NULL,
@@ -369,16 +403,25 @@ class Store:
         if df.empty:
             return 0
 
+        incoming = df.copy()
+        if table == "market_snapshots" and "trade_date" in incoming.columns:
+            incoming["trade_date"] = pd.to_datetime(incoming["trade_date"], errors="coerce").dt.date
+            incoming = incoming.drop_duplicates(
+                ["market", "symbol", "trade_date", "source"], keep="last"
+            )
+
         with self.connect() as conn:
             conn.execute(SCHEMA_SQL)
             conn.execute(MIGRATION_SQL)
-            conn.register("incoming_df", df)
-            columns = list(df.columns)
+            conn.register("incoming_df", incoming)
+            columns = list(incoming.columns)
             column_sql = ", ".join(columns)
             select_sql = ", ".join(f"incoming_df.{column}" for column in columns)
-            conn.execute(f"INSERT OR REPLACE INTO {table} ({column_sql}) SELECT {select_sql} FROM incoming_df")
+            conn.execute(
+                f"INSERT OR REPLACE INTO {table} ({column_sql}) SELECT {select_sql} FROM incoming_df"
+            )
             conn.unregister("incoming_df")
-        return len(df)
+        return len(incoming)
 
     def query_df(self, sql: str, parameters: object | None = None) -> pd.DataFrame:
         if not self.db_path.exists():

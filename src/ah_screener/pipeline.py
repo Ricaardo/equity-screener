@@ -22,15 +22,18 @@ from ah_screener.potential import (
     scan_potential_candidates,
     sweep_potential_thresholds,
     validate_potential_signals,
+    walk_forward_potential_thresholds,
 )
 from ah_screener.selection import validate_etf_clusters
 from ah_screener.reporting import generate_report
 from ah_screener.sources.akshare_client import (
     DEFAULT_BENCHMARKS,
     fetch_a_board_tags,
+    fetch_a_delisted_lifecycle,
     fetch_a_etf_spot,
     fetch_benchmark_history,
     fetch_history,
+    fetch_hk_delisted_lifecycle,
     fetch_hk_etf_spot,
     fetch_spot,
     parse_benchmark,
@@ -39,7 +42,11 @@ from ah_screener.sources.hkexnews_client import (
     download_hkex_announcements,
     fetch_hkex_announcements,
 )
-from ah_screener.sources.us_client import fetch_us_spot, fetch_us_spot_batch
+from ah_screener.sources.us_client import (
+    fetch_us_delisted_lifecycle,
+    fetch_us_spot,
+    fetch_us_spot_batch,
+)
 from ah_screener.storage import Store
 from ah_screener.technical import compute_technical_indicators
 from ah_screener.universe import ETFS, STOCKS, AssetClass, select_assets
@@ -60,6 +67,98 @@ def init_db() -> None:
     get_store().init_db()
 
 
+def sync_delisted_universe() -> dict[str, int | str]:
+    store = get_store()
+    store.init_db()
+    result: dict[str, int | str] = {}
+    frames: list[pd.DataFrame] = []
+    sources = [
+        ("A", fetch_a_delisted_lifecycle),
+        ("HK", fetch_hk_delisted_lifecycle),
+        ("US", fetch_us_delisted_lifecycle),
+    ]
+    for market, fetch in sources:
+        try:
+            lifecycle = fetch()
+        except Exception as exc:  # noqa: BLE001 - lifecycle data is bias metadata, not a refresh blocker
+            result[f"{market}_lifecycle_failed"] = 1
+            result[f"{market}_lifecycle_error"] = str(exc)[:200]
+            continue
+        result[f"{market}_lifecycle_rows"] = len(lifecycle)
+        if not lifecycle.empty:
+            frames.append(lifecycle)
+    lifecycle = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    result["security_lifecycle_events"] = store.upsert_dataframe(
+        "security_lifecycle_events", lifecycle
+    )
+    return result
+
+
+def _persist_security_universe_snapshot(
+    store: Store, securities: pd.DataFrame, snapshots: pd.DataFrame, source: str
+) -> int:
+    if snapshots.empty:
+        return 0
+    base = snapshots.copy()
+    for column, default in [("name", pd.NA), ("asset_type", "stock"), ("board", pd.NA)]:
+        if column not in base.columns:
+            base[column] = default
+    base["snapshot_date"] = pd.Timestamp(datetime.now()).date()
+    base = base[["snapshot_date", "market", "symbol", "name", "asset_type", "board"]]
+
+    meta_columns = [
+        "market",
+        "symbol",
+        "name",
+        "asset_type",
+        "board",
+        "exchange",
+        "currency",
+        "status",
+        "is_st",
+        "is_hk_connect",
+        "metadata_source",
+        "metadata_confidence",
+    ]
+    meta = securities.copy()
+    for column in meta_columns:
+        if column not in meta.columns:
+            meta[column] = pd.NA
+    meta = meta[meta_columns].drop_duplicates(["market", "symbol"], keep="last")
+
+    out = base.merge(meta, on=["market", "symbol"], how="left", suffixes=("_snapshot", ""))
+    for column in ["name", "asset_type", "board"]:
+        out[column] = out[column].combine_first(out[f"{column}_snapshot"])
+    out["asset_type"] = out["asset_type"].fillna("stock")
+    out["is_st"] = out["is_st"].map(lambda value: False if pd.isna(value) else bool(value))
+    out["is_hk_connect"] = out["is_hk_connect"].map(
+        lambda value: False if pd.isna(value) else bool(value)
+    )
+    out["source"] = source
+    out["updated_at"] = pd.Timestamp(datetime.now())
+    columns = [
+        "snapshot_date",
+        "market",
+        "symbol",
+        "name",
+        "asset_type",
+        "board",
+        "exchange",
+        "currency",
+        "status",
+        "is_st",
+        "is_hk_connect",
+        "metadata_source",
+        "metadata_confidence",
+        "source",
+        "updated_at",
+    ]
+    return store.upsert_dataframe(
+        "security_universe_snapshots",
+        out[columns].drop_duplicates(["snapshot_date", "market", "symbol"], keep="last"),
+    )
+
+
 def sync_spot(market: MarketArg) -> dict[str, int]:
     store = get_store()
     store.init_db()
@@ -72,6 +171,9 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
             securities, snapshots = fetch()
             result[f"{label}_securities"] = store.upsert_dataframe("securities", securities)
             result[f"{label}_snapshots"] = store.upsert_dataframe("market_snapshots", snapshots)
+            result[f"{label}_universe_snapshots"] = _persist_security_universe_snapshot(
+                store, securities, snapshots, source=label
+            )
         except Exception as exc:  # noqa: BLE001 - record and continue across markets
             result[f"{label}_failed"] = 1
             result[f"{label}_error"] = str(exc)[:200]
@@ -95,6 +197,9 @@ def sync_us_spot(symbols: list[str], lookback_days: int = 14) -> dict[str, int]:
     return {
         "US_securities": store.upsert_dataframe("securities", securities),
         "US_snapshots": store.upsert_dataframe("market_snapshots", snapshots),
+        "US_universe_snapshots": _persist_security_universe_snapshot(
+            store, securities, snapshots, source="US"
+        ),
     }
 
 
@@ -118,6 +223,9 @@ def sync_us_spot_batch(
     return {
         "US_securities": store.upsert_dataframe("securities", securities),
         "US_snapshots": store.upsert_dataframe("market_snapshots", snapshots),
+        "US_universe_snapshots": _persist_security_universe_snapshot(
+            store, securities, snapshots, source="US_batch"
+        ),
         "US_batch_offset": offset,
         "US_batch_limit": limit,
     }
@@ -131,12 +239,17 @@ def classify_existing_securities() -> dict[str, int]:
         return {"securities": 0, "snapshots": 0}
     enriched = enrich_security_metadata(securities)
     security_rows = store.upsert_dataframe("securities", enriched)
-    snapshot_count = int(store.query_df("SELECT COUNT(*) AS count FROM market_snapshots")["count"].iloc[0])
+    snapshot_count = int(
+        store.query_df("SELECT COUNT(*) AS count FROM market_snapshots")["count"].iloc[0]
+    )
     return {"securities": security_rows, "snapshots": snapshot_count}
 
 
 def sync_a_tags(
-    kind: Literal["industry", "concept"], limit: int | None, force: bool = False, max_age_days: int = 7
+    kind: Literal["industry", "concept"],
+    limit: int | None,
+    force: bool = False,
+    max_age_days: int = 7,
 ) -> int:
     """Sync A-share board membership; skip if already refreshed within max_age_days.
 
@@ -149,7 +262,11 @@ def sync_a_tags(
         existing = store.query_df(
             "SELECT MAX(updated_at) AS last FROM company_tags WHERE tag_type = ?", [kind]
         )
-        last = pd.to_datetime(existing["last"].iloc[0], errors="coerce") if not existing.empty else pd.NaT
+        last = (
+            pd.to_datetime(existing["last"].iloc[0], errors="coerce")
+            if not existing.empty
+            else pd.NaT
+        )
         if pd.notna(last) and last >= pd.Timestamp.now() - pd.Timedelta(days=max_age_days):
             return 0
     tags = fetch_a_board_tags(kind=kind, limit=limit)
@@ -173,15 +290,23 @@ def _prepare_custom_tags(tags: pd.DataFrame, source: str) -> pd.DataFrame:
     frame = tags.copy()
     frame["market"] = frame["market"].astype(str).str.upper().str.strip()
     frame = frame[frame["market"].isin(["A", "HK", "US"])]
-    frame["symbol"] = frame.apply(lambda row: _normalize_tag_symbol(str(row["market"]), row["symbol"]), axis=1)
+    frame["symbol"] = frame.apply(
+        lambda row: _normalize_tag_symbol(str(row["market"]), row["symbol"]), axis=1
+    )
     frame["tag_name"] = frame["tag_name"].astype(str).str.strip()
     frame["tag_type"] = (
-        frame["tag_type"].astype(str).str.lower().str.strip() if "tag_type" in frame.columns else "theme"
+        frame["tag_type"].astype(str).str.lower().str.strip()
+        if "tag_type" in frame.columns
+        else "theme"
     )
     frame["evidence_level"] = (
-        frame["evidence_level"].astype(str).str.upper().str.strip() if "evidence_level" in frame.columns else "B"
+        frame["evidence_level"].astype(str).str.upper().str.strip()
+        if "evidence_level" in frame.columns
+        else "B"
     )
-    frame["source"] = frame["source"].astype(str).str.strip() if "source" in frame.columns else source
+    frame["source"] = (
+        frame["source"].astype(str).str.strip() if "source" in frame.columns else source
+    )
     frame["source"] = frame["source"].replace("", source)
     frame["updated_at"] = pd.Timestamp(datetime.now())
     frame = frame[frame["tag_name"].ne("")]
@@ -206,7 +331,13 @@ def import_industry_mapping(path: Path, source: str = "industry_mapping_csv") ->
         raise FileNotFoundError(path)
     frame = pd.read_csv(path)
     if "tag_name" not in frame.columns:
-        for column in ["detailed_industry", "industry", "industry_peer_group", "sub_industry", "sector"]:
+        for column in [
+            "detailed_industry",
+            "industry",
+            "industry_peer_group",
+            "sub_industry",
+            "sector",
+        ]:
             if column in frame.columns:
                 frame = frame.rename(columns={column: "tag_name"})
                 break
@@ -249,9 +380,7 @@ def _identity_mapping_frame(store: Store) -> pd.DataFrame:
     return mappings.drop_duplicates(["market", "symbol"], keep="first")
 
 
-def _latest_snapshots(
-    store: Store, asset_classes: tuple[AssetClass, ...] = STOCKS
-) -> pd.DataFrame:
+def _latest_snapshots(store: Store, asset_classes: tuple[AssetClass, ...] = STOCKS) -> pd.DataFrame:
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     if snapshots.empty:
         return snapshots
@@ -281,7 +410,9 @@ def sync_history(
     asset_classes = (*STOCKS, *ETFS) if include_etf else STOCKS
     latest = _latest_snapshots(store, asset_classes=asset_classes)
     if latest.empty:
-        raise RuntimeError("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
+        raise RuntimeError(
+            "No market snapshots found. Run `ah-screener sync-spot --market all` first."
+        )
     if "asset_type" not in latest.columns:
         latest = latest.assign(asset_type="stock")
 
@@ -305,12 +436,20 @@ def sync_history(
             amount_num=lambda df: pd.to_numeric(df["amount"], errors="coerce").fillna(0),
             asset_type=lambda df: df["asset_type"].fillna("stock"),
         )
-        target = pd.to_datetime(pool["trade_date"], errors="coerce").max()  # latest synced market date
+        target = pd.to_datetime(
+            pool["trade_date"], errors="coerce"
+        ).max()  # latest synced market date
         # Take top stocks and top ETFs separately, so high-turnover ETFs do not
         # crowd stocks out of a single combined ranking.
-        stocks = pool[pool["asset_type"].eq("stock")].sort_values("amount_num", ascending=False).head(top)
+        stocks = (
+            pool[pool["asset_type"].eq("stock")]
+            .sort_values("amount_num", ascending=False)
+            .head(top)
+        )
         etfs = (
-            pool[pool["asset_type"].eq("etf")].sort_values("amount_num", ascending=False).head(etf_top)
+            pool[pool["asset_type"].eq("etf")]
+            .sort_values("amount_num", ascending=False)
+            .head(etf_top)
             if include_etf
             else pool.iloc[0:0]
         )
@@ -321,11 +460,19 @@ def sync_history(
         for row in universe.itertuples(index=False):
             symbol = str(row.symbol)
             nm_max = cov_map.get((item, symbol))
-            if not full and nm_max is not None and pd.notna(nm_max) and pd.notna(target) and nm_max >= target:
+            if (
+                not full
+                and nm_max is not None
+                and pd.notna(nm_max)
+                and pd.notna(target)
+                and nm_max >= target
+            ):
                 skipped += 1  # already current through the latest market date
                 continue
             if not full and nm_max is not None and pd.notna(nm_max):
-                start = (nm_max - pd.Timedelta(days=7)).strftime("%Y%m%d")  # gap + adjustment buffer
+                start = (nm_max - pd.Timedelta(days=7)).strftime(
+                    "%Y%m%d"
+                )  # gap + adjustment buffer
             else:
                 start = full_start
             try:
@@ -454,7 +601,9 @@ def sync_fundamentals(
     store.init_db()
     latest = _latest_snapshots(store)
     if latest.empty:
-        raise RuntimeError("No market snapshots found. Run `ah-screener sync-spot --market all` first.")
+        raise RuntimeError(
+            "No market snapshots found. Run `ah-screener sync-spot --market all` first."
+        )
 
     markets = ["A", "HK", "US"] if market == "all" else [market]
     snapshot_date = latest["trade_date"].max()
@@ -484,7 +633,11 @@ def sync_fundamentals(
         statement_rows = metric_rows = fetched = carried = failed = 0
         for symbol in universe["symbol"].astype(str):
             prev = prev_latest.get(symbol)
-            fresh = prev is not None and pd.notna(prev.get("updated_at")) and prev["updated_at"] >= cutoff
+            fresh = (
+                prev is not None
+                and pd.notna(prev.get("updated_at"))
+                and prev["updated_at"] >= cutoff
+            )
             if fresh and not force:
                 row = prev.to_dict()
                 row["snapshot_date"] = snapshot_date
@@ -530,7 +683,9 @@ def fundamentals_status(top: int = 120) -> pd.DataFrame:
     status["statement_items"] = status["statement_items"].fillna(0).astype(int)
     status["target"] = top
     status["remaining_estimate"] = (status["target"] - status["metric_rows"]).clip(lower=0)
-    status["progress_pct"] = (status["metric_rows"] / status["target"] * 100).clip(upper=100).round(1)
+    status["progress_pct"] = (
+        (status["metric_rows"] / status["target"] * 100).clip(upper=100).round(1)
+    )
     return status[
         ["market", "metric_rows", "target", "remaining_estimate", "progress_pct", "statement_items"]
     ]
@@ -564,7 +719,9 @@ def coverage_status() -> pd.DataFrame:
 
     snapshots = snapshots.copy()
     snapshots["trade_date"] = pd.to_datetime(snapshots["trade_date"], errors="coerce")
-    snapshots = snapshots.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
+    snapshots = snapshots.sort_values("trade_date").drop_duplicates(
+        ["market", "symbol"], keep="last"
+    )
     securities = store.query_df("SELECT * FROM securities")
     if not securities.empty:
         securities = enrich_security_metadata(securities)
@@ -573,9 +730,13 @@ def coverage_status() -> pd.DataFrame:
             for column in ["asset_type", "board", "exchange", "status", "is_st", "is_hk_connect"]
             if column in securities.columns
         ]
-        snapshots = snapshots.drop(columns=[column for column in metadata_columns if column in snapshots.columns])
+        snapshots = snapshots.drop(
+            columns=[column for column in metadata_columns if column in snapshots.columns]
+        )
         snapshots = snapshots.merge(
-            securities[["market", "symbol", *metadata_columns]].drop_duplicates(["market", "symbol"]),
+            securities[["market", "symbol", *metadata_columns]].drop_duplicates(
+                ["market", "symbol"]
+            ),
             on=["market", "symbol"],
             how="left",
         )
@@ -619,8 +780,10 @@ def coverage_status() -> pd.DataFrame:
     )
     for prefix in ["technical", "fundamental", "expert"]:
         status[f"{prefix}_pct"] = (
-            status[f"{prefix}_covered"] / status["universe"].replace(0, pd.NA) * 100
-        ).fillna(0).round(1)
+            (status[f"{prefix}_covered"] / status["universe"].replace(0, pd.NA) * 100)
+            .fillna(0)
+            .round(1)
+        )
 
     return status[
         [
@@ -673,7 +836,10 @@ def compute_industry_valuation_stats() -> int:
             pe_median=("pe_ttm", "median"),
             pb_median=("pb", "median"),
             valuation_percentile_median=("valuation_percentile", "median"),
-            valuation_percentile_top_quartile=("valuation_percentile", lambda value: value.quantile(0.75)),
+            valuation_percentile_top_quartile=(
+                "valuation_percentile",
+                lambda value: value.quantile(0.75),
+            ),
         )
         .reset_index()
     )
@@ -771,6 +937,12 @@ def run_potential_threshold_sweep() -> pd.DataFrame:
     store = get_store()
     prices = store.query_df("SELECT * FROM daily_prices")
     return sweep_potential_thresholds(prices)
+
+
+def run_potential_walk_forward() -> pd.DataFrame:
+    store = get_store()
+    prices = store.query_df("SELECT * FROM daily_prices")
+    return walk_forward_potential_thresholds(prices)
 
 
 def run_potential_scan(top: int = 80) -> dict[str, int]:
@@ -872,7 +1044,9 @@ def candidate_changes() -> pd.DataFrame:
         indicator=True,
         suffixes=("", "_previous"),
     )
-    merged["status"] = merged["_merge"].map({"left_only": "new", "right_only": "removed", "both": "kept"})
+    merged["status"] = merged["_merge"].map(
+        {"left_only": "new", "right_only": "removed", "both": "kept"}
+    )
     merged["latest_score"] = pd.to_numeric(merged.get("expert_score"), errors="coerce")
     merged["previous_score"] = pd.to_numeric(merged.get("previous_score"), errors="coerce")
     merged["score_delta"] = (merged["latest_score"] - merged["previous_score"]).round(1)
@@ -942,6 +1116,7 @@ def run_full_update(
         except Exception as exc:  # noqa: BLE001
             result[name] = {"failed": str(exc)[:200]}
 
+    _step("delisted_universe", sync_delisted_universe)
     _step("sync_spot", lambda: sync_spot("all"))
     if industry_limit is not None:
         _step("a_industry_tags", lambda: sync_a_tags("industry", limit=industry_limit))

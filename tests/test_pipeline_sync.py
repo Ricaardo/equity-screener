@@ -11,12 +11,32 @@ from ah_screener.storage import Store
 
 
 def _sec(market: str) -> pd.DataFrame:
-    return pd.DataFrame([{"market": market, "symbol": "X1", "name": f"{market} name"}])
+    return pd.DataFrame(
+        [
+            {
+                "market": market,
+                "symbol": "X1",
+                "name": f"{market} name",
+                "asset_type": "stock",
+                "board": "test-board",
+                "status": "active",
+                "is_st": False,
+            }
+        ]
+    )
 
 
 def _snap(market: str) -> pd.DataFrame:
     return pd.DataFrame(
-        [{"market": market, "symbol": "X1", "trade_date": "2026-05-23", "source": "test", "name": "n"}]
+        [
+            {
+                "market": market,
+                "symbol": "X1",
+                "trade_date": "2026-05-23",
+                "source": "test",
+                "name": "n",
+            }
+        ]
     )
 
 
@@ -57,6 +77,32 @@ class SyncSpotResilienceTest(TestCase):
         self.assertIn("transient", result.get("HK_error", ""))
         self.assertEqual(result.get("A_snapshots"), 1)
         self.assertEqual(result.get("US_snapshots"), 1)
+        self.assertEqual(result.get("A_universe_snapshots"), 1)
+        self.assertEqual(result.get("US_universe_snapshots"), 1)
+
+    def test_sync_spot_records_dateized_universe_snapshot(self) -> None:
+        originals = (pipeline.fetch_spot, pipeline.fetch_a_etf_spot, pipeline.get_store)
+        with TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "t.duckdb")
+            store.init_db()
+
+            def fake_fetch_spot(market):
+                return _sec(market), _snap(market)
+
+            pipeline.fetch_spot = fake_fetch_spot
+            pipeline.fetch_a_etf_spot = lambda: (pd.DataFrame(), pd.DataFrame())
+            pipeline.get_store = lambda: store
+            try:
+                result = pipeline.sync_spot("A")
+                rows = store.query_df("SELECT * FROM security_universe_snapshots")
+            finally:
+                pipeline.fetch_spot, pipeline.fetch_a_etf_spot, pipeline.get_store = originals
+
+        self.assertEqual(result.get("A_universe_snapshots"), 1)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows.iloc[0]["snapshot_date"].date(), pd.Timestamp.now().date())
+        self.assertEqual(rows.iloc[0]["status"], "active")
+        self.assertEqual(rows.iloc[0]["board"], "test-board")
 
     def test_sync_fundamentals_carries_forward_fresh(self) -> None:
         originals = (pipeline.fetch_fundamentals, pipeline.get_store)
@@ -66,14 +112,35 @@ class SyncSpotResilienceTest(TestCase):
             # Current spot at a new date; a fresh prior fundamentals row at an older date.
             store.upsert_dataframe(
                 "market_snapshots",
-                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
-                               "asset_type": "stock", "amount": 1e9, "source": "t", "name": "n"}]),
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "600000",
+                            "trade_date": "2026-05-23",
+                            "asset_type": "stock",
+                            "amount": 1e9,
+                            "source": "t",
+                            "name": "n",
+                        }
+                    ]
+                ),
             )
             store.upsert_dataframe(
                 "financial_metrics",
-                pd.DataFrame([{"market": "A", "symbol": "600000", "snapshot_date": "2026-02-01",
-                               "report_date": "2025-12-31", "name": "n", "roe": 12.0,
-                               "updated_at": pd.Timestamp.now()}]),
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "600000",
+                            "snapshot_date": "2026-02-01",
+                            "report_date": "2025-12-31",
+                            "name": "n",
+                            "roe": 12.0,
+                            "updated_at": pd.Timestamp.now(),
+                        }
+                    ]
+                ),
             )
 
             def boom(*a, **k):
@@ -101,13 +168,34 @@ class SyncSpotResilienceTest(TestCase):
             store.init_db()
             store.upsert_dataframe(
                 "market_snapshots",
-                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
-                               "asset_type": "stock", "amount": 1e9, "source": "t", "name": "n"}]),
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "600000",
+                            "trade_date": "2026-05-23",
+                            "asset_type": "stock",
+                            "amount": 1e9,
+                            "source": "t",
+                            "name": "n",
+                        }
+                    ]
+                ),
             )
             store.upsert_dataframe(
                 "daily_prices",
-                pd.DataFrame([{"market": "A", "symbol": "600000", "trade_date": "2026-05-23",
-                               "close": 10.0, "adj_type": "qfq", "source": "t"}]),
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "600000",
+                            "trade_date": "2026-05-23",
+                            "close": 10.0,
+                            "adj_type": "qfq",
+                            "source": "t",
+                        }
+                    ]
+                ),
             )
 
             def boom(*a, **k):
@@ -126,9 +214,18 @@ class SyncSpotResilienceTest(TestCase):
     def test_run_full_update_continues_when_a_step_fails(self) -> None:
         # A flaky step (e.g. board tags) must not abort the refresh — later steps still run.
         names = [
-            "sync_spot", "sync_a_tags", "sync_curated_theme_tags", "sync_identity_mappings",
-            "sync_history", "sync_benchmarks", "run_technical_indicators", "sync_fundamentals",
-            "run_expert_scores", "compute_industry_valuation_stats", "run_potential_scan",
+            "sync_delisted_universe",
+            "sync_spot",
+            "sync_a_tags",
+            "sync_curated_theme_tags",
+            "sync_identity_mappings",
+            "sync_history",
+            "sync_benchmarks",
+            "run_technical_indicators",
+            "sync_fundamentals",
+            "run_expert_scores",
+            "compute_industry_valuation_stats",
+            "run_potential_scan",
             "generate_report",
         ]
         originals = {n: getattr(pipeline, n) for n in names}
@@ -148,6 +245,87 @@ class SyncSpotResilienceTest(TestCase):
         self.assertIn("failed", result["a_industry_tags"])
         self.assertIn("report", result)  # downstream step still ran despite the tags failure
         self.assertIn("expert_scores", result)
+
+    def test_sync_delisted_universe_persists_lifecycle_events(self) -> None:
+        originals = (
+            pipeline.fetch_a_delisted_lifecycle,
+            pipeline.fetch_hk_delisted_lifecycle,
+            pipeline.fetch_us_delisted_lifecycle,
+            pipeline.get_store,
+        )
+        with TemporaryDirectory() as tmp:
+            store = Store(Path(tmp) / "t.duckdb")
+            store.init_db()
+            pipeline.fetch_a_delisted_lifecycle = lambda: pd.DataFrame(
+                [
+                    {
+                        "market": "A",
+                        "symbol": "600001",
+                        "name": "退市样本",
+                        "asset_type": "stock",
+                        "exchange": "SSE",
+                        "listing_date": "1998-01-22",
+                        "delist_date": "2009-12-29",
+                        "status": "delisted",
+                        "event_type": "delisting",
+                        "source": "test",
+                        "updated_at": pd.Timestamp.now(),
+                    }
+                ]
+            )
+            pipeline.fetch_hk_delisted_lifecycle = lambda: pd.DataFrame(
+                [
+                    {
+                        "market": "HK",
+                        "symbol": "00067",
+                        "name": "HK Delisted",
+                        "asset_type": "stock",
+                        "exchange": "HKEX",
+                        "listing_date": pd.NaT,
+                        "delist_date": pd.NaT,
+                        "status": "delisted",
+                        "event_type": "delisting",
+                        "source": "test_hk",
+                        "updated_at": pd.Timestamp.now(),
+                    }
+                ]
+            )
+            pipeline.fetch_us_delisted_lifecycle = lambda: pd.DataFrame(
+                [
+                    {
+                        "market": "US",
+                        "symbol": "OLD",
+                        "name": "Old Co",
+                        "asset_type": "stock",
+                        "exchange": "NYSE",
+                        "listing_date": "2001-01-01",
+                        "delist_date": "2020-01-01",
+                        "status": "delisted",
+                        "event_type": "delisting",
+                        "source": "test_us",
+                        "updated_at": pd.Timestamp.now(),
+                    }
+                ]
+            )
+            pipeline.get_store = lambda: store
+            try:
+                result = pipeline.sync_delisted_universe()
+                rows = store.query_df("SELECT * FROM security_lifecycle_events")
+            finally:
+                (
+                    pipeline.fetch_a_delisted_lifecycle,
+                    pipeline.fetch_hk_delisted_lifecycle,
+                    pipeline.fetch_us_delisted_lifecycle,
+                    pipeline.get_store,
+                ) = originals
+
+        self.assertEqual(result.get("A_lifecycle_rows"), 1)
+        self.assertEqual(result.get("HK_lifecycle_rows"), 1)
+        self.assertEqual(result.get("US_lifecycle_rows"), 1)
+        self.assertEqual(result.get("security_lifecycle_events"), 3)
+        self.assertEqual(len(rows), 3)
+        self.assertEqual(set(rows["market"]), {"A", "HK", "US"})
+        self.assertTrue(rows["status"].eq("delisted").all())
 
     def test_sync_spot_single_market_still_raises(self) -> None:
         originals = (pipeline.fetch_spot, pipeline.get_store)
@@ -175,9 +353,19 @@ class SyncTagsIncrementalTest(TestCase):
             store.init_db()
             store.upsert_dataframe(
                 "company_tags",
-                pd.DataFrame([{"market": "A", "symbol": "600000", "tag_type": "industry",
-                               "tag_name": "银行", "evidence_level": "A", "source": "test",
-                               "updated_at": pd.Timestamp.now()}]),
+                pd.DataFrame(
+                    [
+                        {
+                            "market": "A",
+                            "symbol": "600000",
+                            "tag_type": "industry",
+                            "tag_name": "银行",
+                            "evidence_level": "A",
+                            "source": "test",
+                            "updated_at": pd.Timestamp.now(),
+                        }
+                    ]
+                ),
             )
 
             def boom(*a, **k):

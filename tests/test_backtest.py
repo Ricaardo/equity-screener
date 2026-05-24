@@ -180,11 +180,17 @@ class BacktestTest(TestCase):
                     slippage_bps=0,
                     include_replay=False,
                 )
+                default = pipeline.backtest_refined_candidates(
+                    rebalance="snapshot",
+                    fee_bps=0,
+                    slippage_bps=0,
+                )
             finally:
                 pipeline.get_store = original_get_store
 
         self.assertEqual(with_replay["signal_date"].astype(str).tolist(), ["2026-01-01", "2026-04-01"])
         self.assertEqual(natural_only["signal_date"].astype(str).tolist(), ["2026-04-01"])
+        self.assertEqual(default["signal_date"].astype(str).tolist(), ["2026-04-01"])
 
     def test_backfills_historical_refined_snapshots_from_real_prices(self) -> None:
         with TemporaryDirectory() as temp_dir:

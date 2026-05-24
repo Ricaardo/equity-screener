@@ -1,16 +1,17 @@
 # A/H/US Stock Screener
 
-本项目是一个面向个人投资者的 A 股 + 港股 + 美股免费数据筛选工具。第一版以 AKShare、Nasdaq Trader、SEC EDGAR 等免费/公开数据入口为主，使用 DuckDB 做本地缓存，提供 CLI 和 Streamlit 看板。
+本项目是一个面向个人投资者的 A 股 + 港股 + 美股免费数据筛选工具。行情和证券主数据优先使用本地 Futu OpenD（可选），连不上或 OpenD 不覆盖的字段自动回退到 AKShare、Nasdaq Trader、SEC EDGAR、HKEX 等免费/公开入口；数据使用 DuckDB 做本地缓存，提供 CLI 和 Streamlit 看板。
 
 完整技术方案见 [docs/technical-solution.md](docs/technical-solution.md)。
+部署和定时任务操作见 [docs/deployment.md](docs/deployment.md)。
 
 ## 功能
 
-- 同步 A 股、港股、美股和 A 股 ETF 市场快照。
+- 同步 A 股、港股、美股和 A/H/US ETF 市场快照。
 - 建立统一证券主数据表，并细分主板、创业板、科创板、北交所、港股通、美股交易所、ST/退市风险和 ETF。
 - 同步 A 股行业和概念标签，支持可编辑 CSV 细分行业映射。
 - 支持内置策展主题标签、自建 CSV 标签、HKEXnews 自动公告下载和官方 PDF/公告解析标签导入，补足港股免费概念数据不足。
-- 基于估值、流动性、主题和风险做可解释评分。
+- 基于估值、流动性、基本面、技术面和风险做可解释评分；主题只用于上下文、标签解释和分桶，不直接抬高综合分。
 - 接入财报三表、ROE、现金流、负债率等完整基本面字段。
 - 基本面分纳入多期收入/利润 CAGR、ROE 均值、稳定性、研发费用率和资本开支效率。
 - 专家模型加入细分行业、行业/同类估值分位数和行业化基本面阈值，降低跨行业直接比较的偏差。
@@ -18,7 +19,7 @@
 - 按主题、相似标的和 A/H/US 同主体去重提炼，每个方向只保留最好几个候选。
 - 对 ETF 做分类、工具评分和观察建议。
 - 提供全市场覆盖率、候选变化和带成本/滑点/行业分散约束的等权回测命令。
-- 区分自然生成候选快照和历史回放快照，严格点时回测可用 `--natural-only` 排除回放数据。
+- 区分自然生成候选快照和历史回放快照，回测默认排除回放数据，历史回放需显式 `--include-replay`。
 - 输出候选池、观察池、剔除池和提炼候选池。
 - 提供本地 Streamlit 研究台，支持按市场、类型、板块、港股通和 ST 状态筛选。
 - 生成 Markdown 研究报告。
@@ -69,8 +70,9 @@ uv run ah-screener sync-a-tags --kind industry --limit 30
 uv run ah-screener sync-a-tags --kind concept --limit 50
 uv run ah-screener sync-curated-tags
 uv run ah-screener sync-identity-mappings
-uv run ah-screener score
-uv run ah-screener export --top 100
+uv run ah-screener sync-delisted-universe
+uv run ah-screener expert-score
+uv run ah-screener refined-export --top 100
 uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
 ```
 
@@ -82,7 +84,7 @@ uv run ah-screener sync-spot --market ETF
 
 ## 专家筛选
 
-系统内置 `china_masters_fundamental_theme_technical_v2`，综合中国投资大师框架、完整基本面、热门主题和技术指标，不需要用户手动设定评分。
+系统内置 `china_masters_fundamental_theme_technical_v2`，综合中国投资大师框架、完整基本面和技术指标；热门主题用于解释、分桶和行业化理解，不直接作为综合分权重。
 
 ```bash
 ah-screener sync-history --market all --top 120 --lookback-days 430
@@ -105,7 +107,8 @@ uv run ah-screener etf-export --raw --top 100
 ah-screener sync-benchmarks --lookback-days 430
 ah-screener backfill-refined-snapshots --min-snapshots 6 --rebalance quarterly
 ah-screener backtest --rebalance quarterly --industry-neutral --fee-bps 5 --slippage-bps 10 --benchmark A:000300
-ah-screener backtest --rebalance quarterly --natural-only
+ah-screener backtest --include-replay --rebalance quarterly
+ah-screener potential-walk-forward
 ```
 
 结果会落库到：
@@ -118,22 +121,27 @@ financial_metrics
 expert_screening_results
 industry_valuation_stats
 company_identity_mappings
+security_lifecycle_events
 company_documents
 document_extractions
 refined_candidates
+potential_candidates
 ```
 
 `refined_candidates` 会按主题桶、风格桶和 A/H/US 同主体去重：同一主题默认最多 3 只，同一风格优先最多 2 只，A/H/US 多地上市或同名主体只保留专家分最高的一只。
 
-`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股和港股 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分；默认按同指数或同赛道合并，只输出每组最优候选，使用 `--raw` 可查看未合并明细。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放候选快照；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`，严格点时回测使用 `--natural-only` 排除。
+`coverage-status` 会按市场、资产类型和板块展示全市场覆盖率，包括技术指标、基本面和专家评分覆盖。`etf-export` 会对 A 股和港股 ETF 做宽基、行业、主题、跨境、债券、商品和货币分类，并按流动性、规模和动量给出工具型评分；默认按同指数或同赛道合并，只输出每组最优候选，使用 `--raw` 可查看未合并明细。`candidate-changes` 和 `backtest` 会在积累多日快照后输出候选变化和等权回测，回测支持 snapshot/monthly/quarterly 调仓、手续费、滑点、行业分散约束和 A/H/US 免费基准对比。只有一个真实候选快照时，可先用 `backfill-refined-snapshots` 基于已存真实日线生成历史回放候选快照；回放快照会写入 `snapshot_source = historical_replay` 和 `is_replay = true`。当前 `backtest` 默认排除历史回放，只使用自然快照；如需诊断历史回放，必须显式传 `--include-replay`，且不能把该收益当作实盘 edge 证明。RS 阈值扫描使用 `potential-sweep` 查看 in-sample 参数敏感度，使用 `potential-walk-forward` 做样本外阈值验证。
 
-## 免费数据源
+## 数据源策略
 
-- A 股/港股行情、板块、财务：AKShare 免费接口。
-- 美股证券目录：Nasdaq Trader symbol directory。
-- 美股历史行情：本地 Futu OpenD 优先（可选依赖 `futu-api`，连不上自动回退），其次 AKShare `stock_us_daily`。（Stooq 已移除——其免费 CSV 端点现需人工 captcha 获取的 apikey，无法自动化。）
+- 本地 Futu OpenD 优先（可选依赖 `futu-api`）：A/H/US 股票和 ETF 主数据、快照、历史 K 线，A 股行业/概念板块，港股通成份，A/H/US 基准指数。
+- OpenD 不可用或不覆盖时自动回退：A 股北交所现货用 AKShare 补齐；A/H 财务、退市生命周期、公告文本和 US 基本面继续使用对应公开源。
+- 美股证券目录：OpenD 优先；不可用时回退 Nasdaq Trader symbol directory。
+- 美股历史行情：OpenD 优先，其次 AKShare `stock_us_daily`。（Stooq 已移除，因其免费 CSV 端点现需人工 captcha 获取 apikey，无法自动化。）
 - 美股基本面：SEC EDGAR Company Facts。
-- 美股批量扩展：`sync-us-batch` 按 Nasdaq Trader 全量列表分页同步，免费源限流时调小 `--limit`。
+- A/H 财务：AKShare 东方财富财务接口。
+- 退市/摘牌生命周期：A 股用 AKShare 上交所/深交所退市记录，港股用 HKEX 官方 Delisted companies 名单，美股用 Alpha Vantage `LISTING_STATUS state=delisted`（需设置 `AH_SCREENER_ALPHA_VANTAGE_KEY`，未设置时自动跳过 US lifecycle，不中断刷新）。
+- 美股批量扩展：`sync-us-batch` 按证券目录分页同步，免费源限流时调小 `--limit`。
 - 港股主题增强：`sync-hkex-documents` 自动搜索 HKEXnews、下载 PDF 并抽取业务结构、研发投入、客户集中度、审计意见、风险提示、股本动作、延迟刊发财报和主题标签；本地 PDF 仍可用 `ingest-document` 导入。
 
 ## 报告

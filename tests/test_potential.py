@@ -10,6 +10,7 @@ from ah_screener.potential import (
     scan_potential_candidates,
     sweep_potential_thresholds,
     validate_potential_signals,
+    walk_forward_potential_thresholds,
 )
 
 
@@ -109,6 +110,17 @@ class PotentialScannerTest(TestCase):
             self.assertIn("rs_rank_cut", sweep.columns)
             self.assertIn("median_excess_40d", sweep.columns)
             self.assertTrue((sweep["rs_rank_cut"].isin([50.0, 70.0])).all())
+
+    def test_walk_forward_thresholds_returns_evidence_columns(self) -> None:
+        prices = pd.concat(
+            [_make_prices(f"S{i}", 10 + i, 0.015 + i * 0.001, 260) for i in range(8)],
+            ignore_index=True,
+        )
+        result = walk_forward_potential_thresholds(prices, folds=2, min_train_samples=1)
+        self.assertIn("test_median_excess_40d", result.columns)
+        self.assertIn("bias_note", result.columns)
+        if not result.empty:
+            self.assertIn("walk-forward", result.iloc[0]["bias_note"])
 
     def test_scan_potential_candidates_respects_stock_asset_type(self) -> None:
         prices = pd.concat(
