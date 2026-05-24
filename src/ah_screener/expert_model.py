@@ -682,6 +682,13 @@ def run_expert_model(
     snapshot_date = snapshots["trade_date"].max()
     df = snapshots.copy()
     df["trade_date"] = pd.to_datetime(df["trade_date"], errors="coerce")
+    # A later snapshot row with no price (e.g. a partial/empty sync that wrote NaN
+    # rows for a market that returned no data) must not shadow the last valid quote —
+    # otherwise an otherwise-strong name is rejected on a spurious "price missing"
+    # penalty. Keep only priced rows before taking the latest per security.
+    priced = pd.to_numeric(df["last_price"], errors="coerce")
+    valid = df[priced.notna() & (priced > 0)]
+    df = valid if not valid.empty else df
     df = df.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
     df = df.set_index(["market", "symbol"], drop=False)
 
