@@ -11,13 +11,18 @@ import pandas as pd
 import requests
 
 from ah_screener.classification import infer_us_board, infer_us_exchange
-from ah_screener.sources.futu_client import fetch_futu_history
+from ah_screener.sources.futu_client import (
+    fetch_futu_history,
+    fetch_futu_us_security_master,
+    fetch_futu_us_spot,
+)
 
 
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANYFACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"
+ALPHA_VANTAGE_LISTING_STATUS_URL = "https://www.alphavantage.co/query"
 
 US_DEFAULT_SYMBOLS: tuple[str, ...] = (
     "AAPL",
@@ -114,6 +119,13 @@ def _read_symbol_directory(url: str) -> pd.DataFrame:
 
 
 def fetch_us_security_master() -> pd.DataFrame:
+    try:
+        futu_master = fetch_futu_us_security_master()
+    except Exception:
+        futu_master = pd.DataFrame()
+    if not futu_master.empty:
+        return futu_master
+
     updated_at = _now()
     rows: list[pd.DataFrame] = []
 
@@ -121,7 +133,12 @@ def fetch_us_security_master() -> pd.DataFrame:
         nasdaq = _read_symbol_directory(NASDAQ_LISTED_URL)
         if not nasdaq.empty:
             symbol = nasdaq["Symbol"].map(_clean_us_symbol)
-            etf = nasdaq.get("ETF", pd.Series("N", index=nasdaq.index)).astype(str).str.upper().eq("Y")
+            etf = (
+                nasdaq.get("ETF", pd.Series("N", index=nasdaq.index))
+                .astype(str)
+                .str.upper()
+                .eq("Y")
+            )
             exchange = pd.Series("NASDAQ", index=nasdaq.index)
             rows.append(
                 pd.DataFrame(
@@ -152,7 +169,9 @@ def fetch_us_security_master() -> pd.DataFrame:
         other = _read_symbol_directory(OTHER_LISTED_URL)
         if not other.empty:
             symbol = other["ACT Symbol"].map(_clean_us_symbol)
-            etf = other.get("ETF", pd.Series("N", index=other.index)).astype(str).str.upper().eq("Y")
+            etf = (
+                other.get("ETF", pd.Series("N", index=other.index)).astype(str).str.upper().eq("Y")
+            )
             exchange = other["Exchange"].map(infer_us_exchange)
             rows.append(
                 pd.DataFrame(
@@ -180,14 +199,26 @@ def fetch_us_security_master() -> pd.DataFrame:
         pass
 
     if rows:
-        return pd.concat(rows, ignore_index=True).drop_duplicates(["market", "symbol"], keep="first")
+        return pd.concat(rows, ignore_index=True).drop_duplicates(
+            ["market", "symbol"], keep="first"
+        )
 
     return pd.DataFrame(
         {
             "market": "US",
             "symbol": list(US_DEFAULT_SYMBOLS),
-            "asset_type": ["etf" if symbol in {"SPY", "QQQ", "DIA", "IWM", "XLK", "SMH", "SOXX", "XLE", "GLD"} else "stock" for symbol in US_DEFAULT_SYMBOLS],
-            "board": ["US ETF" if symbol in {"SPY", "QQQ", "DIA", "IWM", "XLK", "SMH", "SOXX", "XLE", "GLD"} else "US Default" for symbol in US_DEFAULT_SYMBOLS],
+            "asset_type": [
+                "etf"
+                if symbol in {"SPY", "QQQ", "DIA", "IWM", "XLK", "SMH", "SOXX", "XLE", "GLD"}
+                else "stock"
+                for symbol in US_DEFAULT_SYMBOLS
+            ],
+            "board": [
+                "US ETF"
+                if symbol in {"SPY", "QQQ", "DIA", "IWM", "XLK", "SMH", "SOXX", "XLE", "GLD"}
+                else "US Default"
+                for symbol in US_DEFAULT_SYMBOLS
+            ],
             "name": list(US_DEFAULT_SYMBOLS),
             "exchange": "UNKNOWN",
             "currency": "USD",
@@ -201,21 +232,103 @@ def fetch_us_security_master() -> pd.DataFrame:
     )
 
 
-def _normalize_us_history(raw: pd.DataFrame, symbol: str, source: str, adj_type: str) -> pd.DataFrame:
+def normalize_us_delisted_lifecycle(raw: pd.DataFrame, *, source: str) -> pd.DataFrame:
+    if raw.empty:
+        return pd.DataFrame()
+    required = {"symbol", "name", "exchange", "assetType", "ipoDate", "delistingDate", "status"}
+    missing = required.difference(raw.columns)
+    if missing:
+        raise RuntimeError(f"US delisted CSV missing columns: {', '.join(sorted(missing))}")
+
+    updated_at = _now()
+    asset_type = (
+        raw["assetType"]
+        .astype(str)
+        .str.lower()
+        .map(lambda value: "etf" if value == "etf" else "stock")
+    )
+    frame = pd.DataFrame(
+        {
+            "market": "US",
+            "symbol": raw["symbol"].map(_clean_us_symbol),
+            "name": raw["name"].astype(str).str.strip(),
+            "asset_type": asset_type,
+            "exchange": raw["exchange"].astype(str).str.strip(),
+            "listing_date": pd.to_datetime(raw["ipoDate"], errors="coerce").dt.date,
+            "delist_date": pd.to_datetime(raw["delistingDate"], errors="coerce").dt.date,
+            "status": "delisted",
+            "event_type": "delisting",
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+    frame = frame[frame["symbol"].ne("")]
+    frame = frame[frame["status"].eq("delisted")]
+    # Tickers can be reused. Include the delisting date in the source key so
+    # repeated lifecycle rows do not overwrite each other in existing DBs.
+    frame["source"] = (
+        source
+        + ":"
+        + frame["symbol"]
+        + ":"
+        + pd.to_datetime(frame["delist_date"], errors="coerce")
+        .dt.strftime("%Y%m%d")
+        .fillna("unknown")
+    )
+    return frame.drop_duplicates(["market", "symbol", "event_type", "source"])
+
+
+def fetch_us_delisted_lifecycle(api_key: str | None = None) -> pd.DataFrame:
+    api_key = api_key or os.getenv("AH_SCREENER_ALPHA_VANTAGE_KEY")
+    if not api_key:
+        return pd.DataFrame()
+
+    response = requests.get(
+        ALPHA_VANTAGE_LISTING_STATUS_URL,
+        params={"function": "LISTING_STATUS", "state": "delisted", "apikey": api_key},
+        timeout=30,
+    )
+    response.raise_for_status()
+    text = response.text.strip()
+    if not text or "symbol" not in text.splitlines()[0].lower():
+        raise RuntimeError("Alpha Vantage LISTING_STATUS did not return a delisted CSV payload")
+    raw = pd.read_csv(StringIO(text))
+    return normalize_us_delisted_lifecycle(raw, source="alphavantage.listing_status.delisted")
+
+
+def _normalize_us_history(
+    raw: pd.DataFrame, symbol: str, source: str, adj_type: str
+) -> pd.DataFrame:
     if raw.empty:
         return pd.DataFrame()
     updated_at = _now()
     date_column = "date" if "date" in raw.columns else "日期"
     close = _number(raw["close"] if "close" in raw.columns else raw["收盘"])
-    volume = _number(raw["volume"] if "volume" in raw.columns else raw.get("成交量", pd.Series(pd.NA, index=raw.index)))
+    volume = _number(
+        raw["volume"]
+        if "volume" in raw.columns
+        else raw.get("成交量", pd.Series(pd.NA, index=raw.index))
+    )
     return pd.DataFrame(
         {
             "market": "US",
             "symbol": _clean_us_symbol(symbol),
             "trade_date": pd.to_datetime(raw[date_column], errors="coerce"),
-            "open": _number(raw["open"] if "open" in raw.columns else raw.get("开盘", pd.Series(pd.NA, index=raw.index))),
-            "high": _number(raw["high"] if "high" in raw.columns else raw.get("最高", pd.Series(pd.NA, index=raw.index))),
-            "low": _number(raw["low"] if "low" in raw.columns else raw.get("最低", pd.Series(pd.NA, index=raw.index))),
+            "open": _number(
+                raw["open"]
+                if "open" in raw.columns
+                else raw.get("开盘", pd.Series(pd.NA, index=raw.index))
+            ),
+            "high": _number(
+                raw["high"]
+                if "high" in raw.columns
+                else raw.get("最高", pd.Series(pd.NA, index=raw.index))
+            ),
+            "low": _number(
+                raw["low"]
+                if "low" in raw.columns
+                else raw.get("最低", pd.Series(pd.NA, index=raw.index))
+            ),
             "close": close,
             "volume": volume,
             "amount": close * volume,
@@ -230,10 +343,14 @@ def _fetch_us_history_akshare(symbol: str, adjust: str) -> pd.DataFrame:
     import akshare as ak
 
     raw = ak.stock_us_daily(symbol=_clean_us_symbol(symbol), adjust=adjust)
-    return _normalize_us_history(raw, symbol=symbol, source="akshare.stock_us_daily", adj_type=adjust or "raw")
+    return _normalize_us_history(
+        raw, symbol=symbol, source="akshare.stock_us_daily", adj_type=adjust or "raw"
+    )
 
 
-def _fetch_us_history_futu(symbol: str, start_date: str, end_date: str, adjust: str) -> pd.DataFrame:
+def _fetch_us_history_futu(
+    symbol: str, start_date: str, end_date: str, adjust: str
+) -> pd.DataFrame:
     """US daily K-lines via the shared Futu OpenD client (empty when unavailable)."""
     return fetch_futu_history("US", symbol, start_date, end_date, adjust=adjust)
 
@@ -243,7 +360,9 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
     end = pd.to_datetime(end_date)
     last_error: Exception | None = None
     calls = [
-        lambda: _fetch_us_history_futu(symbol, start_date=start_date, end_date=end_date, adjust=adjust),
+        lambda: _fetch_us_history_futu(
+            symbol, start_date=start_date, end_date=end_date, adjust=adjust
+        ),
         lambda: _fetch_us_history_akshare(symbol, adjust=adjust),
     ]
     for func in calls:
@@ -255,7 +374,9 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
         except Exception as exc:
             last_error = exc
             sleep(0.3)
-    raise RuntimeError(f"All US history sources failed for {symbol}. Last error: {last_error}") from last_error
+    raise RuntimeError(
+        f"All US history sources failed for {symbol}. Last error: {last_error}"
+    ) from last_error
 
 
 def select_us_batch_symbols(
@@ -272,7 +393,9 @@ def select_us_batch_symbols(
     if "status" in frame.columns:
         frame = frame[frame["status"].fillna("listed").astype(str).str.lower().eq("listed")]
     if asset_type and "asset_type" in frame.columns:
-        frame = frame[frame["asset_type"].fillna("stock").astype(str).str.lower().eq(asset_type.lower())]
+        frame = frame[
+            frame["asset_type"].fillna("stock").astype(str).str.lower().eq(asset_type.lower())
+        ]
     elif not include_etf and "asset_type" in frame.columns:
         frame = frame[frame["asset_type"].fillna("stock").astype(str).str.lower().ne("etf")]
     for column in ["asset_type", "exchange"]:
@@ -292,6 +415,13 @@ def fetch_us_spot(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     master = fetch_us_security_master() if master is None else master
     selected = [_clean_us_symbol(symbol) for symbol in (symbols or list(US_DEFAULT_SYMBOLS))]
+    try:
+        securities, snapshots = fetch_futu_us_spot(symbols=selected, master=master)
+    except Exception:
+        securities, snapshots = pd.DataFrame(), pd.DataFrame()
+    if not snapshots.empty:
+        return securities, snapshots
+
     master_index = master.set_index("symbol", drop=False)
     end = datetime.now()
     start_date = (end - timedelta(days=lookback_days)).strftime("%Y%m%d")
@@ -404,6 +534,8 @@ def fetch_sec_companyfacts(symbol: str) -> tuple[dict[str, Any], dict[str, Any]]
     if not meta:
         raise RuntimeError(f"SEC company ticker map has no CIK for {symbol}")
     cik = int(meta["cik_str"])
-    response = requests.get(SEC_COMPANYFACTS_URL.format(cik=cik), headers=_sec_headers(), timeout=30)
+    response = requests.get(
+        SEC_COMPANYFACTS_URL.format(cik=cik), headers=_sec_headers(), timeout=30
+    )
     response.raise_for_status()
     return meta, response.json()
