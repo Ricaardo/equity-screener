@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-URL="${1:-http://localhost:8501}"
+URL="${1:-http://127.0.0.1:5173}"
 OUT_DIR="${UI_SCREENSHOT_DIR:-reports/ui-screenshots}"
 BROWSER_USE_BIN="${BROWSER_USE_BIN:-browser-use}"
 

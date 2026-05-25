@@ -9,32 +9,34 @@ from ah_screener.config import PROJECT_ROOT
 from ah_screener.reporting import generate_report
 
 
-st.set_page_config(page_title="A/H/US Research Desk", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="A/H/US Daily Brief", layout="wide", initial_sidebar_state="expanded")
+
+
+REPORTS_DIR = PROJECT_ROOT / "reports"
+MARKET_LABELS = {"A": "A股", "HK": "港股", "US": "美股"}
 
 
 DESK_CSS = """
 <style>
 :root {
-  --bg: #f4efe4;
-  --surface: #fffaf0;
-  --surface-2: #ece2cf;
-  --ink: #191511;
-  --muted: #756a5c;
-  --line: #d5c5aa;
-  --line-dark: #a88f68;
-  --accent: #7b261f;
-  --accent-2: #a86a2a;
-  --green: #2f5a43;
-  --blue: #284b63;
-  --shadow: rgba(55, 42, 27, 0.12);
+  --page: #f6f7f5;
+  --surface: #ffffff;
+  --surface-soft: #eef3f1;
+  --ink: #121417;
+  --muted: #667085;
+  --line: #d8dedb;
+  --accent: #0f766e;
+  --accent-soft: #dff3ef;
+  --warn: #b42318;
+  --warn-soft: #fde7e4;
+  --blue: #245d82;
+  --amber: #8a5a12;
+  --shadow: rgba(16, 24, 40, 0.08);
 }
 
 .stApp {
   color: var(--ink);
-  background:
-    linear-gradient(180deg, rgba(123, 38, 31, 0.08), transparent 260px),
-    radial-gradient(circle at top left, rgba(168, 106, 42, 0.11), transparent 330px),
-    var(--bg);
+  background: var(--page);
 }
 
 header,
@@ -58,55 +60,47 @@ main,
   margin-top: 0 !important;
 }
 
-div[data-testid="stAppViewBlockContainer"],
-section[data-testid="stSidebar"] > div:first-child {
-  padding-top: 0 !important;
-  margin-top: 0 !important;
-}
-
 .block-container {
-  max-width: 1540px;
-  padding: 0 1.4rem 2.6rem !important;
+  max-width: 1480px;
+  padding: 1.05rem 1.35rem 2.4rem !important;
 }
 
 section[data-testid="stSidebar"] {
-  background: #211a17;
-  border-right: 1px solid #4e3e32;
+  background: #151a1f;
+  border-right: 1px solid #252d34;
 }
 
 section[data-testid="stSidebar"] * {
-  color: #f7ead2;
-}
-
-section[data-testid="stSidebar"] div[data-baseweb="select"] span,
-section[data-testid="stSidebar"] input,
-section[data-testid="stSidebar"] label p {
-  color: #f7ead2;
+  color: #f6f7f5;
 }
 
 section[data-testid="stSidebar"] div[data-baseweb="select"] > div,
-section[data-testid="stSidebar"] input {
-  background: #30251f;
-  border-color: #66513f;
+section[data-testid="stSidebar"] input,
+section[data-testid="stSidebar"] textarea {
+  background: #202830;
+  border-color: #3b4650;
+}
+
+section[data-testid="stSidebar"] button {
+  background: #202830;
+  border: 1px solid #3b4650;
+}
+
+section[data-testid="stSidebar"] button p {
+  color: #f6f7f5 !important;
 }
 
 h1, h2, h3 {
   color: var(--ink);
-  font-family: Georgia, "Noto Serif SC", "Times New Roman", serif;
   letter-spacing: 0;
 }
 
-h2 {
-  font-size: 1.12rem;
-  margin: 0.3rem 0 0.5rem;
-}
-
 div[data-testid="stTabs"] button {
-  border-radius: 0;
-  color: var(--ink);
-  font-size: 0.92rem;
+  color: var(--muted);
+  font-size: 0.94rem;
   background: transparent;
   border-bottom: 2px solid transparent;
+  border-radius: 0;
 }
 
 div[data-testid="stTabs"] button[aria-selected="true"] {
@@ -114,111 +108,117 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
   border-bottom-color: var(--accent);
 }
 
-.desk-hero {
+.hero {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 0.85rem;
   align-items: stretch;
-  margin-bottom: 0.95rem;
+  margin-bottom: 0.85rem;
 }
 
-.desk-title {
-  background: rgba(255, 250, 240, 0.92);
+.hero-main,
+.hero-side,
+.panel,
+.card,
+.etf-card,
+.potential-card {
+  background: var(--surface);
   border: 1px solid var(--line);
-  border-top: 4px solid var(--accent);
-  box-shadow: 0 16px 34px var(--shadow);
-  padding: 1.05rem 1.15rem 1rem;
+  box-shadow: 0 12px 30px var(--shadow);
 }
 
-.desk-title h1 {
-  margin: 0.08rem 0 0.38rem;
-  font-size: clamp(1.85rem, 3vw, 3rem);
-  line-height: 1.02;
+.hero-main {
+  padding: 1.1rem 1.18rem;
+  border-left: 4px solid var(--accent);
 }
 
 .eyebrow {
-  color: var(--accent-2);
+  color: var(--accent);
   font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  font-weight: 800;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.desk-subtitle {
+.hero h1 {
+  margin: 0.2rem 0 0.42rem;
+  font-size: clamp(1.75rem, 3vw, 2.8rem);
+  line-height: 1.08;
+}
+
+.hero-subtitle {
   color: var(--muted);
-  max-width: 920px;
-  font-size: 0.94rem;
+  font-size: 0.96rem;
+  line-height: 1.58;
+  max-width: 940px;
 }
 
-.desk-status {
-  min-width: 245px;
-  background: #211a17;
-  color: #f7ead2;
-  border: 1px solid #4e3e32;
-  box-shadow: 0 16px 34px var(--shadow);
+.hero-side {
   padding: 1rem;
+  background: #111827;
+  color: #f9fafb;
 }
 
-.desk-status .status-label {
-  color: #d1b98e;
+.hero-side .side-label {
+  color: #aab5c0;
   font-size: 0.76rem;
-  margin-bottom: 0.38rem;
+  margin-top: 0.72rem;
 }
 
-.desk-status .status-value {
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-size: 1.05rem;
-  line-height: 1.35;
+.hero-side .side-label:first-child {
+  margin-top: 0;
+}
+
+.hero-side .side-value {
+  color: #ffffff;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  word-break: break-word;
 }
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(128px, 1fr));
-  gap: 0.72rem;
-  margin: 0.8rem 0 1rem;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 0.65rem;
+  margin: 0.75rem 0 0.95rem;
 }
 
 .kpi {
-  background: rgba(255, 250, 240, 0.94);
+  background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 10px 22px var(--shadow);
-  padding: 0.82rem 0.88rem;
+  padding: 0.72rem 0.78rem;
 }
 
 .kpi .label {
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.75rem;
 }
 
 .kpi .value {
-  margin-top: 0.25rem;
   color: var(--ink);
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-size: 1.55rem;
-  line-height: 1;
+  font-size: 1.52rem;
+  line-height: 1.1;
+  font-weight: 760;
+  margin-top: 0.22rem;
 }
 
 .panel {
-  background: rgba(255, 250, 240, 0.94);
-  border: 1px solid var(--line);
-  box-shadow: 0 10px 24px var(--shadow);
   padding: 0.95rem;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.82rem;
 }
 
 .panel-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.8rem;
-  margin-bottom: 0.65rem;
+  gap: 0.75rem;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 0.55rem;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.72rem;
 }
 
 .panel-title strong {
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-size: 1.05rem;
+  font-size: 1.02rem;
 }
 
 .hint {
@@ -226,121 +226,178 @@ div[data-testid="stTabs"] button[aria-selected="true"] {
   font-size: 0.78rem;
 }
 
+.brief-list {
+  display: grid;
+  gap: 0.48rem;
+}
+
+.brief-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  line-height: 1.62;
+  color: var(--ink);
+}
+
+.dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.58rem;
+  border-radius: 999px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(255px, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
+  gap: 0.72rem;
 }
 
-.candidate-card {
-  background: #fffdf7;
-  border: 1px solid var(--line);
+.card,
+.etf-card,
+.potential-card {
+  padding: 0.86rem;
+  min-height: 168px;
   border-left: 4px solid var(--accent);
-  padding: 0.82rem;
 }
 
-.candidate-head {
+.etf-card {
+  border-left-color: var(--blue);
+}
+
+.potential-card {
+  border-left-color: var(--amber);
+}
+
+.card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.65rem;
-  margin-bottom: 0.52rem;
+  margin-bottom: 0.6rem;
 }
 
-.candidate-name {
-  font-family: Georgia, "Noto Serif SC", serif;
-  font-weight: 700;
-  font-size: 1.02rem;
+.name {
+  font-weight: 760;
+  font-size: 1rem;
+  line-height: 1.28;
 }
 
-.candidate-meta {
+.meta {
   color: var(--muted);
   font-size: 0.76rem;
-  margin-top: 0.12rem;
+  line-height: 1.42;
+  margin-top: 0.16rem;
 }
 
 .score {
   min-width: 54px;
   text-align: center;
-  background: var(--accent);
-  color: #fff7e6;
-  padding: 0.25rem 0.35rem;
-  font-family: Georgia, "Times New Roman", serif;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: 0.23rem 0.35rem;
+  font-weight: 780;
+}
+
+.score.blue {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: #e7f0f6;
+}
+
+.score.amber {
+  border-color: var(--amber);
+  color: var(--amber);
+  background: #fbefd9;
 }
 
 .chip-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.34rem;
+  gap: 0.32rem;
+  margin: 0.44rem 0;
 }
 
 .chip {
-  border: 1px solid var(--line-dark);
-  background: #f1e6d2;
-  color: #33271d;
-  padding: 0.14rem 0.38rem;
-  font-size: 0.74rem;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  color: #344054;
+  padding: 0.13rem 0.38rem;
+  font-size: 0.72rem;
   white-space: nowrap;
 }
 
-.chip.green {
-  border-color: #87a18b;
-  background: #dfe9dd;
-  color: #1f3f2e;
+.chip.good {
+  border-color: #8fcfc4;
+  background: var(--accent-soft);
+  color: #0f5f58;
 }
 
-.chip.red {
-  border-color: #b98580;
-  background: #f0d8d4;
-  color: #69251f;
+.chip.warn {
+  border-color: #f1b3ad;
+  background: var(--warn-soft);
+  color: var(--warn);
 }
 
-.stDataFrame {
+.mini-block {
+  margin-top: 0.52rem;
+  font-size: 0.82rem;
+  line-height: 1.56;
+}
+
+.mini-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 760;
+  margin-bottom: 0.12rem;
+}
+
+.action-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.58rem;
+}
+
+.action {
+  background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 8px 18px var(--shadow);
+  padding: 0.7rem;
+}
+
+.action .label {
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 780;
+}
+
+.action .body {
+  margin-top: 0.22rem;
+  font-size: 0.92rem;
+  line-height: 1.48;
+}
+
+.section-gap {
+  height: 0.3rem;
 }
 
 div[data-testid="stAlert"] {
-  background: #fff4d8;
-  border: 1px solid var(--line-dark);
+  background: #fff8e8;
+  border: 1px solid #eed096;
   color: var(--ink);
 }
 
 @media (max-width: 980px) {
-  .desk-hero {
+  .hero {
     grid-template-columns: 1fr;
   }
-  .desk-status {
-    min-width: 0;
-  }
   .kpi-grid {
-    grid-template-columns: repeat(2, minmax(128px, 1fr));
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
   }
 }
 </style>
 """
-
-
-REPORTS_DIR = PROJECT_ROOT / "reports"
-DECISION_LABELS = {
-    "core_candidate": "核心候选",
-    "watchlist": "观察",
-    "reserve": "储备",
-    "reject": "剔除",
-}
-MARKET_LABELS = {"A": "A股", "HK": "港股", "US": "美股"}
-STOCK_MARKETS = ("A", "HK", "US")
-
-
-def _ts_chip(item: dict) -> str:
-    ts = item.get("trading_system")
-    if not ts:
-        return ""
-    cls = "chip green" if ts == "T+0" else "chip"
-    return f'<span class="{cls}">{escape(str(ts))}</span>'
-
-
-# --- formatters -----------------------------------------------------------------
 
 
 def _safe(value: object) -> str:
@@ -349,31 +406,30 @@ def _safe(value: object) -> str:
     return escape(str(value), quote=True)
 
 
-def _score(value: object) -> str:
-    if value is None:
-        return "--"
-    try:
-        return f"{float(value):.1f}"
-    except (TypeError, ValueError):
-        return _safe(value)
-
-
-def _price(value: object) -> str:
-    if value is None:
-        return "--"
-    try:
-        return f"{float(value):.2f}"
-    except (TypeError, ValueError):
-        return _safe(value)
-
-
-def _amount(value: object) -> str:
-    if value is None:
-        return ""
+def _number(value: object) -> float | None:
     try:
         number = float(value)
     except (TypeError, ValueError):
-        return _safe(value)
+        return None
+    if number != number or number in {float("inf"), float("-inf")}:
+        return None
+    return number
+
+
+def _score(value: object) -> str:
+    number = _number(value)
+    return "--" if number is None else f"{number:.1f}"
+
+
+def _price(value: object) -> str:
+    number = _number(value)
+    return "--" if number is None else f"{number:.2f}"
+
+
+def _amount(value: object) -> str:
+    number = _number(value)
+    if number is None:
+        return ""
     if abs(number) >= 100_000_000:
         return f"{number / 100_000_000:.2f}亿"
     if abs(number) >= 10_000:
@@ -381,11 +437,39 @@ def _amount(value: object) -> str:
     return f"{number:.0f}"
 
 
-# --- report discovery / loading -------------------------------------------------
+def _first(items: object, default: str = "") -> str:
+    if isinstance(items, list) and items:
+        return str(items[0])
+    return default
+
+
+def _bullets(items: object, limit: int = 3) -> str:
+    if not isinstance(items, list) or not items:
+        return ""
+    return "<br>".join(f"- {_safe(item)}" for item in items[:limit])
+
+
+def _chip(text: object, cls: str = "") -> str:
+    if text is None or str(text) == "":
+        return ""
+    class_name = f"chip {cls}".strip()
+    return f'<span class="{class_name}">{_safe(text)}</span>'
+
+
+def _filter_market(records: list[dict], markets: list[str]) -> list[dict]:
+    return [item for item in records if not markets or item.get("market") in markets]
+
+
+def _filter_min_score(records: list[dict], field: str, min_score: float) -> list[dict]:
+    out = []
+    for item in records:
+        number = _number(item.get(field))
+        if number is not None and number >= min_score:
+            out.append(item)
+    return out
 
 
 def list_report_dates() -> list[str]:
-    """Available dated report payloads, newest first (latest pointer excluded)."""
     if not REPORTS_DIR.exists():
         return []
     dates = []
@@ -408,8 +492,11 @@ def load_report(date: str) -> dict | None:
 
 
 @st.cache_data(ttl=120)
-def load_markdown(date: str) -> str:
-    path = REPORTS_DIR / f"ah-screening-report-{date}.md"
+def load_markdown(date: str, *, appendix: bool = False) -> str:
+    filename = f"ah-screening-appendix-{date}.md" if appendix else f"ah-screening-report-{date}.md"
+    path = REPORTS_DIR / filename
+    if not path.exists() and appendix:
+        path = REPORTS_DIR / f"ah-screening-report-{date}.md"
     if not path.exists():
         return ""
     try:
@@ -418,306 +505,360 @@ def load_markdown(date: str) -> str:
         return ""
 
 
-# --- rendering ------------------------------------------------------------------
-
-
 def render_hero(report: dict) -> None:
-    counts = report.get("counts", {})
+    counts = report.get("counts") or {}
+    by_market = counts.get("refined_by_market") or {}
     st.markdown(
         f"""
-        <div class="desk-hero">
-          <div class="desk-title">
-            <div class="eyebrow">A/H/US Research Desk</div>
-            <h1>A/H/US 选股报告</h1>
-            <div class="desk-subtitle">
-              本页直接展示模型筛选出的研究报告：核心候选、提炼候选、潜力扫描与 ETF 工具池，
-              每只候选保留评分拆解和证据链。仅用于研究，不构成投资建议。
+        <div class="hero">
+          <div class="hero-main">
+            <div class="eyebrow">A/H/US Daily Brief</div>
+            <h1>每日筛选摘要</h1>
+            <div class="hero-subtitle">
+              {_safe(_first(report.get("conclusion")))}
             </div>
           </div>
-          <div class="desk-status">
-            <div class="status-label">报告日期</div>
-            <div class="status-value">{_safe(report.get("report_date"))}</div>
-            <div class="status-label" style="margin-top:0.7rem;">策略</div>
-            <div class="status-value">{_safe(report.get("strategy"))}</div>
-            <div class="status-label" style="margin-top:0.7rem;">生成时间</div>
-            <div class="status-value">{_safe(report.get("generated_at"))}</div>
+          <div class="hero-side">
+            <div class="side-label">报告日期</div>
+            <div class="side-value">{_safe(report.get("report_date"))}</div>
+            <div class="side-label">策略</div>
+            <div class="side-value">{_safe(report.get("strategy"))}</div>
+            <div class="side-label">附录</div>
+            <div class="side-value">{_safe(report.get("appendix_report"))}</div>
           </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
-    by_market = counts.get("refined_by_market", {})
     cells = [
-        ("A股 提炼", by_market.get("A", 0)),
-        ("港股 提炼", by_market.get("HK", 0)),
-        ("美股 提炼", by_market.get("US", 0)),
-        ("ETF 精选", counts.get("etf_leaders", 0)),
-        ("核心候选", counts.get("core_candidates", 0)),
-        ("潜力标的", counts.get("potential_candidates", 0)),
+        ("提炼", counts.get("refined_candidates", 0)),
+        ("核心", counts.get("core_candidates", 0)),
+        ("ETF", counts.get("etf_leaders", 0)),
+        ("潜力", counts.get("potential_candidates", 0)),
+        ("A/HK/US", f"{by_market.get('A', 0)}/{by_market.get('HK', 0)}/{by_market.get('US', 0)}"),
     ]
     html = "".join(
         f'<div class="kpi"><div class="label">{_safe(label)}</div>'
         f'<div class="value">{_safe(value)}</div></div>'
-        for label, value in cells[:6]
+        for label, value in cells
     )
     st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
 
 
-def render_conclusion(report: dict) -> None:
-    conclusion = report.get("conclusion") or []
-    body = "<br>".join(_safe(line) for line in conclusion)
-    distribution = report.get("decision_distribution", [])
-    chips = []
-    for item in distribution:
-        label = DECISION_LABELS.get(str(item.get("decision")), str(item.get("decision")))
-        cls = "chip green" if item.get("decision") == "core_candidate" else "chip"
-        chips.append(f'<span class="{cls}">{_safe(label)} {int(item.get("count", 0)):,}</span>')
-    warning = report.get("data_freshness_warning")
-    warning_html = (
-        f'<div style="margin-top:0.6rem;color:var(--accent);">⚠ {_safe(warning)}</div>'
-        if warning
-        else ""
+def render_brief(report: dict) -> None:
+    brief = report.get("daily_brief") or {}
+    data_health = brief.get("data_health") or {}
+    freshness = data_health.get("freshness") or report.get("data_freshness") or []
+    fresh_text = " · ".join(
+        f"{item.get('market')} {item.get('latest_date')}" for item in freshness if item
+    )
+    lines = [brief.get("headline"), brief.get("focus")]
+    if fresh_text:
+        lines.append(f"数据日期：{fresh_text}")
+    if data_health.get("warning"):
+        lines.append(str(data_health["warning"]))
+    body = "".join(
+        f'<div class="brief-item"><span class="dot"></span><span>{_safe(line)}</span></div>'
+        for line in lines
+        if line
     )
     st.markdown(
         f"""
         <div class="panel">
-          <div class="panel-title"><strong>当前结论</strong><span class="hint">数据驱动 · 不构成投资建议</span></div>
-          <div style="padding:0.3rem 0.2rem;line-height:1.75;">{body}</div>
-          <div class="chip-row" style="margin-top:0.6rem;">{"".join(chips)}</div>
-          {warning_html}
+          <div class="panel-title"><strong>今日结论</strong><span class="hint">摘要优先</span></div>
+          <div class="brief-list">{body}</div>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
 
-def _candidate_card(item: dict) -> str:
-    themes = item.get("theme_matches") or []
-    theme_html = "".join(f'<span class="chip green">{_safe(t)}</span>' for t in themes[:3])
-    industry = item.get("detailed_industry") or item.get("industry_peer_group") or ""
-    meta = " · ".join(
-        part for part in [_safe(item.get("market")), _safe(item.get("symbol")), _safe(industry)] if part
+def render_actions(report: dict) -> None:
+    actions = report.get("top_actions") or []
+    if not actions:
+        return
+    html = ""
+    for item in actions[:8]:
+        delta = item.get("delta")
+        delta_text = "" if delta is None else f"｜变化 {_score(delta)}"
+        html += (
+            '<div class="action">'
+            f'<div class="label">{_safe(item.get("label"))}</div>'
+            f'<div class="body">{_safe(item.get("market"))} {_safe(item.get("symbol"))} '
+            f"{_safe(item.get('name'))}<br>分数 {_score(item.get('score'))}{_safe(delta_text)}</div>"
+            "</div>"
+        )
+    st.markdown(
+        f"""
+        <div class="panel">
+          <div class="panel-title"><strong>今日变化</strong><span class="hint">新增与大幅变化</span></div>
+          <div class="action-list">{html}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
+
+
+def candidate_card(item: dict) -> str:
+    themes = item.get("theme_matches") if isinstance(item.get("theme_matches"), list) else []
+    why = _bullets(item.get("why_selected"), 3)
+    risks = _bullets(item.get("key_risks"), 2)
+    checks = _bullets(item.get("verify_before_action"), 2)
+    theme_html = "".join(_chip(theme, "good") for theme in themes[:2])
     return (
-        '<div class="candidate-card">'
-        '<div class="candidate-head"><div>'
-        f'<div class="candidate-name">{_safe(item.get("name"))}</div>'
-        f'<div class="candidate-meta">{meta}</div>'
+        '<div class="card">'
+        '<div class="card-head"><div>'
+        f'<div class="name">{_safe(item.get("name"))}</div>'
+        f'<div class="meta">{_safe(MARKET_LABELS.get(str(item.get("market")), item.get("market")))} '
+        f"{_safe(item.get('symbol'))} · {_safe(item.get('style_bucket'))}</div>"
         "</div>"
         f'<div class="score">{_score(item.get("expert_score"))}</div>'
         "</div>"
         '<div class="chip-row">'
-        f"{_ts_chip(item)}"
-        f'<span class="chip">{_safe(item.get("style_bucket"))}</span>'
-        f'<span class="chip">基本面 {_score(item.get("fundamental_score"))}</span>'
-        f'<span class="chip">技术 {_score(item.get("technical_score"))}</span>'
-        f'<span class="chip">同类 {_score(item.get("peer_score"))}</span>'
-        f'<span class="chip">行业 {_score(item.get("industry_fit_score"))}</span>'
+        f"{_chip(item.get('trading_system'), 'good')}"
+        f"{_chip('基本面 ' + _score(item.get('fundamental_score')))}"
+        f"{_chip('技术 ' + _score(item.get('technical_score')))}"
         f"{theme_html}"
         "</div>"
+        f'<div class="mini-block"><div class="mini-label">入选理由</div>{why}</div>'
+        f'<div class="mini-block"><div class="mini-label">主要风险</div>{risks}</div>'
+        f'<div class="mini-block"><div class="mini-label">买前核验</div>{checks}</div>'
         "</div>"
     )
 
 
-def render_candidate_cards(candidates: list[dict]) -> None:
+def render_priority(report: dict, markets: list[str], min_score: float) -> None:
+    candidates = report.get("refined_candidates") or []
+    candidates = _filter_market(candidates, markets)
+    candidates = _filter_min_score(candidates, "expert_score", min_score)
     if not candidates:
-        st.info("当前报告没有提炼候选。运行 `ah-screener update-all` 后重新生成报告。")
+        st.info("当前条件下没有提炼候选。")
         return
-    by_bucket: dict[str, list[dict]] = {}
-    for item in candidates:
-        by_bucket.setdefault(str(item.get("bucket") or "未分组"), []).append(item)
-    for bucket, items in by_bucket.items():
-        st.markdown(f"##### {_safe(bucket)}　<span class='hint'>{len(items)} 只</span>", unsafe_allow_html=True)
-        cards = "".join(_candidate_card(item) for item in items)
-        st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
-
-
-def render_market_section(report: dict, market: str) -> None:
-    """One market's screening result at a glance: core picks + refined by theme."""
-    refined = [c for c in report.get("refined_candidates", []) if c.get("market") == market]
-    core = [c for c in report.get("core_candidates", []) if c.get("market") == market]
-    ts = "T+0" if market in {"HK", "US"} else "T+1（个股）"
+    cards = "".join(candidate_card(item) for item in candidates[:24])
     st.markdown(
-        f"#### {MARKET_LABELS.get(market, market)}　"
-        f"<span class='hint'>交易制度 {ts}　·　提炼 {len(refined)} 只　·　核心 {len(core)} 只</span>",
+        f"""
+        <div class="panel">
+          <div class="panel-title"><strong>优先研究</strong><span class="hint">{len(candidates)} 只</span></div>
+          <div class="card-grid">{cards}</div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
-    if not refined and not core:
-        st.info(f"{MARKET_LABELS.get(market, market)} 暂无筛选候选。")
-        return
-    if core:
-        st.markdown("##### ★ 核心候选")
-        cards = "".join(_candidate_card(item) for item in core)
-        st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
-    if refined:
-        st.markdown("##### 提炼候选（按主题）")
-        render_candidate_cards(refined)
-    render_evidence(refined or core)
+    rows = [item for item in candidates if item.get("reasons")]
+    if rows:
+        with st.expander("证据链"):
+            for item in rows[:24]:
+                st.markdown(
+                    f"**{item.get('market')} {item.get('symbol')} {item.get('name')}** · "
+                    f"专家分 {_score(item.get('expert_score'))}"
+                )
+                st.markdown("\n".join(f"- {reason}" for reason in item.get("reasons", [])[:12]))
+                st.divider()
 
 
-def _potential_card(item: dict) -> str:
+def etf_card(item: dict) -> str:
+    alternatives = item.get("alternatives") if isinstance(item.get("alternatives"), list) else []
+    why = _bullets(item.get("why_selected"), 3)
+    alt_text = "；".join(str(alt) for alt in alternatives[:3]) or "暂无"
     return (
-        '<div class="candidate-card">'
-        '<div class="candidate-head"><div>'
-        f'<div class="candidate-name">{_safe(item.get("name"))}</div>'
-        f'<div class="candidate-meta">{_safe(item.get("market"))} · {_safe(item.get("symbol"))}</div>'
+        '<div class="etf-card">'
+        '<div class="card-head"><div>'
+        f'<div class="name">{_safe(item.get("name"))}</div>'
+        f'<div class="meta">{_safe(item.get("market"))} {_safe(item.get("symbol"))} · '
+        f"{_safe(item.get('etf_cluster') or item.get('etf_category'))}</div>"
         "</div>"
-        f'<div class="score">{_score(item.get("potential_score"))}</div>'
+        f'<div class="score blue">{_score(item.get("etf_score"))}</div>'
         "</div>"
         '<div class="chip-row">'
-        f"{_ts_chip(item)}"
-        f'<span class="chip">筑底 {_score(item.get("technical_setup_score"))}</span>'
-        f'<span class="chip">RS {_score(item.get("relative_strength_score"))}</span>'
-        f'<span class="chip green">触发 {_price(item.get("pivot_price"))}</span>'
-        f'<span class="chip green">目标 {_price(item.get("target_price"))}</span>'
-        f'<span class="chip red">止损 {_price(item.get("stop_price"))}</span>'
-        f'<span class="chip">RR {_score(item.get("rr_ratio"))}</span>'
+        f"{_chip(item.get('trading_system'), 'good')}"
+        f"{_chip(item.get('etf_track'))}"
+        f"{_chip('同组 ' + _safe(item.get('peer_count') or 1))}"
+        f"{_chip('成交额 ' + _amount(item.get('amount')))}"
         "</div>"
+        f'<div class="mini-block"><div class="mini-label">为什么选它</div>{why}</div>'
+        f'<div class="mini-block"><div class="mini-label">备选</div>{_safe(alt_text)}</div>'
+        f'<div class="mini-block"><div class="mini-label">注意</div>{_safe(item.get("caution"))}</div>'
         "</div>"
     )
 
 
-def render_potential_cards(candidates: list[dict]) -> None:
-    if not candidates:
-        st.info("当前报告没有潜力扫描结果。运行 `ah-screener potential-scan` 后重新生成报告。")
-        return
-    st.caption("口径：price-only；触发/目标/止损为情景参考，RS 阈值仍是运行参数，非 edge 证明。")
-    by_market: dict[str, list[dict]] = {}
-    for item in candidates:
-        by_market.setdefault(str(item.get("market") or "其他"), []).append(item)
-    for market in [*STOCK_MARKETS, *sorted(set(by_market) - set(STOCK_MARKETS))]:
-        items = by_market.get(market)
-        if not items:
+def render_etf_toolbox(report: dict, use_case_filter: list[str]) -> None:
+    use_cases = report.get("etf_use_cases") or []
+    selected = set(use_case_filter)
+    rendered = 0
+    for case in use_cases:
+        if selected and case.get("title") not in selected:
             continue
+        leaders = case.get("leaders") if isinstance(case.get("leaders"), list) else []
+        if not leaders:
+            continue
+        rendered += 1
+        cards = "".join(etf_card(item) for item in leaders[:5])
         st.markdown(
-            f"##### {MARKET_LABELS.get(market, market)}　"
-            f"<span class='hint'>{len(items)} 只</span>",
+            f"""
+            <div class="panel">
+              <div class="panel-title">
+                <strong>{_safe(case.get("title"))}</strong>
+                <span class="hint">{_safe(case.get("description"))}</span>
+              </div>
+              <div class="card-grid">{cards}</div>
+            </div>
+            """,
             unsafe_allow_html=True,
         )
-        cards = "".join(_potential_card(item) for item in items)
-        st.markdown(f'<div class="card-grid">{cards}</div>', unsafe_allow_html=True)
+    if rendered == 0:
+        st.info("当前条件下没有 ETF 工具。")
+    with st.expander("完整 ETF 明细"):
+        rows = []
+        for item in report.get("etf_leaders") or []:
+            rows.append(
+                {
+                    "用途": item.get("use_case"),
+                    "市场": item.get("market"),
+                    "交易": item.get("trading_system"),
+                    "代码": item.get("symbol"),
+                    "名称": item.get("name"),
+                    "分类": item.get("etf_category"),
+                    "簇": item.get("etf_cluster"),
+                    "跟踪": item.get("etf_track"),
+                    "ETF分": _score(item.get("etf_score")),
+                    "同组数": item.get("peer_count"),
+                    "成交额": _amount(item.get("amount")),
+                }
+            )
+        st.dataframe(rows, width="stretch", hide_index=True)
 
 
-def render_evidence(candidates: list[dict]) -> None:
-    """Per-candidate reasoning (the evidence chain), folded to keep the page calm."""
-    rows = [item for item in candidates if item.get("reasons")]
-    if not rows:
+def potential_card(item: dict) -> str:
+    scenario = item.get("scenario") if isinstance(item.get("scenario"), dict) else {}
+    return (
+        '<div class="potential-card">'
+        '<div class="card-head"><div>'
+        f'<div class="name">{_safe(item.get("name"))}</div>'
+        f'<div class="meta">{_safe(item.get("market"))} {_safe(item.get("symbol"))}</div>'
+        "</div>"
+        f'<div class="score amber">{_score(item.get("potential_score"))}</div>'
+        "</div>"
+        '<div class="chip-row">'
+        f"{_chip(item.get('trading_system'), 'good')}"
+        f"{_chip('筑底 ' + _score(item.get('technical_setup_score')))}"
+        f"{_chip('RS ' + _score(item.get('relative_strength_score')))}"
+        f"{_chip('RR ' + _score(item.get('rr_ratio')))}"
+        "</div>"
+        '<div class="mini-block"><div class="mini-label">情景</div>'
+        f"触发 {_safe(scenario.get('trigger'))}；目标 {_safe(scenario.get('target'))}；"
+        f"止损 {_safe(scenario.get('stop'))}</div>"
+        f'<div class="mini-block"><div class="mini-label">证伪</div>{_safe(item.get("invalid_if"))}</div>'
+        "</div>"
+    )
+
+
+def render_potential(report: dict, markets: list[str]) -> None:
+    candidates = _filter_market(report.get("potential_candidates") or [], markets)
+    if not candidates:
+        st.info("当前报告没有潜力扫描结果。")
         return
-    with st.expander("查看完整推理（证据链）"):
-        for item in rows:
-            header = f"**{_safe(item.get('name'))}** · {_safe(item.get('market'))} {_safe(item.get('symbol'))} · 专家分 {_score(item.get('expert_score'))}"
-            st.markdown(header)
-            st.markdown("\n".join(f"- {reason}" for reason in item.get("reasons", [])))
-            st.divider()
+    cards = "".join(potential_card(item) for item in candidates[:18])
+    st.markdown(
+        f"""
+        <div class="panel">
+          <div class="panel-title"><strong>潜力情景</strong><span class="hint">price-only</span></div>
+          <div class="card-grid">{cards}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
-def render_etf(leaders: list[dict]) -> None:
-    if not leaders:
-        st.info("当前报告没有 ETF 工具池。")
-        return
-    table = [
-        {
-            "市场": MARKET_LABELS.get(str(item.get("market")), item.get("market")),
-            "交易制度": item.get("trading_system"),
-            "代码": item.get("symbol"),
-            "名称": item.get("name"),
-            "分类": item.get("etf_category"),
-            "簇": item.get("etf_cluster"),
-            "跟踪": item.get("etf_track"),
-            "ETF分": _score(item.get("etf_score")),
-            "建议": item.get("etf_recommendation"),
-            "同组数": item.get("peer_count"),
-            "成交额": _amount(item.get("amount")),
-        }
-        for item in leaders
-    ]
-    st.caption("交易制度：A 股个股 T+1；跨境/债券/商品/货币类 ETF T+0；港股/美股 T+0。")
-    st.dataframe(table, width="stretch", hide_index=True)
+def render_appendix(report: dict, selected_date: str) -> None:
+    st.markdown("##### 候选变化")
+    changes = []
+    for item in report.get("candidate_changes") or []:
+        changes.append(
+            {
+                "变化": item.get("change"),
+                "主题桶": item.get("bucket"),
+                "市场": item.get("market"),
+                "代码": item.get("symbol"),
+                "名称": item.get("name"),
+                "最新分": _score(item.get("latest_score")),
+                "上期分": _score(item.get("previous_score")),
+                "分数变化": _score(item.get("score_delta")),
+            }
+        )
+    if changes:
+        st.dataframe(changes, width="stretch", hide_index=True)
+    else:
+        st.caption("当前缺少可比较的候选变化。")
+    st.divider()
+    text = load_markdown(selected_date, appendix=True)
+    if text:
+        st.markdown(text)
+    else:
+        st.info("未找到附录 Markdown。")
 
-
-def render_changes(changes: list[dict]) -> None:
-    if not changes:
-        st.caption("只有一个提炼快照，下一次刷新后会出现新增 / 移出 / 分数变化。")
-        return
-    table = [
-        {
-            "变化": item.get("change"),
-            "主题桶": item.get("bucket"),
-            "市场": item.get("market"),
-            "代码": item.get("symbol"),
-            "名称": item.get("name"),
-            "最新分": _score(item.get("latest_score")),
-            "上期分": _score(item.get("previous_score")),
-            "分数变化": _score(item.get("score_delta")),
-        }
-        for item in changes
-    ]
-    st.dataframe(table, width="stretch", hide_index=True)
-
-
-# --- page -----------------------------------------------------------------------
 
 st.markdown(DESK_CSS, unsafe_allow_html=True)
 
 st.sidebar.markdown("## 报告")
 available_dates = list_report_dates()
 
-if st.sidebar.button("🔄 立即重新生成报告", width="stretch"):
-    with st.spinner("正在基于当前数据库生成报告…"):
+if st.sidebar.button("重新生成报告", width="stretch"):
+    with st.spinner("正在生成报告..."):
         try:
             generate_report()
             load_report.clear()
             load_markdown.clear()
             available_dates = list_report_dates()
             st.sidebar.success("报告已刷新。")
-        except Exception as exc:  # surfaced to the user, not swallowed
+        except Exception as exc:
             st.sidebar.error(f"生成失败：{exc}")
 
 if not available_dates:
-    st.warning(
-        "还没有筛选报告。请先运行 `ah-screener update-all` 或在左侧点击「立即重新生成报告」。"
-    )
+    st.warning("还没有筛选报告。请先运行 `ah-screener update-all` 或生成报告。")
     st.stop()
 
-selected_date = st.sidebar.selectbox("选择报告日期", available_dates, index=0)
-st.sidebar.caption("默认显示最新报告。本页只读，不做实时筛选。")
-
+selected_date = st.sidebar.selectbox("报告日期", available_dates, index=0)
 report = load_report(selected_date)
 if report is None:
     st.error(f"无法读取报告 {selected_date}。")
     st.stop()
 
-render_hero(report)
-render_conclusion(report)
+market_options = list(MARKET_LABELS.keys())
+selected_markets = st.sidebar.multiselect(
+    "市场",
+    market_options,
+    default=market_options,
+    format_func=lambda key: MARKET_LABELS.get(key, key),
+)
+min_score = st.sidebar.slider("专家分下限", 0, 100, 55)
+case_titles = [
+    str(case.get("title"))
+    for case in report.get("etf_use_cases", [])
+    if isinstance(case, dict) and case.get("leaders")
+]
+selected_cases = st.sidebar.multiselect("ETF 用途", case_titles, default=case_titles)
+st.sidebar.caption(report.get("disclaimer", ""))
 
-a_tab, hk_tab, us_tab, etf_tab, potential_tab, full_tab = st.tabs(
-    ["A股", "港股", "美股", "ETF", "潜力扫描", "完整报告"]
+render_hero(report)
+
+summary_tab, priority_tab, etf_tab, potential_tab, appendix_tab = st.tabs(
+    ["今日摘要", "优先研究", "ETF工具箱", "潜力情景", "证据附录"]
 )
 
-with a_tab:
-    render_market_section(report, "A")
+with summary_tab:
+    render_brief(report)
+    render_actions(report)
+    render_priority(report, selected_markets, float(min_score))
 
-with hk_tab:
-    render_market_section(report, "HK")
-
-with us_tab:
-    render_market_section(report, "US")
+with priority_tab:
+    render_priority(report, selected_markets, float(min_score))
 
 with etf_tab:
-    render_etf(report.get("etf_leaders", []))
+    render_etf_toolbox(report, selected_cases)
 
 with potential_tab:
-    render_potential_cards(report.get("potential_candidates", []))
+    render_potential(report, selected_markets)
 
-with full_tab:
-    st.markdown("##### 候选变化")
-    render_changes(report.get("candidate_changes", []))
-    st.divider()
-    markdown_text = load_markdown(selected_date)
-    if markdown_text:
-        st.markdown(markdown_text)
-    else:
-        st.info("未找到对应的 Markdown 报告文件。")
-
-st.sidebar.markdown("---")
-st.sidebar.caption(report.get("disclaimer", ""))
+with appendix_tab:
+    render_appendix(report, selected_date)

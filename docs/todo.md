@@ -14,7 +14,7 @@
 - 三表基本面：ROE、现金流、负债、成长、稳定性、研发费用率、资本开支效率等指标已接入。
 - 同类去重提炼：按主题桶、风格桶、行业组和 A/H 同主体提炼最优候选。
 - ETF 工具池：宽基、行业、主题、跨境、债券、商品、货币分类和工具评分。
-- Streamlit 看板：古典羊皮纸风格，包含总览、精选、股票池、ETF、基本面、覆盖、标签。
+- React 看板：摘要优先的只读日报，包含今日摘要、优先研究、ETF工具箱、潜力情景、证据附录；Streamlit 保留为备用入口。
 - 定时更新：`ah-screener update-all` 和 `ah-screener install-schedule` 已可用。
 - 回测增强：支持 snapshot/monthly/quarterly 调仓、行业分散约束、手续费、滑点和 A/H 免费指数基准对比。
 - 严格/回放回测区分：`refined_candidates` 记录 `snapshot_source` 和 `is_replay`，`backtest` 默认排除历史回放快照；`--include-replay` 只用于诊断。
@@ -65,7 +65,7 @@
 - [x] 增加最小化测试套件。
   - 覆盖：基准回测、同类去重、ETF 分类、基本面评分边界。
 - [x] 增加 UI 截图回归。
-  - 命令：`scripts/check_ui_screenshots.sh http://localhost:8501`
+  - 命令：`scripts/check_ui_screenshots.sh http://127.0.0.1:5173`
   - 目标：防止顶部留白、HTML 转义、关键页面空白等视觉问题回归。
 
 ## 当前使用提醒

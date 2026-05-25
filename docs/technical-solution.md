@@ -11,7 +11,7 @@
 - 美股：以 Nasdaq Trader、Futu/OpenD、AKShare、SEC EDGAR 和 Alpha Vantage delisted CSV（可选 key）为免费/公开源。
 - ETF：已接入 A 股、港股和美股 ETF。
 - 数据源：本地 OpenD 优先，免费/公开源回退，可脚本化、可本地缓存。
-- 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown 报告和本地看板。
+- 输出：剔除名单、高风险名单、行业候选池、概念候选池、专家候选、同类去重精选、Markdown/JSON 报告和本地 React 看板。
 
 已增强能力：
 
@@ -409,6 +409,9 @@ ah-stock-screener/
     technical.py
     sources/akshare_client.py
     ui/streamlit_app.py
+  frontend/
+    src/App.tsx
+    vite.config.ts
   reports/
   pyproject.toml
   README.md
@@ -495,13 +498,17 @@ ah-screener sync-hkex-documents --symbol 00700 --limit 5
 ah-screener sync-us-batch --offset 0 --limit 100 --stocks-only
 ```
 
-第七步：打开看板。
+第七步：生成报告并打开 React 看板。
 
 ```bash
-streamlit run src/ah_screener/ui/streamlit_app.py
+ah-screener report
+cd frontend
+npm run dev
 ```
 
-第八步：生成当前研究报告。
+浏览器打开 `http://127.0.0.1:5173`。前端只读 `reports/ah-screening-report-latest.json` 和 `reports/ah-screening-appendix-latest.md`。
+
+第八步：如需只生成当前研究报告。
 
 ```bash
 ah-screener report
@@ -544,17 +551,15 @@ ah-screener install-schedule --hour 18 --minute 30
 
 ## 9. 看板和自动化
 
-本地看板使用 Streamlit 实现，定位为“研究台”而不是交易终端。视觉上采用暖色纸面、深墨侧栏、复古红和铜色强调，保留古典感但提高信息密度和可读性。
+本地看板主入口使用 React + Vite 实现，定位为“每日研究摘要”而不是交易终端。看板只读报告 JSON 和附录 Markdown，不直接查询 DuckDB，默认展示短摘要，完整长表进入附录。Streamlit 入口保留为备用查看器。
 
-看板分为七个主要视图：
+看板分为五个主要视图：
 
-- 总览：展示市场覆盖、板块结构、成交额和专家决策分布。
-- 精选：展示同类去重后的主题候选和候选卡片。
-- 股票池：展示 `core_candidate`、`watchlist`、`reserve`、`reject` 的完整专家评分。
-- ETF：展示 A 股 ETF 池、宽基/行业/主题/跨境/债券/商品/货币分类、工具评分和观察建议。
-- 基本面：展示三表提炼后的 ROE、收入增速、利润增速、负债率和现金流质量。
-- 覆盖：按市场、资产类型和板块展示技术指标、基本面和专家评分覆盖率。
-- 标签：展示行业、概念、主题标签覆盖。
+- 今日摘要：展示当前结论、数据新鲜度、今日新增和大幅变化。
+- 优先研究：展示同类去重后的股票候选卡，卡片包含入选理由、主要风险、买前核验和证据链展开。
+- ETF工具箱：按用途展示 ETF，而不是默认宽表；用途包括核心配置、主题进攻、防御与现金、跨境与 T+0、商品资源，并把完整宽表收进展开明细。
+- 潜力情景：展示潜力候选的触发、目标、止损、RR 和证伪条件。
+- 证据附录：展示候选变化、完整覆盖率、长表和偏差说明。
 
 自动化链路由 `ah-screener update-all` 串起：
 

@@ -1,6 +1,6 @@
 # A/H/US Stock Screener
 
-本项目是一个面向个人投资者的 A 股 + 港股 + 美股免费数据筛选工具。行情和证券主数据优先使用本地 Futu OpenD（可选），连不上或 OpenD 不覆盖的字段自动回退到 AKShare、Nasdaq Trader、SEC EDGAR、HKEX 等免费/公开入口；数据使用 DuckDB 做本地缓存，提供 CLI 和 Streamlit 看板。
+本项目是一个面向个人投资者的 A 股 + 港股 + 美股免费数据筛选工具。行情和证券主数据优先使用本地 Futu OpenD（可选），连不上或 OpenD 不覆盖的字段自动回退到 AKShare、Nasdaq Trader、SEC EDGAR、HKEX 等免费/公开入口；数据使用 DuckDB 做本地缓存，提供 CLI 和本地 React 报告查看器。
 
 完整技术方案见 [docs/technical-solution.md](docs/technical-solution.md)。
 部署和定时任务操作见 [docs/deployment.md](docs/deployment.md)。
@@ -26,8 +26,8 @@
 - 模型权重、决策阈值、大师代理和风险罚分集中在 `src/ah_screener/weights.py`，附来源标注，便于审阅与敏感度分析。
 - 主题的优先级与风格桶归属随主题定义（`HotTheme`）维护，单一真相源，避免散落字符串 drift。
 - A/H/US 同主体在策展映射之外，按规范化名称做跨市场模糊匹配补充（策展优先、停用词防误配）。
-- 生成 Markdown 研究报告，同时产出结构化 JSON（每候选含评分拆解与证据链）和固定的 `latest` 指针，供 AI 直接读取。
-- 提供本地 Streamlit 报告查看器：默认展示最新筛选报告（核心/提炼/潜力/ETF 候选卡 + 完整 Markdown），只读、不做实时筛选。
+- 生成每日短摘要、完整附录和结构化 JSON（每候选含评分拆解、证据链、风险和买前核验）以及固定的 `latest` 指针，供人和 AI 直接读取。
+- 提供本地 React 报告查看器：默认展示每日摘要、优先研究、ETF 工具箱、潜力情景和证据附录，只读、不做实时筛选。
 - 用 `expert-validate` 对专家决策分桶做前瞻超额收益验证，用 `ingest-status` 查看采集失败、定位覆盖率下降原因。
 - 支持一键全量刷新和 macOS 定时更新。
 
@@ -39,7 +39,14 @@
 uv sync
 ```
 
-如果需要 Streamlit 看板：
+如果需要 React 报告查看器：
+
+```bash
+cd frontend
+npm install
+```
+
+如需保留 Streamlit 备用入口：
 
 ```bash
 uv sync --extra ui
@@ -79,7 +86,8 @@ uv run ah-screener sync-identity-mappings
 uv run ah-screener sync-delisted-universe
 uv run ah-screener expert-score
 uv run ah-screener refined-export --top 100
-uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
+uv run ah-screener report
+cd frontend && npm run dev
 ```
 
 只刷新 A 股和港股 ETF：
@@ -155,7 +163,7 @@ ingest_failures
 
 ## 报告
 
-基于当前 DuckDB 生成 Markdown 研究报告：
+基于当前 DuckDB 生成每日摘要、完整附录和结构化 JSON：
 
 ```bash
 ah-screener report
@@ -164,15 +172,26 @@ ah-screener report
 默认输出到：
 
 ```text
-reports/ah-screening-report-YYYY-MM-DD.md      # 给人读的 Markdown
+reports/ah-screening-report-YYYY-MM-DD.md      # 给人读的每日短摘要
+reports/ah-screening-appendix-YYYY-MM-DD.md    # 覆盖率、长表和完整证据附录
 reports/ah-screening-report-YYYY-MM-DD.json    # 给程序/AI 读的结构化报告
-reports/ah-screening-report-latest.md          # 固定指针，始终指向最新
+reports/ah-screening-report-latest.md          # 固定指针，始终指向最新短摘要
+reports/ah-screening-appendix-latest.md        # 固定指针，始终指向最新附录
 reports/ah-screening-report-latest.json        # 固定指针，始终指向最新
 ```
 
-JSON 用稳定英文键，每只候选携带评分拆解和 `reasons` 证据链，并包含结论、偏差说明、决策分布、各市场数据新鲜度、提炼/核心/潜力候选和 ETF 精选。AI 消费时直接读 `reports/ah-screening-report-latest.json` 即可，无需按日期 glob。
+JSON 用稳定英文键，每只候选携带评分拆解、`reasons` 证据链、`why_selected`、`key_risks`、`verify_before_action` 和 `invalid_if`，并包含 `daily_brief`、`top_actions`、`etf_use_cases`、偏差说明、决策分布、各市场数据新鲜度、提炼/核心/潜力候选和 ETF 精选。AI 消费时直接读 `reports/ah-screening-report-latest.json` 即可，无需按日期 glob。
 
-本地报告查看器（只读，默认展示最新报告，可切换日期）：
+本地 React 报告查看器（只读，默认读取 latest 报告）：
+
+```bash
+cd frontend
+npm run dev
+```
+
+打开 `http://127.0.0.1:5173`。开发服务器通过 `/api/report/latest` 和 `/api/report/appendix` 读取 `reports/` 下的最新 JSON/附录。
+
+Streamlit 备用入口：
 
 ```bash
 uv run --extra ui streamlit run src/ah_screener/ui/streamlit_app.py
@@ -221,10 +240,17 @@ make validate
 
 最小测试套件覆盖基准回测、同类去重、ETF 分类和基本面评分边界；只跑测试时使用 `make test`。
 
-UI 截图冒烟检查需要本机安装 `browser-use` CLI，截图默认输出到 `reports/ui-screenshots/`：
+React 前端构建检查：
 
 ```bash
-scripts/check_ui_screenshots.sh http://localhost:8501
+cd frontend
+npm run build
+```
+
+UI 截图冒烟检查需要先启动本地前端服务，并安装 `browser-use` CLI，截图默认输出到 `reports/ui-screenshots/`：
+
+```bash
+scripts/check_ui_screenshots.sh http://127.0.0.1:5173
 ```
 
 ## 数据位置

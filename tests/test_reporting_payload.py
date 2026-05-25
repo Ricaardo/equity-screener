@@ -98,6 +98,7 @@ class BuildPayloadTest(TestCase):
             decision_counts=empty,
             bias_notes=["note"],
             markdown_relpath="ah-screening-report-2026-05-24.md",
+            appendix_relpath="ah-screening-appendix-2026-05-24.md",
         )
         self.assertEqual(payload["schema_version"], reporting.REPORT_SCHEMA_VERSION)
         self.assertEqual(payload["report_date"], "2026-05-24")
@@ -105,6 +106,9 @@ class BuildPayloadTest(TestCase):
         self.assertIsNone(payload["data_freshness_warning"])
         self.assertEqual(payload["refined_candidates"], [])
         self.assertEqual(payload["counts"]["refined_candidates"], 0)
+        self.assertEqual(payload["appendix_report"], "ah-screening-appendix-2026-05-24.md")
+        self.assertIn("daily_brief", payload)
+        self.assertIn("etf_use_cases", payload)
         # Must be strict-JSON serializable (no NaN/Infinity, no numpy types).
         import json
 
@@ -148,14 +152,68 @@ class BuildPayloadTest(TestCase):
             decision_counts=expert,
             bias_notes=[],
             markdown_relpath="r.md",
+            appendix_relpath="a.md",
         )
         self.assertEqual(len(payload["core_candidates"]), 1)
         core = payload["core_candidates"][0]
         self.assertEqual(core["symbol"], "600519")
         self.assertEqual(core["theme_matches"], ["高股息央国企防御"])
         self.assertEqual(core["reasons"], ["估值同类分位高", "ROE 稳定"])
+        self.assertIn("why_selected", core)
+        self.assertIn("verify_before_action", core)
         decisions = {row["decision"]: row["count"] for row in payload["decision_distribution"]}
         self.assertEqual(decisions, {"core_candidate": 1, "reject": 1})
+
+    def test_etf_use_cases_group_tool_records_for_ui(self) -> None:
+        etf = pd.DataFrame(
+            [
+                {
+                    "market": "A",
+                    "symbol": "513100",
+                    "name": "纳指ETF国泰",
+                    "etf_category": "跨境ETF",
+                    "etf_cluster": "美股大盘",
+                    "etf_track": "纳斯达克100",
+                    "etf_score": 94.2,
+                    "peer_count": 35,
+                    "amount": 1_443_000_000,
+                    "peer_alternatives": '["A:159941 纳指ETF广发"]',
+                },
+                {
+                    "market": "A",
+                    "symbol": "511990",
+                    "name": "华宝添益ETF",
+                    "etf_category": "货币ETF",
+                    "etf_cluster": "现金管理",
+                    "etf_track": "货币",
+                    "etf_score": 95.1,
+                    "peer_count": 1,
+                    "amount": 15_508_000_000,
+                    "peer_alternatives": "[]",
+                },
+            ]
+        )
+        payload = reporting._build_payload(
+            generated_at=datetime(2026, 5, 24),
+            report_date="2026-05-24",
+            db_path="/tmp/x.duckdb",
+            refined=pd.DataFrame(),
+            expert=pd.DataFrame(),
+            potential=pd.DataFrame(),
+            etf_leaders=etf,
+            change_display=pd.DataFrame(),
+            date_table=pd.DataFrame(columns=["市场", "最新日期"]),
+            date_warning="",
+            coverage={},
+            decision_counts=pd.DataFrame(),
+            bias_notes=[],
+            markdown_relpath="r.md",
+            appendix_relpath="a.md",
+        )
+        by_key = {case["key"]: case for case in payload["etf_use_cases"]}
+        self.assertEqual(by_key["cross_border_t0"]["leaders"][0]["symbol"], "513100")
+        self.assertEqual(by_key["defensive_cash"]["leaders"][0]["symbol"], "511990")
+        self.assertIn("alternatives", payload["etf_leaders"][0])
 
 
 class GenerateReportArtifactsTest(TestCase):
@@ -178,8 +236,10 @@ class GenerateReportArtifactsTest(TestCase):
             self.assertTrue(md_path.exists())
             date = md_path.stem.replace("ah-screening-report-", "")
             self.assertTrue((output / f"ah-screening-report-{date}.json").exists())
+            self.assertTrue((output / f"ah-screening-appendix-{date}.md").exists())
             self.assertTrue((output / "ah-screening-report-latest.json").exists())
             self.assertTrue((output / "ah-screening-report-latest.md").exists())
+            self.assertTrue((output / "ah-screening-appendix-latest.md").exists())
             payload = json.loads(
                 (output / "ah-screening-report-latest.json").read_text(encoding="utf-8")
             )
@@ -190,7 +250,11 @@ class GenerateReportArtifactsTest(TestCase):
 class ValidatePayloadTest(TestCase):
     def _minimal_payload(self) -> dict:
         return {
-            key: ([] if key.endswith("candidates") or key in {"etf_leaders", "candidate_changes"} else "x")
+            key: (
+                []
+                if key.endswith("candidates") or key in {"etf_leaders", "candidate_changes"}
+                else "x"
+            )
             for key in reporting.REPORT_REQUIRED_TOP_KEYS
         }
 

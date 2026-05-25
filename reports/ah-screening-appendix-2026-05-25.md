@@ -1,6 +1,6 @@
 # A/H/US 股票筛选研究报告
 
-- 生成时间：2026-05-24 21:15:39
+- 生成时间：2026-05-25 08:38:57
 - 数据库：`/Users/x/ah-stock-screener/data/ah_screener.duckdb`
 - 策略：`china_masters_fundamental_theme_technical_v2`
 - 声明：本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。

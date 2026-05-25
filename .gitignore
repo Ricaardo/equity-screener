@@ -1,4 +1,7 @@
 .venv/
+node_modules/
+frontend/node_modules/
+*.tsbuildinfo
 __pycache__/
 *.py[cod]
 *.egg-info/
@@ -11,6 +14,7 @@ reports/ui-screenshots/
 # Moving "latest" report pointers are regenerated every run — track dated reports only.
 reports/ah-screening-report-latest.json
 reports/ah-screening-report-latest.md
+reports/ah-screening-appendix-latest.md
 
 data/*.duckdb
 data/*.duckdb.*

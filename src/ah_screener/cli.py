@@ -827,9 +827,9 @@ def backtest_command(
 
 @app.command("report")
 def report_command(
-    output_dir: Path = typer.Option(Path("reports"), help="Directory for the Markdown report."),
+    output_dir: Path = typer.Option(Path("reports"), help="Directory for report artifacts."),
 ) -> None:
-    """Generate a Markdown research report from the current local database."""
+    """Generate the daily brief, appendix, and JSON report from the current database."""
     path = generate_report(output_dir=output_dir)
     console.print(f"Report generated: {path}")
 

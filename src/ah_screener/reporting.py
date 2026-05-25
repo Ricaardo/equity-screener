@@ -40,7 +40,7 @@ EXTERNAL_CONTEXT = [
 ]
 
 
-REPORT_SCHEMA_VERSION = "1.1"
+REPORT_SCHEMA_VERSION = "1.2"
 DISCLAIMER = "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。"
 # A-share ETF categories that trade T+0 (cross-border / bond / commodity / money);
 # onshore equity ETFs (宽基/行业/主题) and all A-share stocks are T+1.
@@ -148,6 +148,26 @@ def _fmt_amount(value: object) -> str:
     return f"{number:.0f}"
 
 
+def _to_float(value: object) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(number) or math.isinf(number) else number
+
+
+def _score_text(value: object) -> str:
+    number = _to_float(value)
+    return "--" if number is None else f"{number:.1f}"
+
+
+def _record_label(record: dict[str, object]) -> str:
+    market = str(record.get("market") or "")
+    symbol = str(record.get("symbol") or "")
+    name = str(record.get("name") or "")
+    return " ".join(part for part in [market, symbol, name] if part)
+
+
 def _table(df: pd.DataFrame, columns: list[str]) -> str:
     if df.empty:
         return "暂无数据。\n"
@@ -156,6 +176,282 @@ def _table(df: pd.DataFrame, columns: list[str]) -> str:
         if out[column].dtype.kind in {"f", "i"}:
             out[column] = out[column].map(lambda value: _fmt(value))
     return out.to_markdown(index=False)
+
+
+def _candidate_guidance(record: dict[str, object]) -> dict[str, object]:
+    """Translate score fields into short, UI-first guidance.
+
+    The model already produced the scores and evidence chain. This layer avoids
+    asking readers to interpret every raw field before they know what to check.
+    """
+    expert = _to_float(record.get("expert_score"))
+    fundamental = _to_float(record.get("fundamental_score"))
+    technical = _to_float(record.get("technical_score"))
+    peer = _to_float(record.get("peer_score"))
+    industry_fit = _to_float(record.get("industry_fit_score"))
+    valuation = _to_float(record.get("valuation_percentile"))
+    bucket = str(record.get("bucket") or "")
+    style = str(record.get("style_bucket") or "")
+    industry = str(record.get("detailed_industry") or record.get("industry_peer_group") or "")
+    themes = record.get("theme_matches") if isinstance(record.get("theme_matches"), list) else []
+
+    why: list[str] = []
+    if expert is not None:
+        why.append(f"专家分 {_score_text(expert)}，进入当前提炼池")
+    if fundamental is not None and fundamental >= 70:
+        why.append(f"基本面 {_score_text(fundamental)}，质量/成长支撑较强")
+    elif fundamental is not None and fundamental < 55:
+        why.append(f"基本面 {_score_text(fundamental)}，更依赖技术或主题验证")
+    if technical is not None and technical >= 75:
+        why.append(f"技术面 {_score_text(technical)}，趋势确认度高")
+    if peer is not None and peer >= 75:
+        why.append(f"同类分位 {_score_text(peer)}，在可比组内靠前")
+    if industry_fit is not None and industry_fit >= 75:
+        why.append(f"行业适配 {_score_text(industry_fit)}，财务特征符合行业阈值")
+    if themes:
+        why.append("主题匹配：" + "、".join(str(item) for item in themes[:2]))
+    if not why:
+        why.append("进入模型候选池，需结合证据链复核")
+
+    risks: list[str] = []
+    if valuation is not None and valuation >= 70:
+        risks.append("估值处在同类较高分位，回撤时弹性可能放大")
+    if technical is not None and technical < 55:
+        risks.append("技术面未充分确认，避免只看主题或基本面分")
+    if fundamental is not None and fundamental < 55:
+        risks.append("基本面支撑偏弱，需核验利润和现金流质量")
+    if "创新药" in bucket or "医药" in style or "医药" in industry:
+        risks.append("医药波动受临床、BD、集采和现金消耗影响")
+    if "资源" in bucket or "能源" in industry:
+        risks.append("资源品受商品价格和资本开支周期影响明显")
+    if "高股息" in bucket or "红利" in style:
+        risks.append("红利资产需确认分红持续性、利率和监管变化")
+    if "AI" in bucket or "半导体" in bucket or "科技" in style:
+        risks.append("科技成长方向拥挤度高，需防估值和业绩预期同时修正")
+    if not risks:
+        risks.append("仍需复核最新公告、业绩会和股东变化")
+
+    checks = [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+    ]
+    if valuation is not None and valuation >= 70:
+        checks.append("确认估值溢价是否有盈利增速或现金流支撑")
+    if technical is not None and technical < 55:
+        checks.append("等待趋势重新站稳关键均线或相对强度修复")
+
+    invalid_parts: list[str] = []
+    if technical is not None:
+        invalid_parts.append("技术面转弱")
+    if fundamental is not None:
+        invalid_parts.append("基本面分继续下滑")
+    invalid_parts.append("核心主题证据被公告或业绩证伪")
+
+    return {
+        "why_selected": why[:4],
+        "key_risks": risks[:3],
+        "verify_before_action": checks[:4],
+        "invalid_if": "；".join(invalid_parts) + "。",
+    }
+
+
+def _annotate_candidate_records(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [{**record, **_candidate_guidance(record)} for record in records]
+
+
+def _annotate_potential_records(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    out: list[dict[str, object]] = []
+    for record in records:
+        setup = [
+            f"筑底 {_score_text(record.get('technical_setup_score'))}",
+            f"RS {_score_text(record.get('relative_strength_score'))}",
+            f"RR {_score_text(record.get('rr_ratio'))}",
+        ]
+        pivot = _to_float(record.get("pivot_price"))
+        target = _to_float(record.get("target_price"))
+        stop = _to_float(record.get("stop_price"))
+        if pivot is not None:
+            setup.append(f"触发 {pivot:.2f}")
+        annotated = {
+            **record,
+            "setup_note": "，".join(setup),
+            "scenario": {
+                "trigger": None if pivot is None else f"突破或站稳 {pivot:.2f}",
+                "target": None if target is None else f"{target:.2f}",
+                "stop": None if stop is None else f"{stop:.2f}",
+                "time_stop_days": record.get("time_stop_days"),
+            },
+            "invalid_if": "跌破止损价、RS 转弱或 8-12 周内无法完成突破。",
+        }
+        out.append(annotated)
+    return out
+
+
+ETF_USE_CASES = (
+    ("core_allocation", "核心配置", "用于表达主要市场或风格暴露，避免同类重复持有。"),
+    ("tactical_growth", "主题进攻", "用于表达科技、制造、新能源等高弹性方向。"),
+    ("defensive_cash", "防御与现金", "用于现金管理、债券、红利或低波动防御。"),
+    ("cross_border_t0", "跨境与T+0", "用于海外市场、港股或可日内回转的配置工具。"),
+    ("commodity_resource", "商品资源", "用于黄金、有色、能源等实物或资源价格暴露。"),
+    ("other_tools", "其他工具", "未归入上述用途，但双层去重后仍保留。"),
+)
+
+
+def _etf_use_case_key(record: dict[str, object]) -> str:
+    category = str(record.get("etf_category") or "")
+    cluster = str(record.get("etf_cluster") or "")
+    track = str(record.get("etf_track") or "")
+    name = str(record.get("name") or "")
+    market = str(record.get("market") or "")
+    text = f"{category} {cluster} {track} {name}"
+    text_without_category = f"{cluster} {track} {name}"
+    if category in {"货币ETF", "债券ETF"} or any(
+        word in text_without_category for word in ["债券", "红利", "添益", "现金"]
+    ):
+        return "defensive_cash"
+    if category == "商品ETF" or any(
+        word in text for word in ["黄金", "有色", "煤炭", "原油", "资源"]
+    ):
+        return "commodity_resource"
+    if (
+        category == "跨境ETF"
+        or market in {"HK", "US"}
+        or any(
+            word in text for word in ["纳斯达克", "标普", "日经", "恒生", "中概", "海外", "美股"]
+        )
+    ):
+        return "cross_border_t0"
+    if any(
+        word in text
+        for word in ["人工智能", "半导体", "芯片", "机器人", "通信", "新能源", "消费电子"]
+    ):
+        return "tactical_growth"
+    if any(
+        word in text
+        for word in ["宽基", "中证", "上证", "创业板", "科创", "成长", "A500", "500", "1000"]
+    ):
+        return "core_allocation"
+    return "other_tools"
+
+
+def _etf_guidance(record: dict[str, object]) -> dict[str, object]:
+    amount_text = _fmt_amount(record.get("amount"))
+    peer_count = record.get("peer_count") or 1
+    use_case = _etf_use_case_key(record)
+    why = [
+        f"双层去重后保留，代表 {record.get('etf_cluster') or record.get('etf_track') or '当前簇'}"
+    ]
+    if amount_text:
+        why.append(f"成交额 {amount_text}，流动性相对靠前")
+    if peer_count:
+        why.append(f"同组 {peer_count} 只，可用备选追溯")
+    alternatives = _parse_json_list(record.get("peer_alternatives"))
+    if not alternatives and record.get("peer_alternatives"):
+        alternatives = [str(record.get("peer_alternatives"))]
+    if len(alternatives) == 1 and "|" in alternatives[0]:
+        alternatives = [part.strip() for part in alternatives[0].split("|") if part.strip()]
+    return {
+        "use_case": use_case,
+        "why_selected": why[:3],
+        "alternatives": alternatives[:5],
+        "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。",
+    }
+
+
+def _annotate_etf_records(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    return [{**record, **_etf_guidance(record)} for record in records]
+
+
+def _build_etf_use_cases(records: list[dict[str, object]]) -> list[dict[str, object]]:
+    grouped: dict[str, list[dict[str, object]]] = {key: [] for key, _, _ in ETF_USE_CASES}
+    for record in records:
+        grouped.setdefault(str(record.get("use_case") or "other_tools"), []).append(record)
+    result: list[dict[str, object]] = []
+    for key, title, description in ETF_USE_CASES:
+        leaders = grouped.get(key, [])
+        result.append(
+            {
+                "key": key,
+                "title": title,
+                "description": description,
+                "leaders": leaders[:5],
+                "count": len(leaders),
+            }
+        )
+    return result
+
+
+def _build_top_actions(
+    refined_records: list[dict[str, object]], changes: list[dict[str, object]]
+) -> list[dict[str, object]]:
+    actions: list[dict[str, object]] = []
+    for change in changes:
+        label = str(change.get("change") or "")
+        delta = _to_float(change.get("score_delta"))
+        if label == "新增" or (label == "保留" and delta is not None and abs(delta) >= 5):
+            score = change.get("latest_score") if label != "移出" else change.get("previous_score")
+            actions.append(
+                {
+                    "type": "candidate_change",
+                    "label": label,
+                    "market": change.get("market"),
+                    "symbol": change.get("symbol"),
+                    "name": change.get("name"),
+                    "score": score,
+                    "delta": delta,
+                    "action": f"{label} {_record_label({'market': change.get('market'), 'symbol': change.get('symbol'), 'name': change.get('name')})}",
+                }
+            )
+        if len(actions) >= 8:
+            break
+    if actions:
+        return actions
+    for record in refined_records[:5]:
+        actions.append(
+            {
+                "type": "priority_candidate",
+                "label": "优先研究",
+                "market": record.get("market"),
+                "symbol": record.get("symbol"),
+                "name": record.get("name"),
+                "score": record.get("expert_score"),
+                "action": f"优先研究 {_record_label(record)}",
+            }
+        )
+    return actions
+
+
+def _build_daily_brief(
+    *,
+    refined_records: list[dict[str, object]],
+    potential_records: list[dict[str, object]],
+    etf_use_cases: list[dict[str, object]],
+    changes: list[dict[str, object]],
+    coverage: dict[str, int],
+    freshness: list[dict[str, object]],
+    date_warning: str,
+    portfolio_notes: list[str],
+) -> dict[str, object]:
+    return {
+        "headline": CONCLUSION_LINES[0],
+        "focus": CONCLUSION_LINES[1],
+        "priority_candidates": refined_records[:8],
+        "potential_setups": potential_records[:5],
+        "etf_use_cases": [
+            {**case, "leaders": case["leaders"][:3]}
+            for case in etf_use_cases
+            if case.get("leaders")
+        ][:5],
+        "top_changes": changes[:10],
+        "data_health": {
+            "coverage_counts": {key: int(value) for key, value in coverage.items()},
+            "freshness": freshness,
+            "warning": date_warning or None,
+        },
+        "portfolio_notes": portfolio_notes[:4],
+        "reader_contract": "默认只读短摘要；完整覆盖率、长表和证据口径进入附录。",
+    }
 
 
 def market_date_health(
@@ -398,13 +694,84 @@ def build_report_payload(store: Store | None = None) -> dict:
     The JSON contract is documented in ``docs/report-schema.md``.
     """
     store = store or Store(get_settings().db_path)
-    _, payload = _report_artifacts(store, datetime.now())
+    _, _, payload = _report_artifacts(store, datetime.now())
     validate_report_payload(payload)
     return payload
 
 
-def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, dict]:
-    """Build ``(markdown_text, json_payload)`` from the database; pure, no file IO.
+def _render_daily_brief(payload: dict[str, object]) -> str:
+    brief = payload.get("daily_brief") if isinstance(payload.get("daily_brief"), dict) else {}
+    counts = payload.get("counts") if isinstance(payload.get("counts"), dict) else {}
+    lines = [
+        "# A/H/US 每日筛选摘要",
+        "",
+        f"- 生成时间：{payload.get('generated_at')}",
+        f"- 策略：`{payload.get('strategy')}`",
+        f"- 声明：{payload.get('disclaimer')}",
+        "",
+        "## 1. 今日结论",
+        "",
+        f"- {brief.get('headline') or ''}",
+        f"- {brief.get('focus') or ''}",
+        (
+            f"- 提炼候选 {counts.get('refined_candidates', 0)} 只；核心候选 "
+            f"{counts.get('core_candidates', 0)} 只；ETF 工具 "
+            f"{counts.get('etf_leaders', 0)} 只；潜力情景 "
+            f"{counts.get('potential_candidates', 0)} 只。"
+        ),
+        "",
+        "## 2. 优先研究",
+        "",
+    ]
+    for item in (brief.get("priority_candidates") or [])[:8]:
+        why = item.get("why_selected") if isinstance(item.get("why_selected"), list) else []
+        reason = next((str(text) for text in why if not str(text).startswith("专家分")), "")
+        lines.append(
+            "- "
+            f"{item.get('market')} {item.get('symbol')} {item.get('name')}："
+            f"专家分 {_score_text(item.get('expert_score'))}；"
+            f"{reason or '进入提炼候选池'}。"
+        )
+    if not (brief.get("priority_candidates") or []):
+        lines.append("- 暂无提炼候选。")
+
+    lines.extend(["", "## 3. ETF 工具箱", ""])
+    for case in (brief.get("etf_use_cases") or [])[:5]:
+        leaders = case.get("leaders") if isinstance(case.get("leaders"), list) else []
+        if not leaders:
+            continue
+        names = "；".join(
+            f"{item.get('symbol')} {item.get('name')}({_score_text(item.get('etf_score'))})"
+            for item in leaders[:3]
+        )
+        lines.append(f"- {case.get('title')}：{names}")
+    if not any((case.get("leaders") for case in (brief.get("etf_use_cases") or []))):
+        lines.append("- 暂无 ETF 工具池。")
+
+    lines.extend(["", "## 4. 今日变化", ""])
+    for item in (brief.get("top_changes") or [])[:10]:
+        delta = _score_text(item.get("score_delta"))
+        delta_text = "" if delta == "--" else f" 变化 {delta}"
+        lines.append(
+            "- "
+            f"{item.get('change')} {item.get('market')} {item.get('symbol')} {item.get('name')} "
+            f"最新分 {_score_text(item.get('latest_score'))}{delta_text}"
+        )
+    if not (brief.get("top_changes") or []):
+        lines.append("- 当前缺少可比较的候选变化。")
+
+    lines.extend(["", "## 5. 风险口径", ""])
+    for note in (brief.get("portfolio_notes") or [])[:4]:
+        lines.append(f"- {note}")
+    data_health = brief.get("data_health") if isinstance(brief.get("data_health"), dict) else {}
+    if data_health.get("warning"):
+        lines.append(f"- {data_health.get('warning')}")
+    lines.append(f"- 完整长表和覆盖率见 `{payload.get('appendix_report')}`。")
+    return "\n".join(lines).strip() + "\n"
+
+
+def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, str, dict]:
+    """Build ``(brief_markdown, appendix_markdown, json_payload)``; pure, no file IO.
 
     The Markdown and the JSON product are rendered from the same prepared frames, so
     the two views cannot drift apart.
@@ -437,6 +804,7 @@ def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, dict]:
 
     report_date = generated_at.strftime("%Y-%m-%d")
     markdown_relpath = f"ah-screening-report-{report_date}.md"
+    appendix_relpath = f"ah-screening-appendix-{report_date}.md"
 
     refined_display = refined.copy()
     if not refined_display.empty:
@@ -888,7 +1256,7 @@ def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, dict]:
             "本项目已提供 `ah-screener update-all` 与 `ah-screener install-schedule` 两个命令用于自动化。",
         ]
     )
-    markdown_text = "\n".join(lines).strip() + "\n"
+    appendix_text = "\n".join(lines).strip() + "\n"
     payload = _build_payload(
         generated_at=generated_at,
         report_date=report_date,
@@ -904,8 +1272,10 @@ def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, dict]:
         decision_counts=expert,
         bias_notes=bias_notes,
         markdown_relpath=markdown_relpath,
+        appendix_relpath=appendix_relpath,
     )
-    return markdown_text, payload
+    brief_text = _render_daily_brief(payload)
+    return brief_text, appendix_text, payload
 
 
 def generate_report(output_dir: Path | None = None) -> Path:
@@ -916,17 +1286,20 @@ def generate_report(output_dir: Path | None = None) -> Path:
     output = output_dir or Path("reports")
     output.mkdir(parents=True, exist_ok=True)
 
-    markdown_text, payload = _report_artifacts(store, generated_at)
+    markdown_text, appendix_text, payload = _report_artifacts(store, generated_at)
     validate_report_payload(payload)
 
     path = output / f"ah-screening-report-{report_date}.md"
     path.write_text(markdown_text, encoding="utf-8")
+    appendix_path = output / f"ah-screening-appendix-{report_date}.md"
+    appendix_path.write_text(appendix_text, encoding="utf-8")
     json_text = json.dumps(payload, ensure_ascii=False, indent=2)
     (output / f"ah-screening-report-{report_date}.json").write_text(json_text, encoding="utf-8")
     # Stable pointers so an AI consumer / the UI can always read the freshest report
     # at a fixed path without globbing by date.
     (output / "ah-screening-report-latest.json").write_text(json_text, encoding="utf-8")
     (output / "ah-screening-report-latest.md").write_text(markdown_text, encoding="utf-8")
+    (output / "ah-screening-appendix-latest.md").write_text(appendix_text, encoding="utf-8")
     return path
 
 
@@ -946,6 +1319,7 @@ def _build_payload(
     decision_counts: pd.DataFrame,
     bias_notes: list[str],
     markdown_relpath: str,
+    appendix_relpath: str,
 ) -> dict[str, object]:
     """Assemble the machine-readable report payload (stable English keys).
 
@@ -1082,6 +1456,28 @@ def _build_payload(
         renamed = change_display.rename(columns=change_key_map)
         changes = _records(renamed, list(change_key_map.values()))
 
+    refined_records = _annotate_candidate_records(
+        _records(refined, refined_fields, list_fields=("theme_matches", "reasons"))
+    )
+    core_records = _annotate_candidate_records(
+        _records(core, core_fields, list_fields=("theme_matches", "reasons"))
+    )
+    potential_records = _annotate_potential_records(_records(potential, potential_fields))
+    etf_records = _annotate_etf_records(_records(etf_leaders, etf_fields))
+    etf_use_cases = _build_etf_use_cases(etf_records)
+    top_actions = _build_top_actions(refined_records, changes)
+    portfolio_notes = _portfolio_notes(refined)
+    daily_brief = _build_daily_brief(
+        refined_records=refined_records,
+        potential_records=potential_records,
+        etf_use_cases=etf_use_cases,
+        changes=changes,
+        coverage=coverage,
+        freshness=freshness,
+        date_warning=date_warning,
+        portfolio_notes=portfolio_notes,
+    )
+
     return {
         "schema_version": REPORT_SCHEMA_VERSION,
         "report_type": "ah-screening",
@@ -1091,6 +1487,7 @@ def _build_payload(
         "database": db_path,
         "disclaimer": DISCLAIMER,
         "markdown_report": markdown_relpath,
+        "appendix_report": appendix_relpath,
         "conclusion": CONCLUSION_LINES,
         "bias_notes": bias_notes,
         "external_context": EXTERNAL_CONTEXT,
@@ -1109,12 +1506,13 @@ def _build_payload(
                 else {}
             ),
         },
-        "refined_candidates": _records(
-            refined, refined_fields, list_fields=("theme_matches", "reasons")
-        ),
-        "core_candidates": _records(core, core_fields, list_fields=("theme_matches", "reasons")),
-        "potential_candidates": _records(potential, potential_fields),
-        "etf_leaders": _records(etf_leaders, etf_fields),
+        "daily_brief": daily_brief,
+        "top_actions": top_actions,
+        "etf_use_cases": etf_use_cases,
+        "refined_candidates": refined_records,
+        "core_candidates": core_records,
+        "potential_candidates": potential_records,
+        "etf_leaders": etf_records,
         "candidate_changes": changes,
     }
 
@@ -1129,11 +1527,16 @@ REPORT_REQUIRED_TOP_KEYS: tuple[str, ...] = (
     "strategy",
     "database",
     "disclaimer",
+    "markdown_report",
+    "appendix_report",
     "conclusion",
     "bias_notes",
     "coverage_counts",
     "decision_distribution",
     "counts",
+    "daily_brief",
+    "top_actions",
+    "etf_use_cases",
     "refined_candidates",
     "core_candidates",
     "potential_candidates",
