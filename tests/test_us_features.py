@@ -442,6 +442,89 @@ def test_scheduler_uses_module_invocation(tmp_path: Path, monkeypatch):
     assert plist_path.exists()
 
 
+def test_fetch_sina_quotes_parses(monkeypatch):
+    import requests
+
+    from us_screener import data_source
+
+    fields = ["0"] * 36
+    fields[0], fields[1], fields[2] = "Apple", "312.06", "-0.14"
+    fields[3] = "2026-05-29 16:00:00"
+    fields[5], fields[6], fields[7] = "311.77", "315.0", "309.53"
+    fields[10] = "70026752"  # volume
+    fields[12] = "4583336313360"  # market cap
+    fields[14] = "39.35"  # PE
+    fields[30] = "21847030402"  # amount
+    line = 'var hq_str_gb_aapl="' + ",".join(fields) + '";'
+
+    class _Resp:
+        def __init__(self, text):
+            self.text = text
+            self.encoding = "utf-8"
+
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _Resp(line))
+    quotes = data_source.fetch_sina_quotes(["AAPL"], pause=0.0)
+    assert len(quotes) == 1
+    row = quotes.iloc[0]
+    assert row["symbol"] == "AAPL"
+    assert float(row["last_price"]) == 312.06
+    assert float(row["market_cap"]) == 4583336313360.0
+    assert float(row["pe_ttm"]) == 39.35
+    assert float(row["amount"]) == 21847030402.0
+
+
+def test_localize_universe_free(tmp_path: Path, monkeypatch):
+    from ah_screener.sources import us_client
+    from us_screener import data_source
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    master = pd.DataFrame(
+        [
+            {
+                "market": "US", "symbol": "AAPL", "name": "Apple Inc", "asset_type": "stock",
+                "board": "US Tech", "exchange": "NASDAQ", "currency": "USD", "status": "listed",
+                "is_st": False, "is_hk_connect": False, "metadata_source": "test",
+                "metadata_confidence": "high", "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "market": "US", "symbol": "SPY", "name": "SPDR S&P 500", "asset_type": "etf",
+                "board": "US ETF", "exchange": "NYSE", "currency": "USD", "status": "listed",
+                "is_st": False, "is_hk_connect": False, "metadata_source": "test",
+                "metadata_confidence": "high", "updated_at": pd.Timestamp("2026-05-29"),
+            },
+        ]
+    )
+    quotes = pd.DataFrame(
+        [
+            {"symbol": "AAPL", "last_price": 312.0, "pct_change": -0.1, "open": 311.0,
+             "high": 315.0, "low": 309.0, "volume": 7.0e7, "amount": 2.18e10,
+             "market_cap": 4.58e12, "pe_ttm": 39.35, "trade_date": pd.Timestamp("2026-05-29")},
+            {"symbol": "SPY", "last_price": 756.0, "pct_change": 0.2, "open": 755.0,
+             "high": 757.0, "low": 754.0, "volume": 5.0e7, "amount": 3.78e10,
+             "market_cap": None, "pe_ttm": None, "trade_date": pd.Timestamp("2026-05-29")},
+        ]
+    )
+    monkeypatch.setattr(us_client, "fetch_us_security_master", lambda: master)
+    monkeypatch.setattr(data_source, "fetch_sina_quotes", lambda symbols, **k: quotes)
+
+    out = data_source.localize_us_universe_free(store, include_etf=True)
+    assert out["securities"] == 2
+    assert out["snapshots"] == 2
+    snap = store.query_df(
+        "SELECT symbol, last_price, market_cap, source FROM market_snapshots WHERE symbol = 'AAPL'"
+    ).iloc[0]
+    assert float(snap["last_price"]) == 312.0
+    assert float(snap["market_cap"]) == 4.58e12
+    assert snap["source"] == "sina.gb"
+
+    # include_etf=False must drop the ETF from the localized universe.
+    store2 = Store(tmp_path / "us2.duckdb")
+    store2.init_db()
+    out2 = data_source.localize_us_universe_free(store2, include_etf=False)
+    assert out2["securities"] == 1
+
+
 def test_valuation_enrich_updates_snapshots(tmp_path: Path, monkeypatch):
     from us_screener import valuation_enrich
 

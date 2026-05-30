@@ -42,7 +42,11 @@ def _step(result: dict[str, Any], name: str, fn: Callable[[], Any]) -> None:
 
 
 def _backfill_universe(ah, *, batch_limit: int, include_etf: bool, max_symbols: int) -> dict[str, int]:
-    """Page through the full US security master, populating securities + snapshots."""
+    """Page through the full US security master, populating securities + snapshots.
+
+    Futu-path only: each batch derives snapshots per symbol. The free path uses
+    ``_localize_universe`` (bulk Sina quotes) instead — far faster.
+    """
     offset = 0
     total_sec = 0
     total_snap = 0
@@ -57,6 +61,18 @@ def _backfill_universe(ah, *, batch_limit: int, include_etf: bool, max_symbols: 
         batches += 1
         offset += batch_limit
     return {"securities": total_sec, "snapshots": total_snap, "batches": batches}
+
+
+def _localize_universe(ah, store, *, batch_limit: int, include_etf: bool, max_symbols: int) -> dict[str, Any]:
+    """Universe + snapshots, source-aware. Free path = bulk Sina quotes (seconds
+    for the whole market); Futu path = per-symbol paging."""
+    if get_us_config().use_futu:
+        return _backfill_universe(
+            ah, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
+        )
+    from us_screener.data_source import localize_us_universe_free
+
+    return localize_us_universe_free(store, include_etf=include_etf)
 
 
 def run_us_full_backfill(
@@ -80,8 +96,8 @@ def run_us_full_backfill(
     _step(
         result,
         "universe",
-        lambda: _backfill_universe(
-            ah, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
+        lambda: _localize_universe(
+            ah, store, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
         ),
     )
     _step(result, "classify", lambda: ah.classify_existing_securities())
@@ -132,8 +148,8 @@ def run_us_premarket_update(
     _step(
         result,
         "universe",
-        lambda: _backfill_universe(
-            ah, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
+        lambda: _localize_universe(
+            ah, store, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
         ),
     )
     _step(result, "classify", lambda: ah.classify_existing_securities())
