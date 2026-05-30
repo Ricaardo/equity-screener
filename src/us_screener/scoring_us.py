@@ -350,10 +350,19 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     )
     # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB
     # aren't comparable. Falls back to a whole-universe rank where sector is unknown.
+    # Weighted-average over whichever of PE/PB is present, so a missing PB (common on
+    # the free path) does not blank out a name that still has a PE.
+    _val = pd.DataFrame(
+        {
+            "pe": _peer_relative_score(_series(frame, "pe_ttm"), frame["sector"]),
+            "pb": _peer_relative_score(_series(frame, "pb"), frame["sector"]),
+        }
+    )
+    _w = pd.Series({"pe": 0.65, "pb": 0.35})
+    _wsum = _val.notna().mul(_w, axis=1).sum(axis=1).replace(0, np.nan)
     frame["valuation_score"] = (
-        _peer_relative_score(_series(frame, "pe_ttm"), frame["sector"]) * 0.65
-        + _peer_relative_score(_series(frame, "pb"), frame["sector"]) * 0.35
-    ).fillna(50.0).clip(0, 100)
+        (_val.fillna(0.0).mul(_w, axis=1).sum(axis=1) / _wsum).fillna(50.0).clip(0, 100)
+    )
     frame["liquidity_score"] = _liquidity_score(frame).fillna(50.0).clip(0, 100)
     frame["heat_score"] = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
     frame["theme_score_final"] = frame["concept_boards"].map(_theme_score)
