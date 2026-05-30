@@ -654,6 +654,48 @@ def test_stooq_loader_multimarket(tmp_path: Path):
     assert not zpath.exists()  # delete_zip removed the archive
 
 
+def test_consolidate_single_source_per_symbol(tmp_path: Path):
+    from us_screener.stooq_loader import consolidate_history_sources
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    rows = []
+    base = {"market": "US", "open": 1.0, "high": 1.0, "low": 1.0, "close": 1.0, "volume": 1.0,
+            "amount": 1.0, "updated_at": pd.Timestamp("2026-05-29")}
+    # AAPL present in stooq + alpaca + akshare; ZZZZ only in alpaca (no stooq base)
+    rows.append({**base, "symbol": "AAPL", "trade_date": pd.Timestamp("2026-05-20"), "adj_type": "stooq_adj", "source": "stooq.d"})
+    rows.append({**base, "symbol": "AAPL", "trade_date": pd.Timestamp("2026-05-29"), "adj_type": "adjusted", "source": "alpaca.iex"})
+    rows.append({**base, "symbol": "AAPL", "trade_date": pd.Timestamp("2026-05-18"), "adj_type": "raw", "source": "akshare.stock_us_daily"})
+    rows.append({**base, "symbol": "ZZZZ", "trade_date": pd.Timestamp("2026-05-29"), "adj_type": "adjusted", "source": "alpaca.iex"})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+
+    out = consolidate_history_sources(store)
+    assert out["status"] == "ok"
+    df = store.query_df("SELECT symbol, source FROM daily_prices WHERE market='US'")
+    aapl_src = set(df[df["symbol"] == "AAPL"]["source"])
+    assert aapl_src == {"stooq.d"}  # stooq wins; alpaca+akshare dropped for AAPL
+    zzzz_src = set(df[df["symbol"] == "ZZZZ"]["source"])
+    assert zzzz_src == {"alpaca.iex"}  # kept — no stooq base for ZZZZ
+    assert "akshare.stock_us_daily" not in set(df["source"])
+
+
+def test_stooq_loader_rejects_sql_injection(tmp_path: Path):
+    import pytest
+
+    from us_screener.stooq_loader import load_stooq_zip
+
+    zpath = tmp_path / "d.zip"
+    _write_stooq_zip(zpath)
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    with pytest.raises(ValueError):
+        load_stooq_zip(store, zpath, since="2024'; DROP TABLE daily_prices;--")
+    with pytest.raises(ValueError):
+        load_stooq_zip(store, zpath, since="2024-01-01", markets=["US'); DROP TABLE daily_prices;--"])
+    with pytest.raises(ValueError):
+        load_stooq_zip(store, zpath, since="2024-01-01", market_map={"US": "x'); DROP--"})
+
+
 def test_alpaca_history_skips_without_creds(tmp_path: Path, monkeypatch):
     from us_screener import data_source
 

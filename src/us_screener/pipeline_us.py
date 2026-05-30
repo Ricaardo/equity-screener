@@ -104,11 +104,13 @@ def _localize_history(ah, store, *, top: int, lookback_days: int, include_etf: b
     # full adjusted history, zero API calls. (Daily updates use the live bars path.)
     cfg = get_us_config()
     if full and cfg.stooq_zip and Path(cfg.stooq_zip).exists():
-        from us_screener.stooq_loader import load_stooq_us_zip
+        from us_screener.stooq_loader import consolidate_history_sources, load_stooq_us_zip
 
         since = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
         out = load_stooq_us_zip(store, cfg.stooq_zip, since=since, include_etf=include_etf)
-        out["history_source"] = "stooq.d_us"
+        # Enforce single-adjustment history so technicals never splice bases.
+        out["consolidate"] = consolidate_history_sources(store)
+        out["history_source"] = "stooq.d"
         return out
 
     symbols = _top_liquid_symbols(store, top)
@@ -182,12 +184,16 @@ def run_us_premarket_update(
     include_etf: bool = True,
     fundamentals_top: int | None = None,
     max_symbols: int = 20000,
+    refresh_history: bool = False,
 ) -> dict[str, Any]:
-    """Incremental daily refresh.
+    """Incremental daily refresh — snapshot-first.
 
-    Re-pulls spot for the universe, incrementally extends history (skipping names
-    already current), refreshes technicals, tags concepts/risks, runs the US screen
-    and writes the pre-market report.
+    By default the daily run only refreshes the bulk snapshot (latest price / market
+    cap / PE via Sina) and re-screens; it does NOT append daily bars. The history
+    base stays a single, internally-consistent adjustment source (stooq, periodically
+    reloaded), so technicals are never spliced across adjustment bases. Set
+    ``refresh_history=True`` only when there is no stooq base and you want Alpaca
+    (adjusted) increments — still a single source then.
     """
     ah, get_store = _core()
     store = get_store()
@@ -203,13 +209,14 @@ def run_us_premarket_update(
         ),
     )
     _step(result, "classify", lambda: ah.classify_existing_securities())
-    _step(
-        result,
-        "history",
-        lambda: _localize_history(
-            ah, store, top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=False
-        ),
-    )
+    if refresh_history or get_us_config().use_futu:
+        _step(
+            result,
+            "history",
+            lambda: _localize_history(
+                ah, store, top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=False
+            ),
+        )
     if fundamentals_top:
         _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))

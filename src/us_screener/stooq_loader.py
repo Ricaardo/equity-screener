@@ -14,13 +14,32 @@ live (adjusted) bars path; a stooq ZIP is a once-a-day download.
 from __future__ import annotations
 
 import logging
+import re
 import tempfile
 import zipfile
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_CODE_RE = re.compile(r"^[A-Za-z0-9]+$")
+
+
+def _safe_since(since: str) -> str:
+    """Validate the YYYY-MM-DD date literal (interpolated into SQL)."""
+    if not _DATE_RE.match(since):
+        raise ValueError(f"invalid 'since' (expected YYYY-MM-DD): {since!r}")
+    datetime.strptime(since, "%Y-%m-%d")  # raises on impossible dates
+    return since
+
+
+def _safe_code(code: str) -> str:
+    """Validate a market/suffix code (interpolated into SQL); alphanumerics only."""
+    if not _CODE_RE.match(code or ""):
+        raise ValueError(f"invalid market/suffix code: {code!r}")
+    return code
 
 ADJ_TYPE = "stooq_adj"
 SOURCE = "stooq.d"
@@ -33,7 +52,8 @@ DEFAULT_MARKET_MAP = {"US": "US", "HK": "HK", "JP": "JP"}
 def _market_case(market_map: dict[str, str]) -> str:
     """SQL CASE mapping the ticker suffix to our market code (else the suffix)."""
     whens = " ".join(
-        f"WHEN '{suffix.upper()}' THEN '{market.upper()}'" for suffix, market in market_map.items()
+        f"WHEN '{_safe_code(suffix).upper()}' THEN '{_safe_code(market).upper()}'"
+        for suffix, market in market_map.items()
     )
     return f"CASE _suffix {whens} ELSE _suffix END"
 
@@ -61,6 +81,7 @@ def load_stooq_zip(
         raise FileNotFoundError(zip_path)
 
     store.init_db()
+    since = _safe_since(since)
     market_map = {**DEFAULT_MARKET_MAP, **(market_map or {})}
     created_tmp = work_dir is None
     extract_root = Path(work_dir) if work_dir else Path(tempfile.mkdtemp(prefix="stooq_"))
@@ -72,7 +93,7 @@ def load_stooq_zip(
         etf_clause = "" if include_etf else "AND lower(filename) NOT LIKE '%etfs%'"
         market_filter = ""
         if markets:
-            allowed = ", ".join(f"'{m.upper()}'" for m in markets)
+            allowed = ", ".join(f"'{_safe_code(m).upper()}'" for m in markets)
             market_filter = f"AND _market IN ({allowed})"
 
         # Derive market + symbol from the ticker suffix; one parallel read_csv.
@@ -149,10 +170,21 @@ def consolidate_history_sources(store) -> dict[str, Any]:
     """
     store.init_db()
     with store.connect() as conn:
-        conn.execute("UPDATE daily_prices SET source='stooq.d' WHERE source='stooq.d_us'")
+        # Legacy rename only fires if old rows exist (fresh backfills already write
+        # 'stooq.d', so this is a cheap no-op for them).
+        legacy = conn.execute("SELECT COUNT(*) FROM daily_prices WHERE source='stooq.d_us'").fetchone()[0]
+        if legacy:
+            conn.execute("UPDATE daily_prices SET source='stooq.d' WHERE source='stooq.d_us'")
         before = conn.execute("SELECT COUNT(*) FROM daily_prices").fetchone()[0]
         keep = ", ".join(f"'{s}'" for s in _ADJUSTED_SOURCES)
+        # 1. Drop non-adjusted cruft (akshare/futu raw/qfq) everywhere.
         conn.execute(f"DELETE FROM daily_prices WHERE market='US' AND source NOT IN ({keep})")
+        # 2. Single source per symbol: where a symbol has the stooq base, drop any
+        #    other (e.g. alpaca) rows for it so MA/RSI never splice adjustment bases.
+        conn.execute(
+            "DELETE FROM daily_prices WHERE market='US' AND source <> 'stooq.d' "
+            "AND (market, symbol) IN (SELECT market, symbol FROM daily_prices WHERE source='stooq.d')"
+        )
         after = conn.execute("SELECT COUNT(*) FROM daily_prices").fetchone()[0]
         remaining = conn.execute(
             "SELECT source, COUNT(*) FROM daily_prices WHERE market='US' GROUP BY source"
