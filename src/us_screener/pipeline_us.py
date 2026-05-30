@@ -98,12 +98,12 @@ def _localize_history(ah, store, *, top: int, lookback_days: int, include_etf: b
     from us_screener.data_source import localize_us_history_alpaca, localize_us_history_free
 
     symbols = _top_liquid_symbols(store, top)
-    # Prefer Alpaca bulk bars (tens of requests for the whole set); fall back to
-    # the parallel per-symbol akshare path when Alpaca is unavailable/short.
+    # Primary: Alpaca bulk bars (tens of requests for the whole liquid set, IEX feed).
     alpaca = localize_us_history_alpaca(store, symbols, lookback_days=lookback_days)
-    if alpaca.get("status") == "ok" and int(alpaca.get("symbols_ok", 0)) >= max(1, len(symbols) // 2):
+    if alpaca.get("status") == "ok" and int(alpaca.get("symbols_ok", 0)) > 0:
         alpaca["history_source"] = "alpaca.iex"
         return alpaca
+    # Fallback only when Alpaca is unavailable: sequential akshare (crash-safe).
     akshare = localize_us_history_free(store, symbols, lookback_days=lookback_days)
     akshare["history_source"] = "akshare"
     akshare["alpaca"] = alpaca

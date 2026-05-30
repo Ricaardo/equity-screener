@@ -557,7 +557,7 @@ def test_localize_history_free_parallel(tmp_path: Path, monkeypatch):
         )
 
     monkeypatch.setattr(us_client, "fetch_us_history", _fake_hist)
-    out = data_source.localize_us_history_free(store, ["AAPL", "NVDA", "MSFT"], lookback_days=90, max_workers=4)
+    out = data_source.localize_us_history_free(store, ["AAPL", "NVDA", "MSFT"], lookback_days=90)
     assert out["symbols_ok"] == 3
     assert out["symbols_failed"] == 0
     rows = int(store.query_df("SELECT COUNT(*) c FROM daily_prices WHERE market = 'US'").iloc[0]["c"])

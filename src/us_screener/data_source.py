@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import math
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from time import sleep
 from typing import Any
@@ -291,12 +290,14 @@ def localize_us_history_alpaca(
 
 
 def localize_us_history_free(
-    store, symbols: list[str], *, lookback_days: int = 420, max_workers: int = 8
+    store, symbols: list[str], *, lookback_days: int = 420
 ) -> dict[str, Any]:
-    """Parallel per-symbol daily history (akshare, futu disabled) into daily_prices.
+    """Sequential per-symbol daily history (akshare, futu disabled) into daily_prices.
 
-    The per-symbol fetches are independent HTTP calls, so a small thread pool gives
-    a ~6x speedup (measured) over the sequential core path with no rate-limit issues.
+    Intentionally single-threaded: akshare pulls in py_mini_racer (V8), whose
+    allocator is not thread-safe and FATAL-crashes under concurrent use. This is a
+    rarely-hit fallback (Alpaca is the primary, bulk history source), so sequential
+    is an acceptable price for safety.
     """
     from ah_screener.sources.us_client import fetch_us_history
 
@@ -305,24 +306,21 @@ def localize_us_history_free(
     end_date = end.strftime("%Y%m%d")
     wanted = [str(s).strip().upper() for s in symbols if str(s).strip()]
 
-    def _one(symbol: str):
-        try:
-            history = fetch_us_history(symbol, start_date=start_date, end_date=end_date)
-            return symbol, history
-        except Exception as exc:  # noqa: BLE001 — per-symbol free source may fail
-            logger.debug("history fetch failed for %s: %s", symbol, exc)
-            return symbol, None
-
     frames: list[pd.DataFrame] = []
     ok = 0
     failed = 0
-    with ThreadPoolExecutor(max_workers=max(1, max_workers)) as pool:
-        for _symbol, history in pool.map(_one, wanted):
-            if history is None or history.empty:
-                failed += 1
-                continue
-            frames.append(history)
-            ok += 1
+    for symbol in wanted:
+        try:
+            history = fetch_us_history(symbol, start_date=start_date, end_date=end_date)
+        except Exception as exc:  # noqa: BLE001 — per-symbol free source may fail
+            logger.debug("history fetch failed for %s: %s", symbol, exc)
+            failed += 1
+            continue
+        if history is None or history.empty:
+            failed += 1
+            continue
+        frames.append(history)
+        ok += 1
 
     if not frames:
         return {"symbols_ok": 0, "symbols_failed": failed, "rows": 0}
