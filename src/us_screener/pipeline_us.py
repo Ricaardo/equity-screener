@@ -160,7 +160,7 @@ def run_us_full_backfill(
             ah, store, top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=True
         ),
     )
-    _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
+    _step(result, "fundamentals", lambda: _localize_fundamentals(ah, store, fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
@@ -176,6 +176,17 @@ def run_us_full_backfill(
     )
     _step(result, "report", lambda: str(generate_us_premarket_report()))
     return result
+
+
+def _localize_fundamentals(ah, store, fundamentals_top: int) -> dict[str, Any]:
+    """Bulk SEC companyfacts.zip if configured (whole market, no API); else the
+    per-symbol companyfacts path for the top-N names."""
+    cfg = get_us_config()
+    if not cfg.use_futu and cfg.sec_facts_zip and Path(cfg.sec_facts_zip).exists():
+        from us_screener.sec_bulk_loader import load_companyfacts_zip
+
+        return load_companyfacts_zip(store, cfg.sec_facts_zip)
+    return ah.sync_fundamentals("US", top=fundamentals_top)
 
 
 def run_us_premarket_update(

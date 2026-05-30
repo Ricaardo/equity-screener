@@ -65,6 +65,8 @@ class USConfig:
     use_futu: bool
     # optional local stooq bulk history ZIP (d_us_txt.zip); used by full backfill
     stooq_zip: str | None
+    # optional local SEC companyfacts.zip; used by full backfill for bulk fundamentals
+    sec_facts_zip: str | None
     # LLM opinion (optional — graceful skip when api key is absent)
     llm_provider: str  # "anthropic" | "openai" | "none"
     llm_model: str
@@ -102,6 +104,7 @@ def get_us_config() -> USConfig:
         exclude_china_concept=os.getenv("US_SCREENER_EXCLUDE_CHINA", "1").strip().lower() in _TRUE,
         use_futu=use_futu(),
         stooq_zip=os.getenv("US_SCREENER_STOOQ_ZIP") or None,
+        sec_facts_zip=os.getenv("US_SCREENER_SEC_FACTS_ZIP") or None,
         llm_provider=provider,
         llm_model=model,
         llm_api_key=key,

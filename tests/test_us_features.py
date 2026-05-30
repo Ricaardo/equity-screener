@@ -294,6 +294,75 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
+def test_sec_latest_shares():
+    from us_screener.sec_bulk_loader import _latest_shares
+
+    cf = {"facts": {"dei": {"EntityCommonStockSharesOutstanding": {"units": {"shares": [
+        {"end": "2025-12-31", "val": 9.0e9},
+        {"end": "2026-03-31", "val": 1.0e10},
+        {"end": "2025-06-30", "val": 8.0e9},
+    ]}}}}}
+    assert _latest_shares(cf) == 1.0e10  # newest end wins
+
+
+def test_sec_fill_snapshot_valuation(tmp_path: Path):
+    from us_screener.sec_bulk_loader import _fill_snapshot_valuation
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe(
+        "market_snapshots",
+        pd.DataFrame([{"market": "US", "symbol": "AAPL", "asset_type": "stock",
+                       "trade_date": pd.Timestamp("2026-05-29"), "name": "Apple", "last_price": 200.0,
+                       "amount": 1e9, "volume": 1e6, "pe_ttm": None, "pb": None, "market_cap": None,
+                       "source": "test", "updated_at": pd.Timestamp("2026-05-29")}]),
+    )
+    metrics = pd.DataFrame([{"symbol": "AAPL", "total_equity": 1.0e11, "parent_net_profit": 1.0e11}])
+    n = _fill_snapshot_valuation(store, {"AAPL": 1.0e10}, metrics)
+    assert n == 1
+    row = store.query_df("SELECT market_cap, pb, pe_ttm FROM market_snapshots WHERE symbol='AAPL'").iloc[0]
+    assert float(row["market_cap"]) == 200.0 * 1.0e10
+    assert float(row["pb"]) == (200.0 * 1.0e10) / 1.0e11
+    assert float(row["pe_ttm"]) == (200.0 * 1.0e10) / 1.0e11
+
+
+def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
+    import json
+    import zipfile
+
+    from ah_screener.sources import us_client
+    from us_screener import sec_bulk_loader
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe(
+        "market_snapshots",
+        pd.DataFrame([{"market": "US", "symbol": "AAPL", "asset_type": "stock",
+                       "trade_date": pd.Timestamp("2026-05-29"), "name": "Apple", "last_price": 200.0,
+                       "amount": 1e9, "volume": 1e6, "pe_ttm": None, "pb": None, "market_cap": None,
+                       "source": "test", "updated_at": pd.Timestamp("2026-05-29")}]),
+    )
+
+    def _gaap(val):
+        return {"units": {"USD": [{"end": "2025-12-31", "val": val, "form": "10-K", "fp": "FY", "filed": "2026-02-01"}]}}
+
+    cf = {"cik": 1, "entityName": "Apple Inc.", "facts": {
+        "us-gaap": {"StockholdersEquity": _gaap(1.0e11), "NetIncomeLoss": _gaap(1.0e11), "Revenues": _gaap(4.0e11)},
+        "dei": {"EntityCommonStockSharesOutstanding": {"units": {"shares": [{"end": "2026-01-01", "val": 1.0e10}]}}},
+    }}
+    zpath = tmp_path / "companyfacts.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("CIK0000000001.json", json.dumps(cf))
+    monkeypatch.setattr(
+        us_client, "fetch_sec_company_tickers",
+        lambda: {"AAPL": {"cik_str": 1, "ticker": "AAPL", "title": "Apple Inc"}},
+    )
+    out = sec_bulk_loader.load_companyfacts_zip(store, zpath)
+    assert out["status"] == "ok" and out["shares"] == 1
+    mcap = store.query_df("SELECT market_cap FROM market_snapshots WHERE symbol='AAPL'").iloc[0]["market_cap"]
+    assert float(mcap) == 200.0 * 1.0e10  # shares x price, no API call
+
+
 def test_peer_relative_valuation():
     from us_screener.scoring_us import _peer_relative_score
 

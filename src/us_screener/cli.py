@@ -141,6 +141,21 @@ def load_stooq_command(
     _emit(result, as_json)
 
 
+@app.command("load-sec-facts")
+def load_sec_facts_command(
+    zip_path: Path = typer.Argument(..., help="Path to the SEC companyfacts.zip bulk archive."),
+    no_snapshots: bool = typer.Option(False, help="Only write financial_metrics, skip snapshot valuation fill."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Bulk-load SEC companyfacts.zip into fundamentals + snapshot market_cap/PE/PB (no API)."""
+    use_us_database()
+    from ah_screener.db import get_store
+    from us_screener.sec_bulk_loader import load_companyfacts_zip
+
+    result = load_companyfacts_zip(get_store(), zip_path, fill_snapshots=not no_snapshots)
+    _emit(result, as_json)
+
+
 @app.command("screen")
 def screen_command(
     top: int = typer.Option(20, help="Number of top rows to return."),
