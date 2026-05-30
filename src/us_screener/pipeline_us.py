@@ -13,11 +13,12 @@ from typing import Any, Callable
 
 from us_screener.china_concept import tag_china_concept
 from us_screener.concept_boards import tag_concept_boards
-from us_screener.config import use_us_database
+from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
 from us_screener.macro import get_macro_context
 from us_screener.reporting_us import generate_us_premarket_report
 from us_screener.scoring_us import run_us_screen
+from us_screener.valuation_enrich import enrich_us_valuation
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ def run_us_full_backfill(
     store = get_store()
     store.init_db()
 
-    result: dict[str, Any] = {"mode": "full_backfill"}
+    result: dict[str, Any] = {"mode": "full_backfill", "source": "futu" if get_us_config().use_futu else "free"}
     _step(result, "delisted", lambda: ah.sync_delisted_universe())
     _step(
         result,
@@ -92,6 +93,7 @@ def run_us_full_backfill(
         ),
     )
     _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
+    _step(result, "valuation_enrich", lambda: enrich_us_valuation(store, limit=800))
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
@@ -125,7 +127,7 @@ def run_us_premarket_update(
     store = get_store()
     store.init_db()
 
-    result: dict[str, Any] = {"mode": "premarket_update"}
+    result: dict[str, Any] = {"mode": "premarket_update", "source": "futu" if get_us_config().use_futu else "free"}
     _step(result, "delisted", lambda: ah.sync_delisted_universe())
     _step(
         result,
@@ -144,6 +146,7 @@ def run_us_premarket_update(
     )
     if fundamentals_top:
         _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
+    _step(result, "valuation_enrich", lambda: enrich_us_valuation(store, limit=800))
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))

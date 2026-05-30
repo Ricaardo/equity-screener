@@ -18,6 +18,14 @@ from ah_screener.sources.futu_client import (
 )
 
 
+def _futu_enabled() -> bool:
+    """US-only switch: when ``US_SCREENER_DISABLE_FUTU=1`` the US data path skips
+    the Futu/OpenD calls entirely and uses the free sources (SEC + akshare/Nasdaq
+    directory) directly. A/H code paths never set this env, so they are unaffected.
+    """
+    return os.getenv("US_SCREENER_DISABLE_FUTU", "").strip() not in {"1", "true", "True"}
+
+
 NASDAQ_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt"
 OTHER_LISTED_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -119,12 +127,13 @@ def _read_symbol_directory(url: str) -> pd.DataFrame:
 
 
 def fetch_us_security_master() -> pd.DataFrame:
-    try:
-        futu_master = fetch_futu_us_security_master()
-    except Exception:
-        futu_master = pd.DataFrame()
-    if not futu_master.empty:
-        return futu_master
+    if _futu_enabled():
+        try:
+            futu_master = fetch_futu_us_security_master()
+        except Exception:
+            futu_master = pd.DataFrame()
+        if not futu_master.empty:
+            return futu_master
 
     updated_at = _now()
     rows: list[pd.DataFrame] = []
@@ -359,12 +368,14 @@ def fetch_us_history(symbol: str, start_date: str, end_date: str, adjust: str = 
     start = pd.to_datetime(start_date)
     end = pd.to_datetime(end_date)
     last_error: Exception | None = None
-    calls = [
-        lambda: _fetch_us_history_futu(
-            symbol, start_date=start_date, end_date=end_date, adjust=adjust
-        ),
-        lambda: _fetch_us_history_akshare(symbol, adjust=adjust),
-    ]
+    calls = []
+    if _futu_enabled():
+        calls.append(
+            lambda: _fetch_us_history_futu(
+                symbol, start_date=start_date, end_date=end_date, adjust=adjust
+            )
+        )
+    calls.append(lambda: _fetch_us_history_akshare(symbol, adjust=adjust))
     for func in calls:
         try:
             history = func()
@@ -415,12 +426,13 @@ def fetch_us_spot(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     master = fetch_us_security_master() if master is None else master
     selected = [_clean_us_symbol(symbol) for symbol in (symbols or list(US_DEFAULT_SYMBOLS))]
-    try:
-        securities, snapshots = fetch_futu_us_spot(symbols=selected, master=master)
-    except Exception:
-        securities, snapshots = pd.DataFrame(), pd.DataFrame()
-    if not snapshots.empty:
-        return securities, snapshots
+    if _futu_enabled():
+        try:
+            securities, snapshots = fetch_futu_us_spot(symbols=selected, master=master)
+        except Exception:
+            securities, snapshots = pd.DataFrame(), pd.DataFrame()
+        if not snapshots.empty:
+            return securities, snapshots
 
     master_index = master.set_index("symbol", drop=False)
     end = datetime.now()

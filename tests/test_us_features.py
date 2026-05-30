@@ -442,6 +442,61 @@ def test_scheduler_uses_module_invocation(tmp_path: Path, monkeypatch):
     assert plist_path.exists()
 
 
+def test_valuation_enrich_updates_snapshots(tmp_path: Path, monkeypatch):
+    from us_screener import valuation_enrich
+
+    store = _seed_store(tmp_path)
+    # BABA seeded with pe/pb/market_cap already; AAPL too. Null them to test fill.
+    store.execute(
+        "UPDATE market_snapshots SET market_cap = NULL, pe_ttm = NULL, pb = NULL WHERE market = 'US'"
+    )
+    monkeypatch.setattr(
+        valuation_enrich,
+        "_fetch_one",
+        lambda symbol: {"market_cap": 1.0e12, "pe_ttm": 25.0, "pb": 8.0},
+    )
+    out = valuation_enrich.enrich_us_valuation(store, limit=50)
+    assert out["status"] == "ok"
+    assert out["updated"] >= 1
+    assert out["rate_limited"] is False
+    filled = store.query_df(
+        "SELECT market_cap, pe_ttm, pb FROM market_snapshots WHERE symbol = 'AAPL' AND market = 'US'"
+    )
+    assert float(filled.iloc[0]["market_cap"]) == 1.0e12
+    assert float(filled.iloc[0]["pe_ttm"]) == 25.0
+
+
+def test_valuation_enrich_rate_limit_stops_early(tmp_path: Path, monkeypatch):
+    from us_screener import valuation_enrich
+
+    store = _seed_store(tmp_path)
+    store.execute("UPDATE market_snapshots SET market_cap = NULL WHERE market = 'US'")
+
+    class _RateLimit(Exception):
+        pass
+
+    _RateLimit.__name__ = "YFRateLimitError"
+
+    def _boom(symbol):
+        raise _RateLimit("Too Many Requests. Rate limited.")
+
+    monkeypatch.setattr(valuation_enrich, "_fetch_one", _boom)
+    out = valuation_enrich.enrich_us_valuation(store, limit=50)
+    assert out["status"] == "ok"
+    assert out["updated"] == 0
+    assert out["rate_limited"] is True
+
+
+def test_valuation_enrich_empty_store(tmp_path: Path):
+    from us_screener import valuation_enrich
+
+    store = Store(tmp_path / "empty.duckdb")
+    store.init_db()
+    out = valuation_enrich.enrich_us_valuation(store, limit=10)
+    assert out["status"] == "empty"
+    assert out["updated"] == 0
+
+
 def test_mcp_server_build_or_skip(tmp_path: Path, monkeypatch):
     monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
     monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))

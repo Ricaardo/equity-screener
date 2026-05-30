@@ -20,6 +20,7 @@ DEFAULT_REPORTS_DIR = PROJECT_ROOT / "reports" / "us-premarket"
 
 US_DB_ENV = "US_SCREENER_DB"
 SHARED_DB_ENV = "AH_SCREENER_DB"  # the env var ah_screener.config.get_settings() reads
+FUTU_DISABLE_ENV = "US_SCREENER_DISABLE_FUTU"  # us_client._futu_enabled() reads this
 
 _TRUE = {"1", "true", "yes", "on"}
 
@@ -28,16 +29,27 @@ def us_db_path() -> Path:
     return Path(os.getenv(US_DB_ENV, DEFAULT_US_DB_PATH))
 
 
+def use_futu() -> bool:
+    """Whether the US data path should use Futu/OpenD. Default False: the US
+    screener is futu-independent and pulls from free sources (SEC + akshare +
+    Nasdaq directory). Set ``US_SCREENER_USE_FUTU=1`` to opt back into Futu.
+    """
+    return os.getenv("US_SCREENER_USE_FUTU", "").strip().lower() in _TRUE
+
+
 def use_us_database() -> Path:
     """Route the shared ah_screener store to the independent US DuckDB.
 
     Idempotent. Call this at the start of every us_screener entrypoint (CLI
     command, pipeline run, MCP server startup) before importing/using any
-    ah_screener pipeline or storage function.
+    ah_screener pipeline or storage function. Also pins the US data source to
+    free providers unless ``US_SCREENER_USE_FUTU=1`` is set.
     """
     path = us_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     os.environ[SHARED_DB_ENV] = str(path)
+    # Off-by-default Futu: tell us_client to skip OpenD and use free sources.
+    os.environ[FUTU_DISABLE_ENV] = "0" if use_futu() else "1"
     return path
 
 
@@ -49,6 +61,8 @@ class USConfig:
     min_us_amount: float
     min_market_cap: float
     exclude_china_concept: bool
+    # data source: free providers by default (futu-independent)
+    use_futu: bool
     # LLM opinion (optional — graceful skip when api key is absent)
     llm_provider: str  # "anthropic" | "openai" | "none"
     llm_model: str
@@ -84,6 +98,7 @@ def get_us_config() -> USConfig:
         min_us_amount=float(os.getenv("US_SCREENER_MIN_AMOUNT", "3000000")),
         min_market_cap=float(os.getenv("US_SCREENER_MIN_MKTCAP", "300000000")),
         exclude_china_concept=os.getenv("US_SCREENER_EXCLUDE_CHINA", "1").strip().lower() in _TRUE,
+        use_futu=use_futu(),
         llm_provider=provider,
         llm_model=model,
         llm_api_key=key,

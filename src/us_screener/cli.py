@@ -66,6 +66,7 @@ def info_command(as_json: bool = typer.Option(False, "--json", help="Emit JSON."
             "min_us_amount": cfg.min_us_amount,
             "min_market_cap": cfg.min_market_cap,
             "exclude_china_concept": cfg.exclude_china_concept,
+            "data_source": "futu" if cfg.use_futu else "free (akshare/SEC/nasdaq + yfinance valuation)",
             "llm_provider": cfg.llm_provider,
             "llm_model": cfg.llm_model,
             "llm_api_key_present": bool(cfg.llm_api_key),

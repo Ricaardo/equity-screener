@@ -44,6 +44,25 @@ def test_use_us_database_routes_shared_store(monkeypatch, tmp_path):
     assert custom.parent.exists()  # parent dir created
 
 
+def test_use_us_database_disables_futu_by_default(monkeypatch, tmp_path):
+    import os
+
+    from ah_screener.sources import us_client
+
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.delenv("US_SCREENER_USE_FUTU", raising=False)
+    uscfg.use_us_database()
+    assert os.environ["US_SCREENER_DISABLE_FUTU"] == "1"
+    assert uscfg.get_us_config().use_futu is False
+    assert us_client._futu_enabled() is False  # core gate honours the env
+
+    monkeypatch.setenv("US_SCREENER_USE_FUTU", "1")
+    uscfg.use_us_database()
+    assert os.environ["US_SCREENER_DISABLE_FUTU"] == "0"
+    assert uscfg.get_us_config().use_futu is True
+    assert us_client._futu_enabled() is True
+
+
 def test_llm_provider_autodetect(monkeypatch):
     assert uscfg.get_us_config().llm_provider == "none"
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
