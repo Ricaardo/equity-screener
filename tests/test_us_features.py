@@ -1,0 +1,456 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pandas as pd
+import pytest
+from typer.testing import CliRunner
+
+from ah_screener.storage import Store
+from us_screener import concept_boards
+from us_screener.cli import app
+from us_screener.config import get_us_config
+from us_screener.heat import compute_heat_scores
+from us_screener.llm_opinion import generate_us_llm_opinion
+from us_screener.macro import get_macro_context, score_macro_transmission
+from us_screener.reporting_us import build_us_premarket_payload, generate_us_premarket_report
+from us_screener.scheduler_us import install_us_launchd_schedule
+from us_screener.scoring_us import run_us_screen
+
+
+runner = CliRunner()
+
+
+def _seed_store(tmp_path: Path) -> Store:
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+
+    snapshots = pd.DataFrame(
+        [
+            {
+                "market": "US",
+                "symbol": "AAPL",
+                "asset_type": "stock",
+                "board": "NASDAQ",
+                "trade_date": pd.Timestamp("2026-05-29"),
+                "name": "Apple Inc",
+                "last_price": 210.0,
+                "pct_change": 1.2,
+                "volume": 1000.0,
+                "amount": 15_000_000.0,
+                "turnover_rate": None,
+                "pe_ttm": 28.0,
+                "pb": 12.0,
+                "market_cap": 3_100_000_000_000.0,
+                "source": "test",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "market": "US",
+                "symbol": "NVDA",
+                "asset_type": "stock",
+                "board": "NASDAQ",
+                "trade_date": pd.Timestamp("2026-05-29"),
+                "name": "NVIDIA Corporation",
+                "last_price": 1150.0,
+                "pct_change": 3.1,
+                "volume": 1400.0,
+                "amount": 22_000_000.0,
+                "turnover_rate": None,
+                "pe_ttm": 40.0,
+                "pb": 20.0,
+                "market_cap": 2_800_000_000_000.0,
+                "source": "test",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "market": "US",
+                "symbol": "BABA",
+                "asset_type": "stock",
+                "board": "NYSE",
+                "trade_date": pd.Timestamp("2026-05-29"),
+                "name": "Alibaba Group",
+                "last_price": 85.0,
+                "pct_change": -0.5,
+                "volume": 800.0,
+                "amount": 8_000_000.0,
+                "turnover_rate": None,
+                "pe_ttm": 12.0,
+                "pb": 1.8,
+                "market_cap": 220_000_000_000.0,
+                "source": "test",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "market": "US",
+                "symbol": "IONQ",
+                "asset_type": "stock",
+                "board": "NYSE",
+                "trade_date": pd.Timestamp("2026-05-29"),
+                "name": "IonQ Inc",
+                "last_price": 11.0,
+                "pct_change": 2.5,
+                "volume": 1200.0,
+                "amount": 4_500_000.0,
+                "turnover_rate": None,
+                "pe_ttm": None,
+                "pb": 7.0,
+                "market_cap": 2_800_000_000.0,
+                "source": "test",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+        ]
+    )
+    store.upsert_dataframe("market_snapshots", snapshots)
+
+    securities = pd.DataFrame(
+        [
+            {"market": "US", "symbol": "AAPL", "name": "Apple Inc", "asset_type": "stock"},
+            {"market": "US", "symbol": "NVDA", "name": "NVIDIA Corporation", "asset_type": "stock"},
+            {"market": "US", "symbol": "BABA", "name": "Alibaba Group", "asset_type": "stock"},
+            {"market": "US", "symbol": "IONQ", "name": "IonQ Inc", "asset_type": "stock"},
+        ]
+    )
+    store.upsert_dataframe("securities", securities)
+
+    daily_rows = []
+    for symbol, start, drift, volume_base in [
+        ("AAPL", 180.0, 1.0, 900.0),
+        ("NVDA", 900.0, 4.0, 1000.0),
+        ("BABA", 95.0, -0.2, 700.0),
+        ("IONQ", 8.0, 0.08, 850.0),
+        ("SPY", 500.0, 0.4, 1500.0),
+        ("QQQ", 430.0, 0.7, 1450.0),
+        ("IWM", 205.0, 0.15, 1300.0),
+        ("TLT", 92.0, 0.05, 1200.0),
+        ("XLK", 210.0, 0.5, 1100.0),
+        ("XLE", 85.0, 0.2, 1000.0),
+    ]:
+        for idx in range(80):
+            date = pd.Timestamp("2026-03-01") + pd.Timedelta(days=idx)
+            close = start + drift * idx
+            daily_rows.append(
+                {
+                    "market": "US",
+                    "symbol": symbol,
+                    "trade_date": date,
+                    "open": close - 1,
+                    "high": close + 2,
+                    "low": close - 2,
+                    "close": close,
+                    "volume": volume_base + idx * 4,
+                    "amount": (volume_base + idx * 4) * close,
+                    "adj_type": "raw",
+                    "source": "test",
+                    "updated_at": pd.Timestamp("2026-05-29"),
+                }
+            )
+    store.upsert_dataframe("daily_prices", pd.DataFrame(daily_rows))
+
+    technical = pd.DataFrame(
+        [
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "AAPL",
+                "name": "Apple Inc",
+                "close": 210.0,
+                "ma20": 200.0,
+                "ma60": 190.0,
+                "ma120": None,
+                "return_20d": 0.08,
+                "return_60d": 0.18,
+                "pct_from_120d_high": -0.03,
+                "rsi14": 61.0,
+                "volatility_20d": 0.25,
+                "trend_score": 80.0,
+                "momentum_score": 70.0,
+                "technical_score": 76.0,
+                "technical_signal": "constructive",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "NVDA",
+                "name": "NVIDIA Corporation",
+                "close": 1150.0,
+                "ma20": 1080.0,
+                "ma60": 990.0,
+                "ma120": None,
+                "return_20d": 0.14,
+                "return_60d": 0.33,
+                "pct_from_120d_high": -0.01,
+                "rsi14": 66.0,
+                "volatility_20d": 0.32,
+                "trend_score": 88.0,
+                "momentum_score": 82.0,
+                "technical_score": 85.0,
+                "technical_signal": "strong_trend",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "IONQ",
+                "name": "IonQ Inc",
+                "close": 11.0,
+                "ma20": 10.2,
+                "ma60": 9.4,
+                "ma120": None,
+                "return_20d": 0.10,
+                "return_60d": 0.20,
+                "pct_from_120d_high": -0.05,
+                "rsi14": 58.0,
+                "volatility_20d": 0.40,
+                "trend_score": 72.0,
+                "momentum_score": 68.0,
+                "technical_score": 70.0,
+                "technical_signal": "constructive",
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+        ]
+    )
+    store.upsert_dataframe("technical_indicators", technical)
+
+    financials = pd.DataFrame(
+        [
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "AAPL",
+                "name": "Apple Inc",
+                "report_date": pd.Timestamp("2026-03-31"),
+                "report_type": "quarterly",
+                "quality_score": 82.0,
+                "growth_score": 72.0,
+                "balance_score": 75.0,
+                "cashflow_score": 80.0,
+                "fundamental_score": 78.0,
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "NVDA",
+                "name": "NVIDIA Corporation",
+                "report_date": pd.Timestamp("2026-03-31"),
+                "report_type": "quarterly",
+                "quality_score": 88.0,
+                "growth_score": 92.0,
+                "balance_score": 78.0,
+                "cashflow_score": 84.0,
+                "fundamental_score": 86.0,
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+            {
+                "snapshot_date": pd.Timestamp("2026-05-29"),
+                "market": "US",
+                "symbol": "IONQ",
+                "name": "IonQ Inc",
+                "report_date": pd.Timestamp("2026-03-31"),
+                "report_type": "quarterly",
+                "quality_score": 50.0,
+                "growth_score": 68.0,
+                "balance_score": 58.0,
+                "cashflow_score": 46.0,
+                "fundamental_score": 56.0,
+                "updated_at": pd.Timestamp("2026-05-29"),
+            },
+        ]
+    )
+    store.upsert_dataframe("financial_metrics", financials)
+
+    concept_boards.tag_concept_boards(store, seed={"NVDA": "AI算力", "IONQ": "量子计算"})
+    return store
+
+
+def _tag_baba(store: Store) -> None:
+    store.upsert_dataframe(
+        "company_tags",
+        pd.DataFrame(
+            [
+                {
+                    "market": "US",
+                    "symbol": "BABA",
+                    "tag_type": "risk",
+                    "tag_name": "china_concept",
+                    "evidence_level": "high",
+                    "source": "test",
+                    "updated_at": pd.Timestamp("2026-05-29"),
+                }
+            ]
+        ),
+    )
+
+
+def test_heat_scores_offline(tmp_path: Path):
+    store = _seed_store(tmp_path)
+    heat = compute_heat_scores(store)
+    assert list(heat.columns) == ["market", "symbol", "heat_score", "heat_components"]
+    assert {"AAPL", "NVDA", "IONQ", "BABA"} <= set(heat["symbol"])
+    assert heat["heat_score"].between(0, 100).all()
+    assert isinstance(heat.iloc[0]["heat_components"], dict)
+
+
+def test_macro_context_fallback(tmp_path: Path):
+    store = Store(tmp_path / "empty.duckdb")
+    store.init_db()
+    ctx = get_macro_context(store)
+    assert ctx["status"] == "fallback_neutral"
+    scored = score_macro_transmission(pd.DataFrame([{"market": "US", "symbol": "AAPL"}]), store, ctx)
+    assert scored.iloc[0]["macro_score"] == 50.0
+
+
+def test_concept_board_keyword_fallback():
+    boards = concept_boards.infer_concept_boards("XYZ", "Acme Quantum Systems")
+    assert "量子计算" in boards
+
+
+def test_scoring_excludes_china_concept(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    store = _seed_store(tmp_path)
+    _tag_baba(store)
+    result = run_us_screen(store=store, persist=True)
+    scored = result["results"]
+    baba = scored.loc[scored["symbol"] == "BABA"].iloc[0]
+    nvda = scored.loc[scored["symbol"] == "NVDA"].iloc[0]
+    # is_filtered must be a real bool dtype: an object column of Python bools
+    # would make `~scored["is_filtered"]` do bitwise int negation (~True == -2)
+    # and break reporting's `scored.loc[~scored["is_filtered"]]` (regression guard).
+    assert scored["is_filtered"].dtype == bool
+    assert (~scored["is_filtered"]).sum() == int((~scored["is_filtered"]).sum())
+    assert bool(baba["is_filtered"]) is True
+    assert "china_concept" in baba["filter_reasons"]
+    assert bool(nvda["is_filtered"]) is False
+    persisted = store.query_df(
+        "SELECT symbol, decision FROM expert_screening_results WHERE strategy = 'us_premarket'"
+    )
+    assert set(persisted["symbol"]) >= {"AAPL", "NVDA", "BABA", "IONQ"}
+
+
+def test_reporting_payload_and_files(tmp_path: Path, monkeypatch):
+    db_path = tmp_path / "us.duckdb"
+    monkeypatch.setenv("US_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("AH_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("US_SCREENER_REPORTS", str(tmp_path / "reports"))
+    store = _seed_store(tmp_path)
+    _tag_baba(store)
+    payload = build_us_premarket_payload(store)
+    assert payload["report_type"] == "us-premarket"
+    assert payload["counts"]["universe"] >= 4
+    assert payload["top_candidates"]
+    assert payload["llm_opinion"]["status"] == "skipped"
+    path = generate_us_premarket_report(output_dir=tmp_path / "reports")
+    assert path.exists()
+    assert (tmp_path / "reports" / "us-premarket-latest.json").exists()
+    written = json.loads((tmp_path / "reports" / "us-premarket-latest.json").read_text())
+    assert written["report_type"] == "us-premarket"
+
+
+def test_llm_skip_without_keys(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("US_SCREENER_LLM_PROVIDER", raising=False)
+    opinion = generate_us_llm_opinion({"top_candidates": []})
+    assert opinion["status"] == "skipped"
+
+
+def test_cli_info_and_report_json(tmp_path: Path, monkeypatch):
+    db_path = tmp_path / "us.duckdb"
+    reports_dir = tmp_path / "reports"
+    monkeypatch.setenv("US_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("AH_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("US_SCREENER_REPORTS", str(reports_dir))
+    _seed_store(tmp_path)
+    tagged_store = Store(db_path)
+    tagged_store.init_db()
+    _tag_baba(tagged_store)
+
+    info = runner.invoke(app, ["info", "--json"])
+    assert info.exit_code == 0
+    info_payload = json.loads(info.stdout)
+    assert info_payload["db_path"] == str(db_path)
+
+    report = runner.invoke(app, ["report", "--json"])
+    assert report.exit_code == 0
+    report_payload = json.loads(report.stdout)
+    assert report_payload["latest_json_path"].endswith("us-premarket-latest.json")
+
+
+def test_exclude_china_concept_false_keeps_china_name(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("US_SCREENER_EXCLUDE_CHINA", "0")
+    store = _seed_store(tmp_path)
+    _tag_baba(store)
+    scored = run_us_screen(store=store, persist=False)["results"]
+    baba = scored.loc[scored["symbol"] == "BABA"].iloc[0]
+    # Flag is still surfaced truthfully, but with exclusion off it is not hard-cut.
+    assert bool(baba["is_china_concept"]) is True
+    assert "china_concept" not in (baba["filter_reasons"] or [])
+    assert bool(baba["is_filtered"]) is False
+    assert float(baba["expert_score"]) > 0.0
+
+
+def test_empty_universe_report(tmp_path: Path, monkeypatch):
+    db_path = tmp_path / "empty.duckdb"
+    monkeypatch.setenv("US_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("AH_SCREENER_DB", str(db_path))
+    monkeypatch.setenv("US_SCREENER_REPORTS", str(tmp_path / "reports"))
+    store = Store(db_path)
+    store.init_db()
+    payload = build_us_premarket_payload(store)
+    assert payload["counts"]["universe"] == 0
+    assert payload["counts"]["candidates"] == 0
+    assert payload["top_candidates"] == []
+    assert payload["llm_opinion"]["status"] == "skipped"
+    path = generate_us_premarket_report(output_dir=tmp_path / "reports")
+    assert path.exists()
+    assert (tmp_path / "reports" / "us-premarket-latest.md").exists()
+
+
+def test_api_key_never_emitted(tmp_path: Path, monkeypatch):
+    sentinel = "sk-do-not-leak-DEADBEEF"
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("US_SCREENER_LLM_PROVIDER", "anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", sentinel)
+    # The key must be loaded into config (so we know it could leak) ...
+    assert get_us_config().llm_api_key == sentinel
+    # ... yet must never appear in any emitted surface.
+    info = runner.invoke(app, ["info", "--json"])
+    assert info.exit_code == 0
+    assert sentinel not in info.stdout
+    payload = json.loads(info.stdout)
+    assert payload["llm_api_key_present"] is True
+    assert sentinel not in json.dumps(payload)
+
+
+def test_scheduler_uses_module_invocation(tmp_path: Path, monkeypatch):
+    # No .venv under the throwaway repo dir, so the script must fall back to the
+    # current interpreter via `python -m us_screener.cli`, never a hardcoded
+    # .venv/bin/us-screener path (which may not exist in a base-env install).
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    script_path, plist_path = install_us_launchd_schedule(repo_dir=tmp_path, hour=20, minute=30)
+    script_text = script_path.read_text()
+    assert "-m us_screener.cli update" in script_text
+    assert "-m us_screener.cli report" in script_text
+    assert ".venv/bin/us-screener" not in script_text
+    assert plist_path.exists()
+
+
+def test_mcp_server_build_or_skip(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    from us_screener.mcp_server import create_mcp_server
+
+    try:
+        server = create_mcp_server()
+    except RuntimeError as exc:
+        assert "mcp" in str(exc).lower()
+        pytest.skip("mcp extra not installed")
+    else:
+        assert hasattr(server, "run")

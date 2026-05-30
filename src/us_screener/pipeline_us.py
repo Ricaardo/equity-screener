@@ -1,0 +1,158 @@
+"""US backfill + incremental orchestration.
+
+Reuses ah_screener pipeline steps but drives them US-only and against the
+independent US DuckDB (see ``config.use_us_database``). Mirrors the resilient
+per-step try/except pattern of ``ah_screener.pipeline.run_full_update`` so a flaky
+free-data source records a failure without aborting the whole run.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any, Callable
+
+from us_screener.china_concept import tag_china_concept
+from us_screener.concept_boards import tag_concept_boards
+from us_screener.config import use_us_database
+from us_screener.heat import compute_heat_scores
+from us_screener.macro import get_macro_context
+from us_screener.reporting_us import generate_us_premarket_report
+from us_screener.scoring_us import run_us_screen
+
+logger = logging.getLogger(__name__)
+
+
+def _core():
+    """Import reused core *after* routing the store to the US database."""
+    use_us_database()
+    from ah_screener import pipeline as ah_pipeline
+    from ah_screener.db import get_store
+
+    return ah_pipeline, get_store
+
+
+def _step(result: dict[str, Any], name: str, fn: Callable[[], Any]) -> None:
+    """Run one pipeline step; record failure but keep going (free-data sources are flaky)."""
+    try:
+        result[name] = fn()
+    except Exception as exc:  # noqa: BLE001 — mirror ah_screener resilient pipeline
+        logger.warning("us_screener step %s failed: %s", name, exc)
+        result[name] = {"error": str(exc)}
+
+
+def _backfill_universe(ah, *, batch_limit: int, include_etf: bool, max_symbols: int) -> dict[str, int]:
+    """Page through the full US security master, populating securities + snapshots."""
+    offset = 0
+    total_sec = 0
+    total_snap = 0
+    batches = 0
+    while offset < max_symbols:
+        out = ah.sync_us_spot_batch(offset=offset, limit=batch_limit, include_etf=include_etf)
+        n_sec = int(out.get("US_securities", 0) or 0)
+        if n_sec == 0:
+            break
+        total_sec += n_sec
+        total_snap += int(out.get("US_snapshots", 0) or 0)
+        batches += 1
+        offset += batch_limit
+    return {"securities": total_sec, "snapshots": total_snap, "batches": batches}
+
+
+def run_us_full_backfill(
+    *,
+    batch_limit: int = 200,
+    history_top: int = 4000,
+    lookback_days: int = 1100,
+    include_etf: bool = True,
+    fundamentals_top: int = 1500,
+    max_symbols: int = 20000,
+) -> dict[str, Any]:
+    """First-run full localization: pull the entire US universe + history + fundamentals
+    into the independent US DuckDB. Subsequent runs should use ``run_us_premarket_update``.
+    """
+    ah, get_store = _core()
+    store = get_store()
+    store.init_db()
+
+    result: dict[str, Any] = {"mode": "full_backfill"}
+    _step(result, "delisted", lambda: ah.sync_delisted_universe())
+    _step(
+        result,
+        "universe",
+        lambda: _backfill_universe(
+            ah, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
+        ),
+    )
+    _step(result, "classify", lambda: ah.classify_existing_securities())
+    _step(
+        result,
+        "history",
+        lambda: ah.sync_history(
+            "US", top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=True
+        ),
+    )
+    _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
+    _step(result, "technical", lambda: ah.run_technical_indicators())
+    _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
+    _step(result, "concept_boards", lambda: tag_concept_boards(store))
+    _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
+    _step(result, "macro", lambda: get_macro_context(store))
+    _step(
+        result,
+        "screen",
+        lambda: {"persisted_rows": run_us_screen(store=store, persist=True)["persisted_rows"]},
+    )
+    _step(result, "report", lambda: str(generate_us_premarket_report()))
+    return result
+
+
+def run_us_premarket_update(
+    *,
+    batch_limit: int = 200,
+    history_top: int = 4000,
+    lookback_days: int = 430,
+    include_etf: bool = True,
+    fundamentals_top: int | None = None,
+    max_symbols: int = 20000,
+) -> dict[str, Any]:
+    """Incremental daily refresh.
+
+    Re-pulls spot for the universe, incrementally extends history (skipping names
+    already current), refreshes technicals, tags concepts/risks, runs the US screen
+    and writes the pre-market report.
+    """
+    ah, get_store = _core()
+    store = get_store()
+    store.init_db()
+
+    result: dict[str, Any] = {"mode": "premarket_update"}
+    _step(result, "delisted", lambda: ah.sync_delisted_universe())
+    _step(
+        result,
+        "universe",
+        lambda: _backfill_universe(
+            ah, batch_limit=batch_limit, include_etf=include_etf, max_symbols=max_symbols
+        ),
+    )
+    _step(result, "classify", lambda: ah.classify_existing_securities())
+    _step(
+        result,
+        "history",
+        lambda: ah.sync_history(
+            "US", top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=False
+        ),
+    )
+    if fundamentals_top:
+        _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
+    _step(result, "technical", lambda: ah.run_technical_indicators())
+    _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
+    _step(result, "concept_boards", lambda: tag_concept_boards(store))
+    _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
+    _step(result, "macro", lambda: get_macro_context(store))
+    _step(
+        result,
+        "screen",
+        lambda: {"persisted_rows": run_us_screen(store=store, persist=True)["persisted_rows"]},
+    )
+    _step(result, "report", lambda: str(generate_us_premarket_report()))
+    return result
