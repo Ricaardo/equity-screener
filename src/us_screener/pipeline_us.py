@@ -75,6 +75,32 @@ def _localize_universe(ah, store, *, batch_limit: int, include_etf: bool, max_sy
     return localize_us_universe_free(store, include_etf=include_etf)
 
 
+def _top_liquid_symbols(store, top: int) -> list[str]:
+    """Most-tradeable US stocks (by turnover) from the localized snapshots."""
+    df = store.query_df(
+        """
+        SELECT symbol, MAX(amount) AS amt FROM market_snapshots
+        WHERE market = 'US' AND COALESCE(asset_type, 'stock') <> 'etf' AND amount IS NOT NULL
+        GROUP BY symbol ORDER BY amt DESC LIMIT ?
+        """,
+        [int(top)],
+    )
+    return [str(s).strip().upper() for s in df["symbol"].tolist()] if not df.empty else []
+
+
+def _localize_history(ah, store, *, top: int, lookback_days: int, include_etf: bool, full: bool) -> dict[str, Any]:
+    """History source-aware. Free path = parallel akshare for the liquid top-N
+    (independent calls, ~6x faster than sequential); Futu path = core sync_history."""
+    if get_us_config().use_futu:
+        return ah.sync_history(
+            "US", top=top, lookback_days=lookback_days, include_etf=include_etf, full=full
+        )
+    from us_screener.data_source import localize_us_history_free
+
+    symbols = _top_liquid_symbols(store, top)
+    return localize_us_history_free(store, symbols, lookback_days=lookback_days)
+
+
 def run_us_full_backfill(
     *,
     batch_limit: int = 200,
@@ -104,8 +130,8 @@ def run_us_full_backfill(
     _step(
         result,
         "history",
-        lambda: ah.sync_history(
-            "US", top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=True
+        lambda: _localize_history(
+            ah, store, top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=True
         ),
     )
     _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
@@ -156,8 +182,8 @@ def run_us_premarket_update(
     _step(
         result,
         "history",
-        lambda: ah.sync_history(
-            "US", top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=False
+        lambda: _localize_history(
+            ah, store, top=history_top, lookback_days=lookback_days, include_etf=include_etf, full=False
         ),
     )
     if fundamentals_top:

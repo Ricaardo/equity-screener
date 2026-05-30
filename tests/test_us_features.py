@@ -525,6 +525,33 @@ def test_localize_universe_free(tmp_path: Path, monkeypatch):
     assert out2["securities"] == 1
 
 
+def test_localize_history_free_parallel(tmp_path: Path, monkeypatch):
+    from ah_screener.sources import us_client
+    from us_screener import data_source
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+
+    def _fake_hist(symbol, start_date, end_date, adjust=""):
+        return pd.DataFrame(
+            [
+                {
+                    "market": "US", "symbol": symbol, "trade_date": pd.Timestamp("2026-05-29"),
+                    "open": 1.0, "high": 2.0, "low": 1.0, "close": 1.5, "volume": 100.0,
+                    "amount": 150.0, "adj_type": "raw", "source": "test",
+                    "updated_at": pd.Timestamp("2026-05-29"),
+                }
+            ]
+        )
+
+    monkeypatch.setattr(us_client, "fetch_us_history", _fake_hist)
+    out = data_source.localize_us_history_free(store, ["AAPL", "NVDA", "MSFT"], lookback_days=90, max_workers=4)
+    assert out["symbols_ok"] == 3
+    assert out["symbols_failed"] == 0
+    rows = int(store.query_df("SELECT COUNT(*) c FROM daily_prices WHERE market = 'US'").iloc[0]["c"])
+    assert rows == 3
+
+
 def test_valuation_enrich_updates_snapshots(tmp_path: Path, monkeypatch):
     from us_screener import valuation_enrich
 

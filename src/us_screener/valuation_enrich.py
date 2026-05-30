@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import math
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from typing import Any
 
@@ -184,9 +185,14 @@ def _latest_metrics_by_symbol(store) -> dict[str, dict[str, float | None]]:
     return out
 
 
-def derive_us_valuation_sec(store, *, limit: int = 3000, pause: float = 0.08) -> dict[str, Any]:
+def derive_us_valuation_sec(
+    store, *, limit: int = 3000, max_workers: int = 8, pause: float = 0.0
+) -> dict[str, Any]:
     """Primary valuation: market_cap = shares (SEC) x last_price; PE/PB from the
     already-localized equity/net-income. No Yahoo dependency, no hard rate limits.
+
+    The per-symbol SEC share lookups are independent, so they run in a small thread
+    pool (set ``max_workers=1`` for sequential with ``pause`` between calls).
     """
     from ah_screener.sources.us_client import fetch_sec_company_tickers
 
@@ -213,31 +219,40 @@ def derive_us_valuation_sec(store, *, limit: int = 3000, pause: float = 0.08) ->
         return {"status": "skipped", "reason": f"sec ticker map failed: {exc}", "updated": 0}
     metrics = _latest_metrics_by_symbol(store)
 
-    updated_rows: list[pd.Series] = []
-    requested = 0
+    candidates: list[tuple[str, int, float, pd.Series]] = []
     for _, row in latest.iterrows():
         symbol = str(row["symbol"]).strip().upper()
         meta = ticker_map.get(symbol)
         price = _num(row.get("last_price"))
         if not symbol or meta is None or price is None:
             continue
-        requested += 1
-        shares = _sec_shares_outstanding(int(meta["cik_str"]))
-        if pause:
+        candidates.append((symbol, int(meta["cik_str"]), price, row))
+    requested = len(candidates)
+    if not candidates:
+        return {"status": "ok", "updated": 0, "requested": 0}
+
+    def _shares(candidate: tuple[str, int, float, pd.Series]):
+        shares = _sec_shares_outstanding(candidate[1])
+        if pause and max_workers <= 1:
             sleep(pause)
-        if shares is None:
-            continue
-        market_cap = shares * price
-        fundamentals = metrics.get(symbol, {})
-        equity = fundamentals.get("total_equity")
-        net_income = fundamentals.get("parent_net_profit")
-        new_row = row.copy()
-        new_row["market_cap"] = market_cap
-        if equity and equity > 0:
-            new_row["pb"] = market_cap / equity
-        if net_income and net_income > 0:
-            new_row["pe_ttm"] = market_cap / net_income
-        updated_rows.append(new_row)
+        return candidate, shares
+
+    updated_rows: list[pd.Series] = []
+    with ThreadPoolExecutor(max_workers=max(1, max_workers)) as pool:
+        for (symbol, _cik, price, row), shares in pool.map(_shares, candidates):
+            if shares is None:
+                continue
+            market_cap = shares * price
+            fundamentals = metrics.get(symbol, {})
+            equity = fundamentals.get("total_equity")
+            net_income = fundamentals.get("parent_net_profit")
+            new_row = row.copy()
+            new_row["market_cap"] = market_cap
+            if equity and equity > 0:
+                new_row["pb"] = market_cap / equity
+            if net_income and net_income > 0:
+                new_row["pe_ttm"] = market_cap / net_income
+            updated_rows.append(new_row)
 
     if not updated_rows:
         return {"status": "ok", "updated": 0, "requested": requested}
