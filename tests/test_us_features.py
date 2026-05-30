@@ -326,6 +326,29 @@ def test_sec_fill_snapshot_valuation(tmp_path: Path):
     assert float(row["pe_ttm"]) == (200.0 * 1.0e10) / 1.0e11
 
 
+def test_sec_fill_prefers_existing_market_cap(tmp_path: Path):
+    """An authoritative (Sina) market cap must not be overwritten by SEC shares x price
+    (which is wrong for multi-class structures); PB derives from the authoritative cap."""
+    from us_screener.sec_bulk_loader import _fill_snapshot_valuation
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe(
+        "market_snapshots",
+        pd.DataFrame([{"market": "US", "symbol": "IBKR", "asset_type": "stock",
+                       "trade_date": pd.Timestamp("2026-05-29"), "name": "IBKR", "last_price": 200.0,
+                       "amount": 1e9, "volume": 1e6, "pe_ttm": 25.0, "pb": None, "market_cap": 2.0e11,
+                       "source": "test", "updated_at": pd.Timestamp("2026-05-29")}]),
+    )
+    metrics = pd.DataFrame([{"symbol": "IBKR", "total_equity": 1.0e10, "parent_net_profit": 5.0e9}])
+    # SEC reports only ~440M shares for IBKR -> shares*price would be a wrong 8.8e10
+    _fill_snapshot_valuation(store, {"IBKR": 4.4e8}, metrics)
+    row = store.query_df("SELECT market_cap, pb, pe_ttm FROM market_snapshots WHERE symbol='IBKR'").iloc[0]
+    assert float(row["market_cap"]) == 2.0e11  # Sina cap preserved, not 8.8e10
+    assert float(row["pb"]) == 2.0e11 / 1.0e10  # PB from authoritative cap
+    assert float(row["pe_ttm"]) == 25.0  # Sina PE kept
+
+
 def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
     import json
     import zipfile

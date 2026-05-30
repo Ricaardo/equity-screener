@@ -141,18 +141,25 @@ def _fill_snapshot_valuation(store, shares: dict[str, float], metrics_df: pd.Dat
     for _, row in latest.iterrows():
         symbol = str(row["symbol"]).strip().upper()
         price = _num(row.get("last_price"))
+        existing_cap = _num(row.get("market_cap"))
         sh = shares.get(symbol)
-        if sh is None or price is None or price <= 0:
+        # Sina's market cap is authoritative (handles multi-class/holding structures
+        # that SEC's single shares-outstanding figure gets wrong, e.g. IBKR). Only
+        # derive from SEC shares x price when there's no existing cap.
+        if existing_cap and existing_cap > 0:
+            market_cap = existing_cap
+        elif sh is not None and price is not None and price > 0:
+            market_cap = sh * price
+        else:
             continue
-        market_cap = sh * price
         new_row = row.copy()
-        new_row["market_cap"] = market_cap
+        new_row["market_cap"] = round(market_cap, 2)
         eq = equity.get(symbol)
         ni = net_income.get(symbol)
         if eq and eq > 0:
-            new_row["pb"] = market_cap / eq
-        if ni and ni > 0:
-            new_row["pe_ttm"] = market_cap / ni
+            new_row["pb"] = round(market_cap / eq, 4)
+        if ni and ni > 0 and (_num(row.get("pe_ttm")) is None):
+            new_row["pe_ttm"] = round(market_cap / ni, 2)  # keep Sina's PE when present
         rows.append(new_row)
     if not rows:
         return 0
