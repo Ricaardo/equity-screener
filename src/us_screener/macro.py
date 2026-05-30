@@ -88,8 +88,8 @@ def _proxy_signal_score(close: pd.Series) -> tuple[float, dict[str, Any]]:
     }
 
 
-def get_macro_context(store) -> dict[str, Any]:
-    """Build a simple macro/risk-appetite context from stored proxy ETF history."""
+def _etf_signal(store) -> tuple[float | None, dict[str, float], dict[str, Any], Any]:
+    """Proxy-ETF momentum signal: (etf_score|None, component_scores, proxy_metrics, as_of)."""
     daily = store.query_df(
         """
         SELECT symbol, trade_date, close, adj_type
@@ -97,30 +97,18 @@ def get_macro_context(store) -> dict[str, Any]:
         WHERE market = 'US' AND symbol IN ('SPY', 'QQQ', 'IWM', 'TLT', 'XLK', 'XLE')
         """
     )
-    neutral = {
-        "status": "fallback_neutral",
-        "market_score": 50.0,
-        "regime": "neutral",
-        "summary": "Proxy ETF history missing; macro context falls back to neutral.",
-        "as_of": None,
-        "component_scores": {},
-        "proxy_metrics": {},
-    }
+    component_scores: dict[str, float] = {}
+    proxy_metrics: dict[str, dict[str, Any]] = {}
+    as_of = None
     if daily.empty:
-        return neutral
-
+        return None, component_scores, proxy_metrics, as_of
     daily = daily.copy()
     if "adj_type" in daily.columns:
         daily = daily[~daily["adj_type"].fillna("").astype(str).str.lower().eq("benchmark")]
     if daily.empty:
-        return neutral
-
+        return None, component_scores, proxy_metrics, as_of
     daily["trade_date"] = pd.to_datetime(daily["trade_date"], errors="coerce")
     daily["close"] = pd.to_numeric(daily["close"], errors="coerce")
-    component_scores: dict[str, float] = {}
-    proxy_metrics: dict[str, dict[str, Any]] = {}
-    as_of = None
-
     for symbol, group in daily.groupby("symbol"):
         prices = group.sort_values("trade_date").drop_duplicates("trade_date", keep="last")
         close = pd.to_numeric(prices["close"], errors="coerce").dropna()
@@ -132,14 +120,43 @@ def get_macro_context(store) -> dict[str, Any]:
         latest_date = prices["trade_date"].max()
         if pd.notna(latest_date) and (as_of is None or latest_date > as_of):
             as_of = latest_date
+    etf_score = round(float(np.mean(list(component_scores.values()))), 2) if component_scores else None
+    return etf_score, component_scores, proxy_metrics, as_of
 
-    if not component_scores:
-        return neutral
 
-    market_score = round(float(np.mean(list(component_scores.values()))), 2)
+def get_macro_context(store) -> dict[str, Any]:
+    """Macro/risk-appetite context blending real FRED gauges (credit/curve/VIX)
+    with proxy-ETF momentum. Falls back to neutral only when neither is available."""
+    from us_screener.fred import get_fred_macro
+
+    etf_score, component_scores, proxy_metrics, as_of = _etf_signal(store)
+    try:
+        fred = get_fred_macro()
+    except Exception:  # noqa: BLE001 — never let macro network failure break a screen
+        fred = {"status": "unavailable", "fred_score": None}
+    fred_score = fred.get("fred_score") if fred.get("status") == "ok" else None
+
+    parts = [value for value in (fred_score, etf_score) if value is not None]
+    if not parts:
+        return {
+            "status": "fallback_neutral",
+            "market_score": 50.0,
+            "regime": "neutral",
+            "summary": "No FRED or proxy-ETF data; macro context falls back to neutral.",
+            "as_of": None,
+            "component_scores": {},
+            "proxy_metrics": {},
+            "fred": fred,
+        }
+    # FRED (real rates/credit/vol) leads; ETF momentum confirms.
+    if fred_score is not None and etf_score is not None:
+        market_score = round(0.6 * fred_score + 0.4 * etf_score, 2)
+    else:
+        market_score = round(parts[0], 2)
+
     if market_score >= 60:
         regime = "bullish"
-        summary = "Risk appetite is supportive; growth and momentum transmission are constructive."
+        summary = "Risk appetite is supportive; credit is firm and momentum transmission is constructive."
     elif market_score <= 40:
         regime = "bearish"
         summary = "Macro tape is risk-off; prefer higher quality and stronger technical confirmation."
@@ -155,6 +172,8 @@ def get_macro_context(store) -> dict[str, Any]:
         "as_of": None if as_of is None or pd.isna(as_of) else as_of.strftime("%Y-%m-%d"),
         "component_scores": {key: round(value, 2) for key, value in component_scores.items()},
         "proxy_metrics": proxy_metrics,
+        "etf_score": etf_score,
+        "fred": fred,
     }
 
 

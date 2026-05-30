@@ -294,13 +294,88 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
-def test_macro_context_fallback(tmp_path: Path):
+def test_macro_context_fallback(tmp_path: Path, monkeypatch):
+    from us_screener import fred
+
+    monkeypatch.setattr(fred, "get_fred_macro", lambda: {"status": "unavailable", "fred_score": None})
     store = Store(tmp_path / "empty.duckdb")
     store.init_db()
     ctx = get_macro_context(store)
     assert ctx["status"] == "fallback_neutral"
     scored = score_macro_transmission(pd.DataFrame([{"market": "US", "symbol": "AAPL"}]), store, ctx)
     assert scored.iloc[0]["macro_score"] == 50.0
+
+
+def test_macro_context_uses_fred(tmp_path: Path, monkeypatch):
+    from us_screener import fred
+
+    monkeypatch.setattr(
+        fred,
+        "get_fred_macro",
+        lambda: {"status": "ok", "fred_score": 72.0, "regime": "risk_on", "as_of": "2026-05-28",
+                 "metrics": {}, "components": {"credit": 85.0, "vix": 72.0, "curve": 55.0}},
+    )
+    store = Store(tmp_path / "empty.duckdb")
+    store.init_db()
+    ctx = get_macro_context(store)
+    # No ETF history, but FRED carries the macro signal -> not neutral fallback.
+    assert ctx["status"] == "ok"
+    assert ctx["market_score"] == 72.0
+    assert ctx["regime"] == "bullish"
+    assert ctx["fred"]["fred_score"] == 72.0
+
+
+def test_fred_score_computation(monkeypatch):
+    import pandas as pd
+
+    from us_screener import fred
+
+    fred.get_fred_macro.cache_clear()
+    series = {
+        "BAMLH0A0HYM2": pd.Series([2.7], index=[pd.Timestamp("2026-05-28")]),
+        "VIXCLS": pd.Series([15.0], index=[pd.Timestamp("2026-05-28")]),
+        "T10Y2Y": pd.Series([0.46], index=[pd.Timestamp("2026-05-28")]),
+        "DGS10": pd.Series([4.45], index=[pd.Timestamp("2026-05-28")]),
+    }
+    monkeypatch.setattr(fred, "fetch_fred_series", lambda sid, **k: series.get(sid, pd.Series(dtype="float64")))
+    out = fred.get_fred_macro()
+    fred.get_fred_macro.cache_clear()
+    assert out["status"] == "ok"
+    assert out["regime"] == "risk_on"  # tight credit + low vix
+    assert 60 <= out["fred_score"] <= 90
+
+
+def test_fd_classification(tmp_path: Path, monkeypatch):
+    import pandas as pd
+
+    from us_screener import classification_fd
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe(
+        "securities",
+        pd.DataFrame(
+            [
+                {"market": "US", "symbol": "NVDA", "name": "NVIDIA", "asset_type": "stock"},
+                {"market": "US", "symbol": "JPM", "name": "JPMorgan", "asset_type": "stock"},
+            ]
+        ),
+    )
+    fd_frame = pd.DataFrame(
+        {"sector": ["Technology", "Financials"], "industry": ["Semiconductors", "Banks"]},
+        index=["NVDA", "JPM"],
+    )
+    monkeypatch.setattr(classification_fd, "load_fd_us_equities", lambda: fd_frame)
+    out = classification_fd.tag_fd_classification(store)
+    assert out["status"] == "ok"
+    assert out["sector_tags"] == 2 and out["industry_tags"] == 2
+    # Semiconductors -> AI算力 concept board derived from industry
+    boards = store.query_df(
+        "SELECT tag_name FROM company_tags WHERE symbol='NVDA' AND tag_type='concept_board'"
+    )
+    assert "AI算力" in set(boards["tag_name"])
+    smap = classification_fd.sector_industry_map(store)
+    assert smap["JPM"]["sector"] == "Financials"
 
 
 def test_concept_board_keyword_fallback():

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from us_screener.china_concept import tag_china_concept
+from us_screener.classification_fd import tag_fd_classification
 from us_screener.concept_boards import tag_concept_boards
 from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
@@ -161,6 +162,7 @@ def run_us_full_backfill(
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
+    _step(result, "fd_classification", lambda: tag_fd_classification(store))
     _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
     _step(result, "macro", lambda: get_macro_context(store))
     _step(
@@ -214,6 +216,7 @@ def run_us_premarket_update(
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
+    _step(result, "fd_classification", lambda: tag_fd_classification(store))
     _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
     _step(result, "macro", lambda: get_macro_context(store))
     _step(
