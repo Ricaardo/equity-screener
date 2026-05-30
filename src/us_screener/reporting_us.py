@@ -108,8 +108,39 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "top_candidates": _records(top, fields),
         "rejected_candidates": _records(rejected.head(30), fields),
     }
+    _annotate_earnings(payload, store)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
+
+
+def _annotate_earnings(payload: dict[str, Any], store) -> None:
+    """Tag each candidate with its next earnings date and collect names reporting
+    within a week (single-name gap risk = the classic pre-market caution)."""
+    from us_screener.earnings import earnings_map
+
+    try:
+        emap = earnings_map(store)
+    except Exception:  # noqa: BLE001 — never let earnings break the report
+        emap = {}
+    if not emap:
+        payload["earnings_soon"] = []
+        return
+    today = datetime.now().date()
+    soon: list[dict[str, Any]] = []
+    for item in payload.get("top_candidates") or []:
+        info = emap.get(str(item.get("symbol") or "").strip().upper())
+        if not info:
+            continue
+        item["earnings_date"] = info["date"]
+        item["earnings_when"] = info["when"]
+        try:
+            days = (datetime.strptime(info["date"], "%Y-%m-%d").date() - today).days
+        except ValueError:
+            continue
+        item["earnings_in_days"] = days
+        if 0 <= days <= 7:
+            soon.append({"symbol": item.get("symbol"), "earnings_date": info["date"], "in_days": days})
+    payload["earnings_soon"] = sorted(soon, key=lambda r: r["in_days"])
 
 
 def _render_markdown(payload: dict[str, Any]) -> str:
@@ -130,13 +161,25 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         "",
     ]
     for item in payload.get("top_candidates") or []:
+        earnings = (
+            f", earnings {item['earnings_date']} (in {item.get('earnings_in_days')}d)"
+            if item.get("earnings_date")
+            else ""
+        )
         lines.append(
             "- "
             f"{item.get('symbol')} {item.get('name')}: score {item.get('expert_score')}, "
             f"decision {item.get('decision')}, boards {', '.join(item.get('concept_boards') or []) or '--'}"
+            f"{earnings}"
         )
     if not (payload.get("top_candidates") or []):
         lines.append("- No candidates.")
+
+    soon = payload.get("earnings_soon") or []
+    if soon:
+        lines.extend(["", "## Earnings within 7 days (gap risk)", ""])
+        for entry in soon:
+            lines.append(f"- {entry['symbol']}: {entry['earnings_date']} (in {entry['in_days']}d)")
 
     lines.extend(["", "## Filtered summary", ""])
     for key, value in (payload.get("filtered_summary") or {}).items():

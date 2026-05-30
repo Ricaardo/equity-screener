@@ -294,6 +294,66 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
+def test_peer_relative_valuation():
+    from us_screener.scoring_us import _peer_relative_score
+
+    values = pd.Series([10.0, 20.0, 30.0, 100.0, 200.0, 300.0, 5.0])
+    groups = pd.Series(["tech", "tech", "tech", "bank", "bank", "bank", ""])
+    out = _peer_relative_score(values, groups, min_group=3)
+    # within each sector the cheapest multiple scores highest
+    assert out.iloc[0] > out.iloc[2]  # tech: PE 10 beats 30
+    assert out.iloc[3] > out.iloc[5]  # bank: PE 100 beats 300
+    # cross-sector: the cheapest bank scores high despite being pricier than any tech
+    assert out.iloc[3] > 50
+
+
+def test_earnings_tag_and_map(tmp_path: Path, monkeypatch):
+    from us_screener import earnings
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    cal = pd.DataFrame(
+        [
+            {"symbol": "AAPL", "earnings_date": "2026-06-02", "when": "time-after-hours"},
+            {"symbol": "MSFT", "earnings_date": "2026-06-05", "when": "time-pre-market"},
+        ]
+    )
+    monkeypatch.setattr(earnings, "fetch_earnings_calendar", lambda days_ahead=10: cal)
+    out = earnings.tag_earnings(store)
+    assert out["status"] == "ok" and out["tagged"] == 2
+    m = earnings.earnings_map(store)
+    assert m["AAPL"]["date"] == "2026-06-02"
+    assert m["MSFT"]["when"] == "time-pre-market"
+
+
+def test_report_earnings_annotation(tmp_path: Path):
+    from datetime import date, timedelta
+
+    from us_screener import reporting_us
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    soon_date = (date.today() + timedelta(days=3)).isoformat()
+    far_date = (date.today() + timedelta(days=30)).isoformat()
+    store.upsert_dataframe(
+        "company_tags",
+        pd.DataFrame(
+            [
+                {"market": "US", "symbol": "AAPL", "tag_type": "earnings_date", "tag_name": soon_date,
+                 "evidence_level": "amc", "source": "nasdaq.earnings", "updated_at": pd.Timestamp.now()},
+                {"market": "US", "symbol": "MSFT", "tag_type": "earnings_date", "tag_name": far_date,
+                 "evidence_level": "bmo", "source": "nasdaq.earnings", "updated_at": pd.Timestamp.now()},
+            ]
+        ),
+    )
+    payload = {"top_candidates": [{"symbol": "AAPL"}, {"symbol": "MSFT"}, {"symbol": "NVDA"}]}
+    reporting_us._annotate_earnings(payload, store)
+    aapl = next(c for c in payload["top_candidates"] if c["symbol"] == "AAPL")
+    assert aapl["earnings_date"] == soon_date
+    assert any(e["symbol"] == "AAPL" for e in payload["earnings_soon"])
+    assert not any(e["symbol"] == "MSFT" for e in payload["earnings_soon"])  # 30d out
+
+
 def test_macro_context_fallback(tmp_path: Path, monkeypatch):
     from us_screener import fred
 

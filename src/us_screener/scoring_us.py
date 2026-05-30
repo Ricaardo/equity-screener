@@ -28,8 +28,9 @@ import pandas as pd
 
 from ah_screener import weights
 from ah_screener.db import get_store
-from ah_screener.scoring import _liquidity_score, _rank_score
+from ah_screener.scoring import _liquidity_score
 from us_screener.china_concept import china_concept_symbols
+from us_screener.classification_fd import sector_industry_map
 from us_screener.concept_boards import concept_board_map
 from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
@@ -129,6 +130,28 @@ def _board_list(value: object) -> list[str]:
             seen.add(board)
             boards.append(board)
     return boards
+
+
+def _peer_relative_score(values: pd.Series, groups: pd.Series, *, min_group: int = 8) -> pd.Series:
+    """0-100 valuation score where a *lower* multiple scores higher, ranked WITHIN
+    the peer (sector) group. Small/empty groups fall back to a whole-universe rank so
+    a cheap utility isn't punished for not being as cheap as a bank, etc.
+    """
+    numeric = pd.to_numeric(values, errors="coerce").where(lambda s: s > 0)
+    out = pd.Series(np.nan, index=numeric.index, dtype=float)
+    sectors = groups.reindex(numeric.index).fillna("").astype(str)
+    for name, idx in sectors.groupby(sectors).groups.items():
+        if not name:
+            continue
+        peer = numeric.loc[idx].dropna()
+        if len(peer) < min_group:
+            continue
+        out.loc[peer.index] = (1.0 - peer.rank(pct=True)) * 100.0
+    remaining = out.isna() & numeric.notna()
+    if remaining.any():
+        rv = numeric[remaining]
+        out.loc[rv.index] = (1.0 - rv.rank(pct=True)) * 100.0
+    return out
 
 
 def _theme_score(boards: list[str]) -> float:
@@ -321,11 +344,15 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         .fillna(DEFAULT_TECHNICAL_SCORE)
         .clip(0, 100)
     )
+    sector_map = sector_industry_map(store)
+    frame["sector"] = frame["symbol"].map(
+        lambda s: (sector_map.get(str(s).strip().upper()) or {}).get("sector", "")
+    )
+    # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB
+    # aren't comparable. Falls back to a whole-universe rank where sector is unknown.
     frame["valuation_score"] = (
-        _rank_score(pd.to_numeric(_series(frame, "pe_ttm"), errors="coerce").where(lambda s: s > 0), ascending=False)
-        * 0.65
-        + _rank_score(pd.to_numeric(_series(frame, "pb"), errors="coerce").where(lambda s: s > 0), ascending=False)
-        * 0.35
+        _peer_relative_score(_series(frame, "pe_ttm"), frame["sector"]) * 0.65
+        + _peer_relative_score(_series(frame, "pb"), frame["sector"]) * 0.35
     ).fillna(50.0).clip(0, 100)
     frame["liquidity_score"] = _liquidity_score(frame).fillna(50.0).clip(0, 100)
     frame["heat_score"] = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
