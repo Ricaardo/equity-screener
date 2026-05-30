@@ -487,6 +487,60 @@ def test_valuation_enrich_rate_limit_stops_early(tmp_path: Path, monkeypatch):
     assert out["rate_limited"] is True
 
 
+def test_sec_derive_valuation(tmp_path: Path, monkeypatch):
+    from ah_screener.sources import us_client
+    from us_screener import valuation_enrich
+
+    store = _seed_store(tmp_path)
+    store.execute(
+        "UPDATE market_snapshots SET market_cap = NULL, pe_ttm = NULL, pb = NULL WHERE market = 'US'"
+    )
+    # Give AAPL real equity / net income so PB and PE get derived too.
+    store.execute(
+        "UPDATE financial_metrics SET total_equity = 1.0e10, parent_net_profit = 1.0e10 "
+        "WHERE symbol = 'AAPL' AND market = 'US'"
+    )
+    monkeypatch.setattr(
+        us_client,
+        "fetch_sec_company_tickers",
+        lambda: {sym: {"cik_str": idx + 1} for idx, sym in enumerate(["AAPL", "NVDA", "BABA", "IONQ"])},
+    )
+    monkeypatch.setattr(valuation_enrich, "_sec_shares_outstanding", lambda cik: 1.0e9)
+
+    out = valuation_enrich.derive_us_valuation_sec(store, limit=50, pause=0.0)
+    assert out["status"] == "ok"
+    assert out["updated"] >= 1
+    aapl = store.query_df(
+        "SELECT market_cap, pe_ttm, pb FROM market_snapshots WHERE symbol = 'AAPL' AND market = 'US'"
+    ).iloc[0]
+    assert float(aapl["market_cap"]) == 210.0 * 1.0e9  # last_price x shares
+    assert float(aapl["pb"]) == (210.0 * 1.0e9) / 1.0e10
+    assert float(aapl["pe_ttm"]) == (210.0 * 1.0e9) / 1.0e10
+
+
+def test_enrich_all_prefers_sec_then_yfinance(tmp_path: Path, monkeypatch):
+    from ah_screener.sources import us_client
+    from us_screener import valuation_enrich
+
+    store = _seed_store(tmp_path)
+    store.execute("UPDATE market_snapshots SET market_cap = NULL, pe_ttm = NULL, pb = NULL WHERE market = 'US'")
+    monkeypatch.setattr(
+        us_client,
+        "fetch_sec_company_tickers",
+        lambda: {"AAPL": {"cik_str": 1}},  # only AAPL has a CIK
+    )
+    monkeypatch.setattr(valuation_enrich, "_sec_shares_outstanding", lambda cik: 2.0e9)
+    # yfinance tops up the names SEC could not fill.
+    monkeypatch.setattr(
+        valuation_enrich, "_fetch_one", lambda symbol: {"market_cap": 5.0e9, "pe_ttm": 18.0, "pb": 3.0}
+    )
+    out = valuation_enrich.enrich_us_valuation_all(store, sec_limit=50, yf_limit=50)
+    assert out["status"] == "ok"
+    assert out["sec"]["updated"] >= 1
+    assert out["yfinance"]["updated"] >= 1
+    assert out["updated"] == out["sec"]["updated"] + out["yfinance"]["updated"]
+
+
 def test_valuation_enrich_empty_store(tmp_path: Path):
     from us_screener import valuation_enrich
 

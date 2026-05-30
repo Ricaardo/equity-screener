@@ -18,7 +18,7 @@ from us_screener.heat import compute_heat_scores
 from us_screener.macro import get_macro_context
 from us_screener.reporting_us import generate_us_premarket_report
 from us_screener.scoring_us import run_us_screen
-from us_screener.valuation_enrich import enrich_us_valuation
+from us_screener.valuation_enrich import enrich_us_valuation_all
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def run_us_full_backfill(
         ),
     )
     _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
-    _step(result, "valuation_enrich", lambda: enrich_us_valuation(store, limit=800))
+    _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
@@ -146,7 +146,7 @@ def run_us_premarket_update(
     )
     if fundamentals_top:
         _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
-    _step(result, "valuation_enrich", lambda: enrich_us_valuation(store, limit=800))
+    _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
     _step(result, "technical", lambda: ah.run_technical_indicators())
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
