@@ -63,6 +63,8 @@ class USConfig:
     exclude_china_concept: bool
     # data source: free providers by default (futu-independent)
     use_futu: bool
+    # optional local stooq bulk history ZIP (d_us_txt.zip); used by full backfill
+    stooq_zip: str | None
     # LLM opinion (optional — graceful skip when api key is absent)
     llm_provider: str  # "anthropic" | "openai" | "none"
     llm_model: str
@@ -99,6 +101,7 @@ def get_us_config() -> USConfig:
         min_market_cap=float(os.getenv("US_SCREENER_MIN_MKTCAP", "300000000")),
         exclude_china_concept=os.getenv("US_SCREENER_EXCLUDE_CHINA", "1").strip().lower() in _TRUE,
         use_futu=use_futu(),
+        stooq_zip=os.getenv("US_SCREENER_STOOQ_ZIP") or None,
         llm_provider=provider,
         llm_model=model,
         llm_api_key=key,

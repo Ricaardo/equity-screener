@@ -66,7 +66,8 @@ def info_command(as_json: bool = typer.Option(False, "--json", help="Emit JSON."
             "min_us_amount": cfg.min_us_amount,
             "min_market_cap": cfg.min_market_cap,
             "exclude_china_concept": cfg.exclude_china_concept,
-            "data_source": "futu" if cfg.use_futu else "free (akshare/SEC/nasdaq + yfinance valuation)",
+            "data_source": "futu" if cfg.use_futu else "free (sina/alpaca/stooq/SEC)",
+            "stooq_zip": cfg.stooq_zip,
             "llm_provider": cfg.llm_provider,
             "llm_model": cfg.llm_model,
             "llm_api_key_present": bool(cfg.llm_api_key),
@@ -115,6 +116,22 @@ def update_command(
         fundamentals_top=fundamentals_top or None,
         include_etf=include_etf,
     )
+    _emit(result, as_json)
+
+
+@app.command("load-stooq")
+def load_stooq_command(
+    zip_path: Path = typer.Argument(..., help="Path to the stooq d_us_txt.zip bulk history archive."),
+    since: str = typer.Option("2022-01-01", help="Earliest trade date to load (YYYY-MM-DD)."),
+    include_etf: bool = typer.Option(True, help="Include US ETFs."),
+    as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
+) -> None:
+    """Bulk-load a local stooq US daily-history ZIP into daily_prices (all symbols, no API)."""
+    use_us_database()
+    from ah_screener.db import get_store
+    from us_screener.stooq_loader import load_stooq_us_zip
+
+    result = load_stooq_us_zip(get_store(), zip_path, since=since, include_etf=include_etf)
     _emit(result, as_json)
 
 

@@ -525,6 +525,39 @@ def test_localize_universe_free(tmp_path: Path, monkeypatch):
     assert out2["securities"] == 1
 
 
+def test_stooq_loader_synthetic(tmp_path: Path):
+    import zipfile
+
+    from us_screener.stooq_loader import load_stooq_us_zip
+
+    header = "<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>"
+    aapl = header + "\nAAPL.US,D,20250102,000000,180,182,179,181,1000000,0\nAAPL.US,D,20240102,000000,150,151,149,150,900000,0\n"
+    spy = header + "\nSPY.US,D,20250102,000000,470,471,469,470,2000000,0\n"
+    zpath = tmp_path / "d_us_txt.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("data/daily/us/nasdaq stocks/1/aapl.us.txt", aapl)
+        z.writestr("data/daily/us/nyse etfs/s/spy.us.txt", spy)
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    out = load_stooq_us_zip(store, zpath, since="2024-06-01", include_etf=True)
+    assert out["status"] == "ok"
+    df = store.query_df(
+        "SELECT symbol, close FROM daily_prices WHERE source = 'stooq.d_us' ORDER BY symbol"
+    )
+    assert {"AAPL", "SPY"} <= set(df["symbol"])
+    # the 'since' filter drops AAPL's 2024-01 bar, keeping only the 2025 one
+    assert len(df[df["symbol"] == "AAPL"]) == 1
+    assert float(df[df["symbol"] == "AAPL"].iloc[0]["close"]) == 181.0
+
+    # include_etf=False must drop the ETF (path contains 'etfs')
+    store2 = Store(tmp_path / "us2.duckdb")
+    store2.init_db()
+    load_stooq_us_zip(store2, zpath, since="2024-06-01", include_etf=False)
+    syms2 = set(store2.query_df("SELECT DISTINCT symbol FROM daily_prices WHERE source='stooq.d_us'")["symbol"])
+    assert "SPY" not in syms2 and "AAPL" in syms2
+
+
 def test_alpaca_history_skips_without_creds(tmp_path: Path, monkeypatch):
     from us_screener import data_source
 

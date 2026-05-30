@@ -9,6 +9,8 @@ free-data source records a failure without aborting the whole run.
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Any, Callable
 
 from us_screener.china_concept import tag_china_concept
@@ -96,6 +98,17 @@ def _localize_history(ah, store, *, top: int, lookback_days: int, include_etf: b
             "US", top=top, lookback_days=lookback_days, include_etf=include_etf, full=full
         )
     from us_screener.data_source import localize_us_history_alpaca, localize_us_history_free
+
+    # Full backfill: prefer the local stooq bulk ZIP if configured — all symbols,
+    # full adjusted history, zero API calls. (Daily updates use the live bars path.)
+    cfg = get_us_config()
+    if full and cfg.stooq_zip and Path(cfg.stooq_zip).exists():
+        from us_screener.stooq_loader import load_stooq_us_zip
+
+        since = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        out = load_stooq_us_zip(store, cfg.stooq_zip, since=since, include_etf=include_etf)
+        out["history_source"] = "stooq.d_us"
+        return out
 
     symbols = _top_liquid_symbols(store, top)
     # Primary: Alpaca bulk bars (tens of requests for the whole liquid set, IEX feed).
