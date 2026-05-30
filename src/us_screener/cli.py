@@ -121,17 +121,23 @@ def update_command(
 
 @app.command("load-stooq")
 def load_stooq_command(
-    zip_path: Path = typer.Argument(..., help="Path to the stooq d_us_txt.zip bulk history archive."),
+    zip_path: Path = typer.Argument(..., help="Path to a stooq daily-history ZIP (d_us_txt.zip / d_world_txt.zip / ...)."),
     since: str = typer.Option("2022-01-01", help="Earliest trade date to load (YYYY-MM-DD)."),
-    include_etf: bool = typer.Option(True, help="Include US ETFs."),
+    markets: str = typer.Option("", help="Comma-separated markets to keep (e.g. US,HK,JP). Empty = all in the archive."),
+    include_etf: bool = typer.Option(True, help="Include ETFs."),
+    delete_zip: bool = typer.Option(False, help="Delete the source ZIP after a successful load."),
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
-    """Bulk-load a local stooq US daily-history ZIP into daily_prices (all symbols, no API)."""
+    """Bulk-load a local stooq daily-history ZIP into daily_prices (any market, no API)."""
     use_us_database()
     from ah_screener.db import get_store
-    from us_screener.stooq_loader import load_stooq_us_zip
+    from us_screener.stooq_loader import load_stooq_zip
 
-    result = load_stooq_us_zip(get_store(), zip_path, since=since, include_etf=include_etf)
+    market_list = [m.strip().upper() for m in markets.split(",") if m.strip()] or None
+    result = load_stooq_zip(
+        get_store(), zip_path, since=since, markets=market_list,
+        include_etf=include_etf, delete_zip=delete_zip,
+    )
     _emit(result, as_json)
 
 

@@ -1,15 +1,14 @@
-"""Bulk-load the stooq US daily history ZIP (``d_us_txt.zip``) into daily_prices.
+"""Bulk-load stooq daily-history ZIPs (``d_us_txt.zip`` / ``d_world_txt.zip`` / per
+region) into ``daily_prices`` — any market, one local file, no API.
 
-stooq publishes the entire US daily history as one ZIP: ``data/daily/us/<exchange
-category>/<...>/<ticker>.us.txt``, each a CSV with columns
-``<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>`` and
-**split/dividend-adjusted** prices going back decades.
+Each stooq ``*.us.txt`` (or ``*.jp.txt`` ...) CSV carries
+``<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>`` with
+**split/dividend-adjusted** prices. The ``<TICKER>`` suffix (``AAPL.US`` / ``7203.JP``
+/ ``0700.HK``) is the authoritative market signal, so a single DuckDB ``read_csv``
+over the whole file glob localizes every market in the archive at once.
 
-This is the complete, API-free history source: extract once, then a single DuckDB
-``read_csv`` over the file glob loads tens of millions of rows in C++ (far faster
-than any per-symbol API). It is the right tool for the one-time full backfill; the
-daily incremental still comes from the live snapshot/bars path (a stooq ZIP is a
-once-a-day download).
+This is the one-time / periodic full-history base. Daily increments come from the
+live (adjusted) bars path; a stooq ZIP is a once-a-day download.
 """
 
 from __future__ import annotations
@@ -24,90 +23,145 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 ADJ_TYPE = "stooq_adj"
-SOURCE = "stooq.d_us"
+SOURCE = "stooq.d"
+
+# stooq ticker suffix -> our market code. Unknown suffixes fall through to the
+# upper-cased suffix itself (e.g. '.DE' -> 'DE'), so new regions Just Work.
+DEFAULT_MARKET_MAP = {"US": "US", "HK": "HK", "JP": "JP"}
 
 
-def load_stooq_us_zip(
+def _market_case(market_map: dict[str, str]) -> str:
+    """SQL CASE mapping the ticker suffix to our market code (else the suffix)."""
+    whens = " ".join(
+        f"WHEN '{suffix.upper()}' THEN '{market.upper()}'" for suffix, market in market_map.items()
+    )
+    return f"CASE _suffix {whens} ELSE _suffix END"
+
+
+def load_stooq_zip(
     store,
     zip_path: str | Path,
     *,
     since: str = "2022-01-01",
     include_etf: bool = True,
+    markets: list[str] | None = None,
+    market_map: dict[str, str] | None = None,
+    delete_zip: bool = False,
     work_dir: str | Path | None = None,
     keep_extracted: bool = False,
 ) -> dict[str, Any]:
-    """Extract ``zip_path`` and bulk-insert US daily bars into ``daily_prices``.
+    """Extract a stooq ZIP and bulk-insert daily bars for all (or selected) markets.
 
-    ``since`` trims history to what the screener needs (technicals/heat/52w), keeping
-    the table lean instead of loading 40 years. Adjusted bars land under
-    ``source='stooq.d_us'`` / ``adj_type='stooq_adj'`` so they never collide with the
-    live (raw) snapshot/bars rows.
+    ``markets`` (our codes, e.g. ``['US','HK']``) filters which markets to keep;
+    None keeps everything in the archive. ``delete_zip=True`` removes the source ZIP
+    after a successful load (the data now lives in DuckDB).
     """
     zip_path = Path(zip_path).expanduser()
     if not zip_path.exists():
         raise FileNotFoundError(zip_path)
 
     store.init_db()
+    market_map = {**DEFAULT_MARKET_MAP, **(market_map or {})}
     created_tmp = work_dir is None
     extract_root = Path(work_dir) if work_dir else Path(tempfile.mkdtemp(prefix="stooq_"))
     try:
         with zipfile.ZipFile(zip_path) as archive:
             archive.extractall(extract_root)
 
-        glob = str(extract_root / "data" / "daily" / "us" / "**" / "*.txt")
+        glob = str(extract_root / "data" / "daily" / "**" / "*.txt")
         etf_clause = "" if include_etf else "AND lower(filename) NOT LIKE '%etfs%'"
-        # DuckDB reads the whole file glob in parallel; transform inline and upsert.
+        market_filter = ""
+        if markets:
+            allowed = ", ".join(f"'{m.upper()}'" for m in markets)
+            market_filter = f"AND _market IN ({allowed})"
+
+        # Derive market + symbol from the ticker suffix; one parallel read_csv.
         sql = f"""
         INSERT OR REPLACE INTO daily_prices
             (market, symbol, trade_date, open, high, low, close, volume, amount,
              adj_type, source, updated_at)
-        SELECT
-            'US' AS market,
-            upper(regexp_replace("<TICKER>", '\\.US$', '')) AS symbol,
-            strptime(CAST("<DATE>" AS VARCHAR), '%Y%m%d')::DATE AS trade_date,
-            "<OPEN>"::DOUBLE AS open,
-            "<HIGH>"::DOUBLE AS high,
-            "<LOW>"::DOUBLE AS low,
-            "<CLOSE>"::DOUBLE AS close,
-            "<VOL>"::DOUBLE AS volume,
-            ("<CLOSE>"::DOUBLE * "<VOL>"::DOUBLE) AS amount,
-            '{ADJ_TYPE}' AS adj_type,
-            '{SOURCE}' AS source,
-            now() AS updated_at
-        FROM read_csv(
-            ?, header=true, filename=true, union_by_name=true,
-            types={{'<DATE>': 'BIGINT', '<OPEN>': 'DOUBLE', '<HIGH>': 'DOUBLE',
-                    '<LOW>': 'DOUBLE', '<CLOSE>': 'DOUBLE', '<VOL>': 'DOUBLE'}}
+        WITH parsed AS (
+            SELECT
+                upper(regexp_extract("<TICKER>", '\\.([A-Za-z]+)$', 1)) AS _suffix,
+                upper(regexp_replace("<TICKER>", '\\.[A-Za-z]+$', '')) AS symbol,
+                strptime(CAST("<DATE>" AS VARCHAR), '%Y%m%d')::DATE AS trade_date,
+                "<OPEN>"::DOUBLE AS open, "<HIGH>"::DOUBLE AS high,
+                "<LOW>"::DOUBLE AS low, "<CLOSE>"::DOUBLE AS close, "<VOL>"::DOUBLE AS volume
+            FROM read_csv(
+                ?, header=true, filename=true, union_by_name=true,
+                types={{'<DATE>': 'BIGINT', '<OPEN>': 'DOUBLE', '<HIGH>': 'DOUBLE',
+                        '<LOW>': 'DOUBLE', '<CLOSE>': 'DOUBLE', '<VOL>': 'DOUBLE'}}
+            )
+            WHERE "<CLOSE>" IS NOT NULL {etf_clause}
         )
-        WHERE "<CLOSE>" IS NOT NULL
-          AND strptime(CAST("<DATE>" AS VARCHAR), '%Y%m%d')::DATE >= DATE '{since}'
-          {etf_clause}
+        SELECT
+            {_market_case(market_map)} AS market,
+            symbol, trade_date, open, high, low, close, volume,
+            (close * volume) AS amount,
+            '{ADJ_TYPE}' AS adj_type, '{SOURCE}' AS source, now() AS updated_at
+        FROM (SELECT *, {_market_case(market_map)} AS _market FROM parsed)
+        WHERE _suffix <> '' AND trade_date >= DATE '{since}' {market_filter}
         """
         with store.connect() as conn:
-            before = conn.execute(
-                "SELECT COUNT(*) FROM daily_prices WHERE source = ?", [SOURCE]
-            ).fetchone()[0]
+            before = conn.execute("SELECT COUNT(*) FROM daily_prices WHERE source = ?", [SOURCE]).fetchone()[0]
             conn.execute(sql, [glob])
-            after = conn.execute(
-                "SELECT COUNT(*) FROM daily_prices WHERE source = ?", [SOURCE]
-            ).fetchone()[0]
-            symbols = conn.execute(
-                "SELECT COUNT(DISTINCT symbol) FROM daily_prices WHERE source = ?", [SOURCE]
-            ).fetchone()[0]
+            after = conn.execute("SELECT COUNT(*) FROM daily_prices WHERE source = ?", [SOURCE]).fetchone()[0]
+            by_market = conn.execute(
+                "SELECT market, COUNT(DISTINCT symbol) FROM daily_prices WHERE source = ? GROUP BY market",
+                [SOURCE],
+            ).fetchall()
 
-        return {
+        result = {
             "status": "ok",
             "source": SOURCE,
             "since": since,
             "rows_inserted": int(after - before),
             "rows_total": int(after),
-            "symbols": int(symbols),
+            "symbols_by_market": {row[0]: int(row[1]) for row in by_market},
         }
+        if delete_zip:
+            zip_path.unlink(missing_ok=True)
+            result["zip_deleted"] = str(zip_path)
+        return result
     finally:
         if created_tmp and not keep_extracted:
             import shutil
 
             shutil.rmtree(extract_root, ignore_errors=True)
+
+
+def load_stooq_us_zip(store, zip_path: str | Path, **kwargs: Any) -> dict[str, Any]:
+    """Backwards-compatible US-only entry point (markets=['US'])."""
+    kwargs.setdefault("markets", ["US"])
+    return load_stooq_zip(store, zip_path, **kwargs)
+
+
+_ADJUSTED_SOURCES = ("stooq.d", "alpaca.iex")
+
+
+def consolidate_history_sources(store) -> dict[str, Any]:
+    """Make free-path history single-adjustment.
+
+    1. Migrate the old per-market ``stooq.d_us`` tag to the unified ``stooq.d``.
+    2. Drop raw/qfq cruft (akshare/futu rows left over from earlier runs) so the
+       technical/heat layer never mixes adjustment bases. Adjusted sources
+       (``stooq.d`` history base + ``alpaca.iex`` increments) are kept.
+    """
+    store.init_db()
+    with store.connect() as conn:
+        conn.execute("UPDATE daily_prices SET source='stooq.d' WHERE source='stooq.d_us'")
+        before = conn.execute("SELECT COUNT(*) FROM daily_prices").fetchone()[0]
+        keep = ", ".join(f"'{s}'" for s in _ADJUSTED_SOURCES)
+        conn.execute(f"DELETE FROM daily_prices WHERE market='US' AND source NOT IN ({keep})")
+        after = conn.execute("SELECT COUNT(*) FROM daily_prices").fetchone()[0]
+        remaining = conn.execute(
+            "SELECT source, COUNT(*) FROM daily_prices WHERE market='US' GROUP BY source"
+        ).fetchall()
+    return {
+        "status": "ok",
+        "rows_deleted": int(before - after),
+        "remaining_sources": {row[0]: int(row[1]) for row in remaining},
+    }
 
 
 def stooq_today() -> str:

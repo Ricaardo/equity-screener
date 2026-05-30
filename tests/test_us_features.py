@@ -600,27 +600,31 @@ def test_localize_universe_free(tmp_path: Path, monkeypatch):
     assert out2["securities"] == 1
 
 
-def test_stooq_loader_synthetic(tmp_path: Path):
+def _write_stooq_zip(zpath: Path) -> None:
     import zipfile
-
-    from us_screener.stooq_loader import load_stooq_us_zip
 
     header = "<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>"
     aapl = header + "\nAAPL.US,D,20250102,000000,180,182,179,181,1000000,0\nAAPL.US,D,20240102,000000,150,151,149,150,900000,0\n"
     spy = header + "\nSPY.US,D,20250102,000000,470,471,469,470,2000000,0\n"
-    zpath = tmp_path / "d_us_txt.zip"
+    toyota = header + "\n7203.JP,D,20250102,000000,2800,2850,2790,2830,500000,0\n"
     with zipfile.ZipFile(zpath, "w") as z:
         z.writestr("data/daily/us/nasdaq stocks/1/aapl.us.txt", aapl)
         z.writestr("data/daily/us/nyse etfs/s/spy.us.txt", spy)
+        z.writestr("data/daily/jp/tse stocks/7/7203.jp.txt", toyota)
 
+
+def test_stooq_loader_synthetic(tmp_path: Path):
+    from us_screener.stooq_loader import load_stooq_us_zip
+
+    zpath = tmp_path / "d_us_txt.zip"
+    _write_stooq_zip(zpath)
     store = Store(tmp_path / "us.duckdb")
     store.init_db()
     out = load_stooq_us_zip(store, zpath, since="2024-06-01", include_etf=True)
     assert out["status"] == "ok"
-    df = store.query_df(
-        "SELECT symbol, close FROM daily_prices WHERE source = 'stooq.d_us' ORDER BY symbol"
-    )
+    df = store.query_df("SELECT symbol, close FROM daily_prices WHERE source = 'stooq.d' ORDER BY symbol")
     assert {"AAPL", "SPY"} <= set(df["symbol"])
+    assert "7203" not in set(df["symbol"])  # US-only wrapper excludes JP
     # the 'since' filter drops AAPL's 2024-01 bar, keeping only the 2025 one
     assert len(df[df["symbol"] == "AAPL"]) == 1
     assert float(df[df["symbol"] == "AAPL"].iloc[0]["close"]) == 181.0
@@ -629,8 +633,25 @@ def test_stooq_loader_synthetic(tmp_path: Path):
     store2 = Store(tmp_path / "us2.duckdb")
     store2.init_db()
     load_stooq_us_zip(store2, zpath, since="2024-06-01", include_etf=False)
-    syms2 = set(store2.query_df("SELECT DISTINCT symbol FROM daily_prices WHERE source='stooq.d_us'")["symbol"])
+    syms2 = set(store2.query_df("SELECT DISTINCT symbol FROM daily_prices WHERE source='stooq.d'")["symbol"])
     assert "SPY" not in syms2 and "AAPL" in syms2
+
+
+def test_stooq_loader_multimarket(tmp_path: Path):
+    from us_screener.stooq_loader import load_stooq_zip
+
+    zpath = tmp_path / "d_world_txt.zip"
+    _write_stooq_zip(zpath)
+    store = Store(tmp_path / "world.duckdb")
+    store.init_db()
+    # load all markets; JP ticker -> market 'JP' derived from suffix
+    out = load_stooq_zip(store, zpath, since="2024-06-01", delete_zip=True)
+    assert out["status"] == "ok"
+    assert out["symbols_by_market"].get("US", 0) >= 2
+    assert out["symbols_by_market"].get("JP", 0) == 1
+    jp = store.query_df("SELECT market, symbol FROM daily_prices WHERE symbol = '7203'").iloc[0]
+    assert jp["market"] == "JP"
+    assert not zpath.exists()  # delete_zip removed the archive
 
 
 def test_alpaca_history_skips_without_creds(tmp_path: Path, monkeypatch):

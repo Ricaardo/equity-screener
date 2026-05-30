@@ -225,7 +225,7 @@ def localize_us_history_alpaca(
     if creds is None:
         return {"status": "skipped", "reason": "no alpaca credentials", "rows": 0}
     try:
-        from alpaca.data.enums import DataFeed
+        from alpaca.data.enums import Adjustment, DataFeed
         from alpaca.data.historical import StockHistoricalDataClient
         from alpaca.data.requests import StockBarsRequest
         from alpaca.data.timeframe import TimeFrame
@@ -250,6 +250,7 @@ def localize_us_history_alpaca(
                 timeframe=TimeFrame.Day,
                 start=start,
                 feed=DataFeed.IEX,
+                adjustment=Adjustment.ALL,  # split+dividend adjusted, consistent with stooq
             )
             frame = client.get_stock_bars(request).df
         except Exception as exc:  # noqa: BLE001 — degrade to akshare fallback
@@ -272,7 +273,7 @@ def localize_us_history_alpaca(
             }
         )
         out["amount"] = out["close"] * out["volume"]
-        out["adj_type"] = "raw"
+        out["adj_type"] = "adjusted"
         out["source"] = "alpaca.iex"
         out["updated_at"] = now
         frames.append(out)

@@ -11,9 +11,12 @@ market.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from us_screener.config import PROJECT_ROOT
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,10 @@ SECTOR_TAG = "sector"
 INDUSTRY_TAG = "industry"
 CONCEPT_TAG = "concept_board"
 SOURCE = "financedatabase"
+
+# Local cache so a (possibly offline) subprocess backfill never has to cold-download
+# the FinanceDatabase dataset — which is what silently produced 0 tags before.
+FD_CACHE_PATH = PROJECT_ROOT / "data" / "us_fd_equities.parquet"
 
 # High-confidence industry-substring -> concept board. Lower-cased substring match.
 _INDUSTRY_BOARD_MAP: dict[str, str] = {
@@ -30,8 +37,7 @@ _INDUSTRY_BOARD_MAP: dict[str, str] = {
 }
 
 
-def load_fd_us_equities() -> pd.DataFrame:
-    """symbol-indexed US equities with sector/industry (empty frame on failure)."""
+def _load_fd_live() -> pd.DataFrame:
     try:
         import financedatabase as fd
     except ImportError:
@@ -44,10 +50,43 @@ def load_fd_us_equities() -> pd.DataFrame:
         return pd.DataFrame()
     if frame is None or frame.empty:
         return pd.DataFrame()
-    keep = [c for c in ("sector", "industry_group", "industry") if c in frame.columns]
+    keep = [c for c in ("sector", "industry_group", "industry", "summary") if c in frame.columns]
     out = frame[keep].copy()
     out.index = out.index.astype(str).str.strip().str.upper()
     return out[~out.index.duplicated(keep="first")]
+
+
+def export_fd_cache(path: Path | None = None) -> dict[str, Any]:
+    """Fetch FD US equities once (live) and persist to a local parquet cache."""
+    frame = _load_fd_live()
+    if frame.empty:
+        return {"status": "skipped", "rows": 0}
+    target = Path(path) if path else FD_CACHE_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    frame.reset_index(names="symbol").to_parquet(target, index=False)
+    return {"status": "ok", "rows": int(len(frame)), "path": str(target)}
+
+
+def load_fd_us_equities() -> pd.DataFrame:
+    """symbol-indexed US equities with sector/industry.
+
+    Prefers the local parquet cache (no network); falls back to a live FD fetch and
+    writes the cache for next time. Empty frame only if both are unavailable.
+    """
+    if FD_CACHE_PATH.exists():
+        try:
+            cached = pd.read_parquet(FD_CACHE_PATH).set_index("symbol")
+            cached.index = cached.index.astype(str).str.strip().str.upper()
+            return cached[~cached.index.duplicated(keep="first")]
+        except Exception as exc:  # noqa: BLE001 — fall through to live
+            logger.warning("FD cache read failed (%s); falling back to live", exc)
+    frame = _load_fd_live()
+    if not frame.empty:
+        try:
+            export_fd_cache()
+        except Exception as exc:  # noqa: BLE001 — cache write is best-effort
+            logger.debug("FD cache write failed: %s", exc)
+    return frame
 
 
 def _board_for_industry(industry: str) -> str | None:
