@@ -206,6 +206,90 @@ def localize_us_universe_free(
     }
 
 
+def _alpaca_credentials() -> tuple[str, str] | None:
+    import os
+
+    key = os.getenv("APCA_API_KEY_ID") or os.getenv("ALPACA_API_KEY")
+    secret = os.getenv("APCA_API_SECRET_KEY") or os.getenv("ALPACA_SECRET_KEY")
+    return (key, secret) if key and secret else None
+
+
+def localize_us_history_alpaca(
+    store, symbols: list[str], *, lookback_days: int = 420, batch: int = 200
+) -> dict[str, Any]:
+    """Bulk daily history via Alpaca: one request returns bars for *many* symbols
+    (IEX free feed), so the whole universe localizes in ~tens of requests instead
+    of thousands of per-symbol calls. Returns ``status='skipped'`` if alpaca-py or
+    credentials are absent (caller falls back to the parallel akshare path).
+    """
+    creds = _alpaca_credentials()
+    if creds is None:
+        return {"status": "skipped", "reason": "no alpaca credentials", "rows": 0}
+    try:
+        from alpaca.data.enums import DataFeed
+        from alpaca.data.historical import StockHistoricalDataClient
+        from alpaca.data.requests import StockBarsRequest
+        from alpaca.data.timeframe import TimeFrame
+    except ImportError:
+        return {"status": "skipped", "reason": "alpaca-py not installed", "rows": 0}
+
+    wanted = sorted({str(s).strip().upper() for s in symbols if str(s).strip()})
+    if not wanted:
+        return {"status": "ok", "symbols_ok": 0, "rows": 0}
+
+    client = StockHistoricalDataClient(*creds)
+    start = datetime.now() - timedelta(days=lookback_days)
+    now = pd.Timestamp(datetime.now())
+    frames: list[pd.DataFrame] = []
+    symbols_ok: set[str] = set()
+    failed_batches = 0
+    for offset in range(0, len(wanted), batch):
+        chunk = wanted[offset : offset + batch]
+        try:
+            request = StockBarsRequest(
+                symbol_or_symbols=chunk,
+                timeframe=TimeFrame.Day,
+                start=start,
+                feed=DataFeed.IEX,
+            )
+            frame = client.get_stock_bars(request).df
+        except Exception as exc:  # noqa: BLE001 — degrade to akshare fallback
+            logger.warning("alpaca bars batch %d failed: %s", offset // batch, exc)
+            failed_batches += 1
+            continue
+        if frame is None or frame.empty:
+            continue
+        frame = frame.reset_index()  # columns: symbol, timestamp, open, high, low, close, volume, vwap...
+        out = pd.DataFrame(
+            {
+                "market": "US",
+                "symbol": frame["symbol"].astype(str).str.upper(),
+                "trade_date": pd.to_datetime(frame["timestamp"], utc=True).dt.tz_localize(None).dt.normalize(),
+                "open": pd.to_numeric(frame["open"], errors="coerce"),
+                "high": pd.to_numeric(frame["high"], errors="coerce"),
+                "low": pd.to_numeric(frame["low"], errors="coerce"),
+                "close": pd.to_numeric(frame["close"], errors="coerce"),
+                "volume": pd.to_numeric(frame["volume"], errors="coerce"),
+            }
+        )
+        out["amount"] = out["close"] * out["volume"]
+        out["adj_type"] = "raw"
+        out["source"] = "alpaca.iex"
+        out["updated_at"] = now
+        frames.append(out)
+        symbols_ok.update(out["symbol"].unique().tolist())
+
+    if not frames:
+        return {"status": "ok", "symbols_ok": 0, "rows": 0, "failed_batches": failed_batches}
+    written = store.upsert_dataframe("daily_prices", pd.concat(frames, ignore_index=True))
+    return {
+        "status": "ok",
+        "symbols_ok": len(symbols_ok),
+        "rows": int(written),
+        "failed_batches": failed_batches,
+    }
+
+
 def localize_us_history_free(
     store, symbols: list[str], *, lookback_days: int = 420, max_workers: int = 8
 ) -> dict[str, Any]:

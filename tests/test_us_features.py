@@ -525,6 +525,18 @@ def test_localize_universe_free(tmp_path: Path, monkeypatch):
     assert out2["securities"] == 1
 
 
+def test_alpaca_history_skips_without_creds(tmp_path: Path, monkeypatch):
+    from us_screener import data_source
+
+    for var in ("APCA_API_KEY_ID", "APCA_API_SECRET_KEY", "ALPACA_API_KEY", "ALPACA_SECRET_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    out = data_source.localize_us_history_alpaca(store, ["AAPL"], lookback_days=30)
+    assert out["status"] == "skipped"
+    assert out["rows"] == 0
+
+
 def test_localize_history_free_parallel(tmp_path: Path, monkeypatch):
     from ah_screener.sources import us_client
     from us_screener import data_source
