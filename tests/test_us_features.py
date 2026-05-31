@@ -294,6 +294,38 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
+def test_sec_growth_extraction():
+    from us_screener.sec_bulk_loader import _fast_metrics
+
+    def annual(end, val):
+        return {"end": end, "val": val, "form": "10-K", "fp": "FY", "filed": end}
+
+    cf = {"facts": {"us-gaap": {
+        "NetIncomeLoss": {"units": {"USD": [annual("2024-12-31", 120.0), annual("2023-12-31", 100.0)]}},
+        "Revenues": {"units": {"USD": [annual("2024-12-31", 1100.0), annual("2023-12-31", 1000.0)]}},
+        "StockholdersEquity": {"units": {"USD": [annual("2024-12-31", 500.0)]}},
+    }}}
+    m = _fast_metrics(cf)
+    assert m["parent_net_profit_yoy"] == 20.0  # (120-100)/100
+    assert m["revenue_yoy"] == 10.0
+
+
+def test_forward_estimates_skip_and_tag(tmp_path: Path, monkeypatch):
+    from us_screener import forward_estimates
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe("market_snapshots", pd.DataFrame([
+        {"market": "US", "symbol": "AAPL", "asset_type": "stock", "trade_date": pd.Timestamp("2026-05-29"),
+         "name": "Apple", "last_price": 200.0, "amount": 1e10, "volume": 1e6, "pe_ttm": None, "pb": None,
+         "market_cap": None, "source": "test", "updated_at": pd.Timestamp("2026-05-29")}]))
+    monkeypatch.setattr(forward_estimates, "_fetch_forward",
+                        lambda s: {"forward_pe": 24.5, "recommendation_mean": 1.8, "analysts": 30})
+    out = forward_estimates.enrich_forward_estimates(store, limit=10)
+    assert out["status"] == "ok" and out["updated"] == 1
+    assert abs(forward_estimates.forward_pe_map(store)["AAPL"] - 24.5) < 1e-6
+
+
 def test_sec_latest_shares():
     from us_screener.sec_bulk_loader import _latest_shares
 

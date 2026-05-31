@@ -357,17 +357,23 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     frame["sector"] = frame["symbol"].map(
         lambda s: (sector_map.get(str(s).strip().upper()) or {}).get("sector", "")
     )
-    # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB
+    # PEG = PE / earnings growth (forward-ish: price relative to EXPECTED growth, not
+    # just trailing earnings). Only for positive growth; lower PEG scores higher.
+    _pe = pd.to_numeric(_series(frame, "pe_ttm"), errors="coerce")
+    _growth = pd.to_numeric(_series(frame, "net_profit_yoy"), errors="coerce")
+    frame["peg"] = (_pe / _growth.where(_growth > 0)).round(3)
+    # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB/PEG
     # aren't comparable. Falls back to a whole-universe rank where sector is unknown.
-    # Weighted-average over whichever of PE/PB is present, so a missing PB (common on
-    # the free path) does not blank out a name that still has a PE.
+    # Weighted-average over whichever component is present, so a missing one does not
+    # blank out a name that still has the others.
     _val = pd.DataFrame(
         {
             "pe": _peer_relative_score(_series(frame, "pe_ttm"), frame["sector"]),
             "pb": _peer_relative_score(_series(frame, "pb"), frame["sector"]),
+            "peg": _peer_relative_score(frame["peg"], frame["sector"]),
         }
     )
-    _w = pd.Series({"pe": 0.65, "pb": 0.35})
+    _w = pd.Series({"pe": 0.45, "pb": 0.25, "peg": 0.30})
     _wsum = _val.notna().mul(_w, axis=1).sum(axis=1).replace(0, np.nan)
     frame["valuation_score"] = (
         (_val.fillna(0.0).mul(_w, axis=1).sum(axis=1) / _wsum).fillna(50.0).clip(0, 100)
