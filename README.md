@@ -5,6 +5,13 @@
 完整技术方案见 [docs/technical-solution.md](docs/technical-solution.md)。
 部署和定时任务操作见 [docs/deployment.md](docs/deployment.md)。
 
+## 美股线（us-screener，独立交付）
+
+`src/us_screener/` 是独立的美股自动筛选器（独立 DuckDB `data/us_screener.duckdb`，通过 env 路由复用核心），完全使用免费 / 本地批量数据，**零逐个 API**：stooq 历史 + Sina 批量快照 + SEC `companyfacts.zip` 全市场 PB/基本面 + FinanceDatabase 行业 + FRED 宏观 + Nasdaq 财报日历，行业内相对估值，盘前报告（CLI / MCP / Skill）。另含多市场历史银行 `data/global_history.duckdb`（HK/JP/UK + FX/CRYPTO/…）与 `global-screen` 技术筛选。
+
+- **数据源、ZIP 下载地址与更新节奏**见 [docs/us-screener-data.md](docs/us-screener-data.md)。
+- 日常盘前 `us-screener update`（零下载、秒级）；stooq zip 周/月、SEC `companyfacts.zip` 季度按需重下。
+
 ## 功能
 
 - 同步 A 股、港股、美股和 A/H/US ETF 市场快照。
