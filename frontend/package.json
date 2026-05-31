@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "copy-reports": "node scripts/copy-reports.mjs",
+    "predev": "npm run copy-reports",
     "dev": "vite --host 127.0.0.1",
+    "prebuild": "npm run copy-reports",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
