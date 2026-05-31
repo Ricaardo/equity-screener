@@ -355,6 +355,111 @@ def normalize_a_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, 
     return securities.drop_duplicates(["market", "symbol"]), snapshots
 
 
+def normalize_etf_holdings(
+    raw: pd.DataFrame,
+    *,
+    market: str,
+    symbol: str,
+    source: str,
+) -> pd.DataFrame:
+    """Normalize 天天基金 disclosed fund holdings into the local ETF exposure table."""
+    updated_at = _now()
+    if raw is None or raw.empty:
+        return pd.DataFrame(
+            columns=[
+                "snapshot_date",
+                "market",
+                "symbol",
+                "report_period",
+                "component_symbol",
+                "component_name",
+                "weight_pct",
+                "shares",
+                "market_value",
+                "source",
+                "updated_at",
+            ]
+        )
+
+    component_symbol = _first_existing(raw, ["股票代码", "证券代码", "代码"]).astype(str).str.strip()
+    component_name = _first_existing(raw, ["股票名称", "证券名称", "名称"]).astype(str).str.strip()
+    report_period = _first_existing(raw, ["季度", "报告期", "截止时间"]).astype(str).str.strip()
+    fallback_key = component_name.where(component_name.ne(""), component_symbol)
+    component_symbol = component_symbol.where(component_symbol.ne(""), fallback_key)
+    out = pd.DataFrame(
+        {
+            "snapshot_date": pd.Timestamp.today().normalize().date(),
+            "market": market.upper(),
+            "symbol": str(symbol).zfill(6),
+            "report_period": report_period.replace("", "unknown"),
+            "component_symbol": component_symbol,
+            "component_name": component_name,
+            "weight_pct": _number(_first_existing(raw, ["占净值比例", "占比", "持仓占比"])),
+            "shares": _number(_first_existing(raw, ["持股数", "持有数量"])),
+            "market_value": _number(_first_existing(raw, ["持仓市值", "市值"])),
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+    out = out.dropna(subset=["component_symbol"])
+    out = out[
+        ~out["component_symbol"].astype(str).str.strip().str.upper().isin({"", "NAN", "NONE", "<NA>"})
+    ]
+    return out.drop_duplicates(
+        ["snapshot_date", "market", "symbol", "report_period", "component_symbol", "source"],
+        keep="last",
+    )
+
+
+def normalize_etf_industry_allocations(
+    raw: pd.DataFrame,
+    *,
+    market: str,
+    symbol: str,
+    source: str,
+) -> pd.DataFrame:
+    """Normalize 天天基金 industry/asset allocation rows for ETF exposure de-dup."""
+    updated_at = _now()
+    if raw is None or raw.empty:
+        return pd.DataFrame(
+            columns=[
+                "snapshot_date",
+                "market",
+                "symbol",
+                "report_date",
+                "allocation_name",
+                "weight_pct",
+                "market_value",
+                "source",
+                "updated_at",
+            ]
+        )
+
+    allocation_name = _first_existing(raw, ["行业类别", "资产类别", "类别", "名称"]).astype(str).str.strip()
+    report_date = pd.to_datetime(
+        _first_existing(raw, ["截止时间", "报告期", "日期"]), errors="coerce"
+    ).dt.date
+    out = pd.DataFrame(
+        {
+            "snapshot_date": pd.Timestamp.today().normalize().date(),
+            "market": market.upper(),
+            "symbol": str(symbol).zfill(6),
+            "report_date": report_date,
+            "allocation_name": allocation_name,
+            "weight_pct": _number(_first_existing(raw, ["占净值比例", "占比", "比例"])),
+            "market_value": _number(_first_existing(raw, ["市值", "持仓市值"])),
+            "source": source,
+            "updated_at": updated_at,
+        }
+    )
+    out["report_date"] = out["report_date"].fillna(out["snapshot_date"])
+    out = out[out["allocation_name"].astype(str).str.strip().ne("")]
+    return out.drop_duplicates(
+        ["snapshot_date", "market", "symbol", "report_date", "allocation_name", "source"],
+        keep="last",
+    )
+
+
 def normalize_hk_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     today = pd.Timestamp.today().normalize()
     updated_at = _now()
@@ -411,21 +516,74 @@ def normalize_hk_etf_spot(raw: pd.DataFrame, source: str) -> tuple[pd.DataFrame,
 
 
 def fetch_a_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:
+    frames: list[tuple[pd.DataFrame, pd.DataFrame]] = []
+    last_error: Exception | None = None
     try:
         securities, snapshots = fetch_futu_a_etf_spot()
-    except Exception:
-        securities, snapshots = pd.DataFrame(), pd.DataFrame()
-    if not snapshots.empty:
-        return securities, snapshots
+        if not snapshots.empty:
+            frames.append((securities, snapshots))
+    except Exception as exc:
+        last_error = exc
 
     import akshare as ak
 
-    raw, source = _fetch_first_available(
-        [
-            ("akshare.fund_etf_spot_em", ak.fund_etf_spot_em),
-        ]
+    for source, fetcher in [
+        ("akshare.fund_etf_spot_em", ak.fund_etf_spot_em),
+        ("akshare.fund_lof_spot_em", ak.fund_lof_spot_em),
+    ]:
+        try:
+            raw = fetcher()
+            frames.append(normalize_a_etf_spot(raw, source))
+        except Exception as exc:  # noqa: BLE001 - one fund endpoint should not drop the other
+            last_error = exc
+
+    if not frames:
+        if last_error is not None:
+            raise last_error
+        return pd.DataFrame(), pd.DataFrame()
+
+    securities = (
+        pd.concat([item[0] for item in frames], ignore_index=True)
+        .drop_duplicates(["market", "symbol"], keep="first")
+        .reset_index(drop=True)
     )
-    return normalize_a_etf_spot(raw, source)
+    snapshots = (
+        pd.concat([item[1] for item in frames], ignore_index=True)
+        .drop_duplicates(["market", "symbol"], keep="first")
+        .reset_index(drop=True)
+    )
+    return securities, snapshots
+
+
+def fetch_a_etf_exposure(symbol: str, year: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fetch disclosed holdings and industry allocation for one A-listed fund code."""
+    import akshare as ak
+
+    clean_symbol = str(symbol).zfill(6)
+    try:
+        holdings_raw = ak.fund_portfolio_hold_em(symbol=clean_symbol, date=str(year))
+    except Exception:
+        holdings_raw = pd.DataFrame()
+    try:
+        allocations_raw = ak.fund_portfolio_industry_allocation_em(
+            symbol=clean_symbol, date=str(year)
+        )
+    except Exception:
+        allocations_raw = pd.DataFrame()
+    return (
+        normalize_etf_holdings(
+            holdings_raw,
+            market="A",
+            symbol=clean_symbol,
+            source="akshare.fund_portfolio_hold_em",
+        ),
+        normalize_etf_industry_allocations(
+            allocations_raw,
+            market="A",
+            symbol=clean_symbol,
+            source="akshare.fund_portfolio_industry_allocation_em",
+        ),
+    )
 
 
 def fetch_hk_etf_spot() -> tuple[pd.DataFrame, pd.DataFrame]:

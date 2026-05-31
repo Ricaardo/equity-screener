@@ -12,7 +12,12 @@ from ah_screener.etf_model import (
     infer_etf_track,
     is_hk_listed_etf,
 )
-from ah_screener.selection import dedup_etf_pool, etf_category_overview, validate_etf_clusters
+from ah_screener.selection import (
+    dedup_etf_pool,
+    dedup_etf_pool_by_exposure,
+    etf_category_overview,
+    validate_etf_clusters,
+)
 
 
 def _etf(symbol: str, name: str, amount: float, market: str = "A", **kw) -> dict:
@@ -46,6 +51,36 @@ class EtfModelTest(TestCase):
         self.assertEqual(infer_etf_track("科创50ETF华夏")[0], "科创50")
         self.assertEqual(infer_etf_track("创业板50ETF华安")[0], "创业板50")
         self.assertEqual(infer_etf_track("上证50ETF华夏")[0], "上证50")
+        self.assertNotEqual(infer_etf_track("美国50ETF易方达")[0], "上证50")
+        category, keyword = classify_etf("港股通50ETF华泰柏瑞")
+        self.assertEqual(infer_etf_track("港股通50ETF华泰柏瑞", category, keyword)[0], "港股")
+
+    def test_classifies_cross_border_lof_and_commodity_tools(self) -> None:
+        examples = {
+            "港美互联网LOF": ("跨境ETF", "港美互联网"),
+            "纳斯达克ETF华夏": ("跨境ETF", "纳斯达克100"),
+            "标普500ETF博时": ("跨境ETF", "标普500"),
+            "标普信息科技LOF": ("跨境ETF", "标普信息科技"),
+            "巴西ETF华夏": ("跨境ETF", "巴西"),
+            "沙特ETF南方": ("跨境ETF", "沙特"),
+            "国投白银LOF": ("商品ETF", "白银"),
+            "豆粕ETF华夏": ("商品ETF", "豆粕"),
+            "石油LOF": ("商品ETF", "原油"),
+            "粮食ETF鹏华": ("商品ETF", "粮食"),
+        }
+        for name, (category, track) in examples.items():
+            with self.subTest(name=name):
+                self.assertEqual(classify_etf(name)[0], category)
+                self.assertEqual(infer_etf_track(name)[0], track)
+
+    def test_resource_equity_etfs_stay_out_of_commodity_bucket(self) -> None:
+        # These are stock/industry ETFs, not physical or futures commodity products.
+        self.assertEqual(classify_etf("有色金属ETF南方")[0], "行业ETF")
+        self.assertEqual(classify_etf("黄金股ETF永赢")[0], "行业ETF")
+        self.assertEqual(classify_etf("石油ETF国泰")[0], "行业ETF")
+        self.assertEqual(infer_etf_track("黄金股ETF永赢")[0], "黄金股")
+        self.assertEqual(infer_etf_track("石油ETF国泰")[0], "油气股")
+        self.assertNotEqual(classify_etf("标普A股红利ETF华宝")[0], "跨境ETF")
 
     def test_enrich_scores_liquid_broad_index(self) -> None:
         df = pd.DataFrame(
@@ -177,6 +212,143 @@ class EtfModelTest(TestCase):
         self.assertIn("159002", symbols)
         a500 = leaders[leaders["etf_cluster"].eq("大盘宽基")].iloc[0]
         self.assertEqual(int(a500["peer_count"]), 2)
+
+    def test_exposure_dedup_uses_holding_overlap(self) -> None:
+        pool = pd.DataFrame(
+            [
+                _etf("513100", "纳指ETF国泰", 5e8),
+                _etf("159941", "纳指ETF广发", 4e8),
+                _etf("513500", "标普500ETF博时", 3e8),
+            ]
+        )
+        holdings = pd.DataFrame(
+            [
+                {
+                    "market": "A",
+                    "symbol": "513100",
+                    "component_symbol": "NVDA",
+                    "component_name": "英伟达",
+                    "weight_pct": 9.0,
+                },
+                {
+                    "market": "A",
+                    "symbol": "513100",
+                    "component_symbol": "MSFT",
+                    "component_name": "微软",
+                    "weight_pct": 8.0,
+                },
+                {
+                    "market": "A",
+                    "symbol": "159941",
+                    "component_symbol": "NVDA",
+                    "component_name": "英伟达",
+                    "weight_pct": 8.8,
+                },
+                {
+                    "market": "A",
+                    "symbol": "159941",
+                    "component_symbol": "MSFT",
+                    "component_name": "微软",
+                    "weight_pct": 7.7,
+                },
+                {
+                    "market": "A",
+                    "symbol": "513500",
+                    "component_symbol": "BRK.B",
+                    "component_name": "伯克希尔",
+                    "weight_pct": 3.0,
+                },
+            ]
+        )
+        leaders = dedup_etf_pool_by_exposure(pool, holdings=holdings, top=10)
+        symbols = set(leaders["symbol"])
+        self.assertEqual(len(leaders), 2)
+        self.assertIn("513100", symbols)
+        self.assertIn("513500", symbols)
+        nasdaq = leaders[leaders["symbol"].eq("513100")].iloc[0]
+        self.assertEqual(int(nasdaq["peer_count"]), 2)
+        self.assertIn("159941", nasdaq["peer_alternatives"])
+        self.assertEqual(nasdaq["etf_dedup_basis"], "holding_seed")
+
+    def test_exposure_dedup_keeps_active_lofs_with_different_holdings(self) -> None:
+        pool = pd.DataFrame(
+            [
+                _etf("160644", "港美互联网LOF", 5e8),
+                _etf("501312", "海外科技LOF", 4e8),
+            ]
+        )
+        holdings = pd.DataFrame(
+            [
+                {
+                    "market": "A",
+                    "symbol": "160644",
+                    "component_symbol": "TSM",
+                    "component_name": "台积电",
+                    "weight_pct": 9.0,
+                },
+                {
+                    "market": "A",
+                    "symbol": "501312",
+                    "component_symbol": "QQQ",
+                    "component_name": "纳指ETF",
+                    "weight_pct": 35.0,
+                },
+            ]
+        )
+        leaders = dedup_etf_pool_by_exposure(pool, holdings=holdings, top=10)
+        self.assertEqual(set(leaders["symbol"]), {"160644", "501312"})
+
+    def test_exposure_dedup_uses_latest_report_period(self) -> None:
+        pool = pd.DataFrame(
+            [
+                _etf("513100", "纳指ETF国泰", 5e8),
+                _etf("159941", "纳指ETF广发", 4e8),
+            ]
+        )
+        holdings = pd.DataFrame(
+            [
+                {
+                    "market": "A",
+                    "symbol": "513100",
+                    "report_period": "2025年4季度股票投资明细",
+                    "component_symbol": "NVDA",
+                    "component_name": "英伟达",
+                    "weight_pct": 50.0,
+                },
+                {
+                    "market": "A",
+                    "symbol": "513100",
+                    "report_period": "2026年1季度股票投资明细",
+                    "component_symbol": "AAPL",
+                    "component_name": "苹果",
+                    "weight_pct": 50.0,
+                },
+                {
+                    "market": "A",
+                    "symbol": "159941",
+                    "report_period": "2026年1季度股票投资明细",
+                    "component_symbol": "NVDA",
+                    "component_name": "英伟达",
+                    "weight_pct": 50.0,
+                },
+            ]
+        )
+        leaders = dedup_etf_pool_by_exposure(pool, holdings=holdings, top=10)
+        self.assertEqual(set(leaders["symbol"]), {"513100", "159941"})
+        self.assertFalse(leaders["etf_top_holdings"].str.contains("英伟达").iloc[0])
+
+    def test_exposure_dedup_falls_back_for_commodity_tools(self) -> None:
+        pool = pd.DataFrame(
+            [
+                _etf("501018", "南方原油LOF", 5e8),
+                _etf("160723", "嘉实原油LOF", 4e8),
+                _etf("161226", "国投白银LOF", 3e8),
+            ]
+        )
+        leaders = dedup_etf_pool_by_exposure(pool, top=10)
+        self.assertEqual(len(leaders), 2)
+        oil = leaders[leaders["etf_track"].eq("原油")].iloc[0]
+        self.assertEqual(int(oil["peer_count"]), 2)
 
     def test_enrich_uses_real_technical_score(self) -> None:
         df = pd.DataFrame([_etf("510300", "沪深300ETF华夏", 5e8)])

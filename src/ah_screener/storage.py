@@ -336,6 +336,34 @@ CREATE TABLE IF NOT EXISTS potential_candidates (
     PRIMARY KEY (snapshot_date, strategy, market, symbol)
 );
 
+CREATE TABLE IF NOT EXISTS etf_holdings (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    report_period VARCHAR NOT NULL,
+    component_symbol VARCHAR NOT NULL,
+    component_name VARCHAR,
+    weight_pct DOUBLE,
+    shares DOUBLE,
+    market_value DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, symbol, report_period, component_symbol, source)
+);
+
+CREATE TABLE IF NOT EXISTS etf_industry_allocations (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    report_date DATE,
+    allocation_name VARCHAR NOT NULL,
+    weight_pct DOUBLE,
+    market_value DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, symbol, report_date, allocation_name, source)
+);
+
 CREATE TABLE IF NOT EXISTS ingest_failures (
     run_date DATE NOT NULL,
     step VARCHAR NOT NULL,
@@ -391,6 +419,32 @@ ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex_to_revenue DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS capex_to_operating_cashflow DOUBLE;
 ALTER TABLE financial_metrics ADD COLUMN IF NOT EXISTS innovation_efficiency_score DOUBLE;
+CREATE TABLE IF NOT EXISTS etf_holdings (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    report_period VARCHAR NOT NULL,
+    component_symbol VARCHAR NOT NULL,
+    component_name VARCHAR,
+    weight_pct DOUBLE,
+    shares DOUBLE,
+    market_value DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, symbol, report_period, component_symbol, source)
+);
+CREATE TABLE IF NOT EXISTS etf_industry_allocations (
+    snapshot_date DATE NOT NULL,
+    market VARCHAR NOT NULL,
+    symbol VARCHAR NOT NULL,
+    report_date DATE,
+    allocation_name VARCHAR NOT NULL,
+    weight_pct DOUBLE,
+    market_value DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (snapshot_date, market, symbol, report_date, allocation_name, source)
+);
 """
 
 

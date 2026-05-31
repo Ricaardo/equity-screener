@@ -14,6 +14,7 @@ from ah_screener.classification import enrich_security_metadata
 from ah_screener.db import get_store, latest_table
 from ah_screener.etf_model import consolidate_etf_candidates, enrich_etf_snapshot
 from ah_screener.expert_model import STRATEGY_NAME
+from ah_screener.selection import dedup_etf_pool_by_exposure
 from ah_screener.universe import ETFS, select_assets
 
 
@@ -67,8 +68,10 @@ def export_etf_candidates(
     category: str | None = None,
     grouped: bool = True,
     market: str | None = None,
+    dedup_by: str = "rules",
 ) -> pd.DataFrame:
     store = get_store()
+    store.init_db()
     snapshots = latest_table(store, "market_snapshots", "trade_date")
     if snapshots.empty or "asset_type" not in snapshots.columns:
         return pd.DataFrame()
@@ -78,6 +81,17 @@ def export_etf_candidates(
     # Pass real technical scores so CLI etf_score matches the report/UI (review #1).
     technicals = store.query_df("SELECT * FROM technical_indicators")
     if grouped:
+        if dedup_by == "exposure":
+            holdings = latest_table(store, "etf_holdings", "snapshot_date")
+            allocations = latest_table(store, "etf_industry_allocations", "snapshot_date")
+            return dedup_etf_pool_by_exposure(
+                etfs,
+                holdings=holdings,
+                allocations=allocations,
+                technicals=technicals,
+                top=top,
+                category=category,
+            )
         return consolidate_etf_candidates(etfs, top=top, category=category, technicals=technicals)
     etfs = enrich_etf_snapshot(etfs, technicals=technicals)
     if category:
