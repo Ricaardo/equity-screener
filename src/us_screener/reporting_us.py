@@ -113,18 +113,23 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
     }
     _annotate_earnings(payload, store)
     _annotate_squeeze(payload)
-    _annotate_themes(payload, store)
+    _annotate_themes(payload, store, scored)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
 
 
-def _annotate_themes(payload: dict[str, Any], store) -> None:
+def _annotate_themes(payload: dict[str, Any], store, scored: pd.DataFrame | None = None) -> None:
     """Rank concept boards by constituents' relative strength (what the market is
     bidding up) and flag candidates riding a hot theme."""
     from us_screener.theme_momentum import compute_theme_momentum
 
+    # Reuse the RS the screen already computed for the whole universe (avoid a second
+    # ~12k-symbol pass).
+    rs = None
+    if scored is not None and not scored.empty and "rs_score" in scored.columns:
+        rs = scored[["market", "symbol", "rs_score"]].copy()
     try:
-        frame = compute_theme_momentum(store)
+        frame = compute_theme_momentum(store, rs=rs)
     except Exception:  # noqa: BLE001 — never let theme momentum break the report
         frame = pd.DataFrame()
     if frame.empty:
