@@ -78,11 +78,6 @@ def enrich_us_valuation(store, *, limit: int = 600, only_missing: bool = True) -
 
     Returns a status dict; never raises for missing deps or rate limits.
     """
-    try:
-        import yfinance  # noqa: F401
-    except ImportError:
-        return {"status": "skipped", "reason": "yfinance not installed", "updated": 0}
-
     snapshots = store.query_df(
         """
         SELECT * FROM market_snapshots
@@ -110,6 +105,14 @@ def enrich_us_valuation(store, *, limit: int = 600, only_missing: bool = True) -
         requested += 1
         try:
             values = _fetch_one(symbol)
+        except ImportError:
+            return {
+                "status": "skipped",
+                "reason": "yfinance not installed",
+                "updated": 0,
+                "requested": requested,
+                "rate_limited": False,
+            }
         except Exception as exc:  # noqa: BLE001 — degrade gracefully
             if _is_rate_limit(exc):
                 rate_limited = True

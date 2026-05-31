@@ -602,10 +602,27 @@ def sync_benchmarks(
     return result
 
 
-def run_technical_indicators() -> int:
+def run_technical_indicators(
+    *, lookback_days: int | None = None, markets: list[str] | None = None
+) -> int:
     store = get_store()
     store.init_db()
-    daily_prices = store.query_df("SELECT * FROM daily_prices")
+    where: list[str] = []
+    params: list[object] = []
+    if lookback_days is not None:
+        days = max(int(lookback_days), 180)
+        where.append(
+            "trade_date >= "
+            f"(SELECT MAX(trade_date) - INTERVAL '{days} days' FROM daily_prices)"
+        )
+    if markets:
+        placeholders = ", ".join("?" for _ in markets)
+        where.append(f"market IN ({placeholders})")
+        params.extend(str(market).upper() for market in markets)
+    sql = "SELECT * FROM daily_prices"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    daily_prices = store.query_df(sql, params)
     snapshots = store.query_df("SELECT * FROM market_snapshots")
     indicators = compute_technical_indicators(daily_prices=daily_prices, snapshots=snapshots)
     return store.upsert_dataframe("technical_indicators", indicators)
@@ -932,7 +949,7 @@ def run_full_update(
     _step("identity_mappings", sync_identity_mappings)
     _step("history", lambda: sync_history("all", top=top, lookback_days=lookback_days))
     _step("benchmarks", lambda: sync_benchmarks(lookback_days=lookback_days))
-    _step("technical_rows", run_technical_indicators)
+    _step("technical_rows", lambda: run_technical_indicators(lookback_days=lookback_days))
     if include_fundamentals:
         # Fundamentals are incremental (carried forward), so coverage can go much deeper
         # than history without re-fetch cost. Defaults to `top` when not specified.

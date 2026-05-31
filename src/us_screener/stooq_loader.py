@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import logging
 import re
+import shutil
 import tempfile
 import zipfile
 from datetime import date, datetime
@@ -77,6 +78,20 @@ def _path_market_case(path_market_map: dict[str, str]) -> str:
     return f"CASE {whens} ELSE '' END"
 
 
+def _safe_extract_zip(archive: zipfile.ZipFile, extract_root: Path) -> None:
+    root = extract_root.resolve()
+    for member in archive.infolist():
+        target = (root / member.filename).resolve()
+        if not target.is_relative_to(root):
+            raise ValueError(f"unsafe zip member path: {member.filename!r}")
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(member) as src, target.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
+
+
 def load_stooq_zip(
     store,
     zip_path: str | Path,
@@ -107,7 +122,7 @@ def load_stooq_zip(
     extract_root = Path(work_dir) if work_dir else Path(tempfile.mkdtemp(prefix="stooq_"))
     try:
         with zipfile.ZipFile(zip_path) as archive:
-            archive.extractall(extract_root)
+            _safe_extract_zip(archive, extract_root)
 
         glob = str(extract_root / "data" / "daily" / "**" / "*.txt")
         etf_clause = "" if include_etf else "AND lower(filename) NOT LIKE '%etfs%'"
@@ -170,8 +185,6 @@ def load_stooq_zip(
         return result
     finally:
         if created_tmp and not keep_extracted:
-            import shutil
-
             shutil.rmtree(extract_root, ignore_errors=True)
 
 

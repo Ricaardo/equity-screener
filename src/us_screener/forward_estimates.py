@@ -47,11 +47,6 @@ def _fetch_forward(symbol: str) -> dict[str, Any] | None:
 
 def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = True) -> dict[str, Any]:
     """Tag top-liquid US names with forward PE + analyst recommendation (best-effort)."""
-    try:
-        import yfinance  # noqa: F401
-    except ImportError:
-        return {"status": "skipped", "reason": "yfinance not installed", "updated": 0}
-
     snaps = store.query_df(
         """
         SELECT symbol, amount FROM market_snapshots
@@ -76,6 +71,13 @@ def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = Tr
     for symbol in snaps["symbol"].astype(str).str.upper():
         try:
             data = _fetch_forward(symbol)
+        except ImportError:
+            return {
+                "status": "skipped",
+                "reason": "yfinance not installed",
+                "updated": 0,
+                "rate_limited": False,
+            }
         except Exception as exc:  # noqa: BLE001 — degrade gracefully
             if _is_rate_limit(exc):
                 rate_limited = True

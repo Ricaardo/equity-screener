@@ -63,7 +63,6 @@ def install_us_launchd_schedule(
                     f"--lookback-days {lookback_days} "
                     f"--fundamentals-top {fundamentals_top} --json"
                 ),
-                f"{python_bin} -m us_screener.cli report --json",
                 "",
             ]
         ),

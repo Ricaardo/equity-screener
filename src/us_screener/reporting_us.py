@@ -53,12 +53,12 @@ def _records(df: pd.DataFrame, fields: list[str]) -> list[dict[str, object]]:
     return rows
 
 
-def build_us_premarket_payload(store=None) -> dict[str, Any]:
+def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a JSON-serializable US pre-market payload without writing files."""
     if store is None:
         use_us_database()
         store = get_store()
-    result = run_us_screen(store=store, persist=True)
+    result = screen_result or run_us_screen(store=store, persist=True)
     scored = result["results"].copy()
     top = scored.loc[~scored["is_filtered"]].head(20).copy() if not scored.empty else pd.DataFrame()
     rejected = scored.loc[scored["is_filtered"]].copy() if not scored.empty else pd.DataFrame()
@@ -124,10 +124,12 @@ def _annotate_themes(payload: dict[str, Any], store, scored: pd.DataFrame | None
     from us_screener.theme_momentum import compute_theme_momentum
 
     # Reuse the RS the screen already computed for the whole universe (avoid a second
-    # ~12k-symbol pass).
+    # daily-history pass). Hot themes are based on tradable candidates, not the long
+    # tail of names already rejected by hard filters.
     rs = None
     if scored is not None and not scored.empty and "rs_score" in scored.columns:
-        rs = scored[["market", "symbol", "rs_score"]].copy()
+        tradable = scored.loc[~scored["is_filtered"]] if "is_filtered" in scored.columns else scored
+        rs = tradable[["market", "symbol", "rs_score"]].copy()
     try:
         frame = compute_theme_momentum(store, rs=rs)
     except Exception:  # noqa: BLE001 — never let theme momentum break the report
@@ -256,10 +258,15 @@ def _render_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def generate_us_premarket_report(output_dir: Path | None = None) -> Path:
+def generate_us_premarket_report(
+    output_dir: Path | None = None,
+    *,
+    store=None,
+    screen_result: dict[str, Any] | None = None,
+) -> Path:
     """Write dated and latest JSON/Markdown report artifacts."""
     cfg = get_us_config()
-    payload = build_us_premarket_payload()
+    payload = build_us_premarket_payload(store=store, screen_result=screen_result)
     output = output_dir or cfg.reports_dir
     output.mkdir(parents=True, exist_ok=True)
 

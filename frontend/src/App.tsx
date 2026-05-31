@@ -206,6 +206,7 @@ function App() {
               .map((item) => (
                 <button
                   key={item.key}
+                  aria-pressed={selectedEtfUseCases.includes(item.title)}
                   className={selectedEtfUseCases.includes(item.title) ? "is-active" : ""}
                   onClick={() =>
                     setSelectedEtfUseCases((current) =>
@@ -228,6 +229,7 @@ function App() {
           {(Object.keys(marketLabels) as Market[]).map((market) => (
             <button
               key={market}
+              aria-pressed={activeMarket === market}
               className={activeMarket === market ? "is-active" : ""}
               onClick={() => setActiveMarket(market)}
             >
@@ -240,11 +242,17 @@ function App() {
         <Hero report={report} market={activeMarket} />
         <KpiStrip report={report} />
 
-        <nav className="view-tabs" aria-label="主要视图">
+        <nav className="view-tabs" aria-label="主要视图" role="tablist">
           {views.map((view) => {
             const Icon = view.icon;
             return (
-              <button key={view.key} className={activeView === view.key ? "is-active" : ""} onClick={() => setActiveView(view.key)}>
+              <button
+                key={view.key}
+                aria-selected={activeView === view.key}
+                className={activeView === view.key ? "is-active" : ""}
+                role="tab"
+                onClick={() => setActiveView(view.key)}
+              >
                 <Icon size={16} />
                 {view.label}
               </button>

@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from ah_screener.db import get_store
 from us_screener.config import get_us_config, use_us_database
 from us_screener.llm_opinion import generate_us_llm_opinion
-from us_screener.reporting_us import build_us_premarket_payload, generate_us_premarket_report
+from us_screener.reporting_us import generate_us_premarket_report
 from us_screener.scoring_us import run_us_screen
 
 
@@ -43,6 +45,51 @@ def _rows(df: pd.DataFrame, limit: int | None = None) -> list[dict[str, object]]
     return rows
 
 
+def _latest_payload_path():
+    return get_us_config().reports_dir / "us-premarket-latest.json"
+
+
+def _latest_premarket_payload() -> dict[str, Any]:
+    path = _latest_payload_path()
+    if not path.exists():
+        generate_us_premarket_report()
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"invalid US premarket latest report: {path}") from exc
+
+
+def _find_payload_security(payload: dict[str, Any], symbol: str) -> dict[str, Any] | None:
+    wanted = symbol.strip().upper()
+    for key in ("top_candidates", "rejected_candidates"):
+        for row in payload.get(key, []) or []:
+            if str(row.get("symbol", "")).strip().upper() == wanted:
+                return dict(row)
+    return None
+
+
+def _persisted_security_detail(symbol: str) -> dict[str, object] | None:
+    wanted = symbol.strip().upper()
+    if not wanted:
+        return None
+    store = get_store()
+    store.init_db()
+    df = store.query_df(
+        """
+        SELECT *
+        FROM expert_screening_results
+        WHERE market = 'US'
+          AND strategy = 'us_premarket'
+          AND upper(symbol) = ?
+        ORDER BY snapshot_date DESC
+        LIMIT 1
+        """,
+        [wanted],
+    )
+    rows = _rows(df, limit=1)
+    return rows[0] if rows else None
+
+
 def create_mcp_server():
     try:
         from mcp.server.fastmcp import FastMCP
@@ -65,27 +112,24 @@ def create_mcp_server():
 
     @server.tool()
     def us_report_latest() -> dict[str, Any]:
-        return build_us_premarket_payload()
+        return _latest_premarket_payload()
 
     @server.tool()
     def us_security_detail(symbol: str) -> dict[str, Any]:
-        payload = run_us_screen(persist=False)
-        if payload["results"].empty:
+        payload = _latest_premarket_payload()
+        detail = _find_payload_security(payload, symbol) or _persisted_security_detail(symbol)
+        if detail is None:
             return {"symbol": symbol, "found": False}
-        frame = payload["results"]
-        row = frame.loc[frame["symbol"].astype(str).str.upper() == symbol.strip().upper()]
-        if row.empty:
-            return {"symbol": symbol, "found": False}
-        return {"symbol": symbol, "found": True, "detail": _rows(row, limit=1)[0]}
+        return {"symbol": symbol, "found": True, "detail": detail}
 
     @server.tool()
     def us_generate_opinion() -> dict[str, Any]:
-        payload = build_us_premarket_payload()
+        payload = _latest_premarket_payload()
         return generate_us_llm_opinion(payload)
 
     @server.resource("report://us-premarket/latest")
     def us_premarket_latest() -> str:
-        path = get_us_config().reports_dir / "us-premarket-latest.json"
+        path = _latest_payload_path()
         if not path.exists():
             generate_us_premarket_report()
         return path.read_text(encoding="utf-8")

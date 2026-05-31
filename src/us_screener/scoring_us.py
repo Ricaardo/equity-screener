@@ -204,6 +204,34 @@ def _filter_reasons(row: pd.Series, cfg) -> list[str]:
     return reasons
 
 
+def _daily_factor_symbols(frame: pd.DataFrame, cfg) -> set[str]:
+    """Symbols worth running expensive daily-price factors for.
+
+    The final scoring frame still keeps every latest snapshot for audit/filtering,
+    but heat and RS still scan/aggregate daily history. Running them only on names
+    that can pass the hard tradeability gates keeps daily screening bounded without
+    changing candidate eligibility.
+    """
+    if frame.empty:
+        return set()
+    symbols: set[str] = set()
+    for _, row in frame.iterrows():
+        symbol = str(row.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        price = _num(row.get("last_price"))
+        if price is None or price <= 0 or price < weights.US_PENNY_PRICE:
+            continue
+        amount = _num(row.get("amount"))
+        if amount is None or amount < cfg.min_us_amount:
+            continue
+        market_cap = _num(row.get("market_cap"))
+        if market_cap is not None and market_cap < cfg.min_market_cap:
+            continue
+        symbols.add(symbol)
+    return symbols
+
+
 def _risk_score(filter_reasons: list[str]) -> float:
     penalty_map = {
         "china_concept": 100.0,
@@ -305,11 +333,13 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
             "macro_context": get_macro_context(store),
             "results": empty,
             "persisted_rows": 0,
+            "factor_universe": 0,
             "summary": {"top_candidates": []},
         }
 
     latest_snap = _latest_by_symbol(snapshots, "trade_date")
     snapshot_date = pd.to_datetime(latest_snap["trade_date"], errors="coerce").max()
+    daily_factor_symbols = _daily_factor_symbols(latest_snap, cfg)
 
     technical = _latest_by_symbol(
         store.query_df("SELECT * FROM technical_indicators WHERE market = 'US'"), "snapshot_date"
@@ -317,8 +347,8 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     fundamentals = _latest_by_symbol(
         store.query_df("SELECT * FROM financial_metrics WHERE market = 'US'"), "snapshot_date"
     )
-    heat = compute_heat_scores(store)
-    rs = compute_rs_scores(store)
+    heat = compute_heat_scores(store, symbols=daily_factor_symbols)
+    rs = compute_rs_scores(store, symbols=daily_factor_symbols)
 
     frame = latest_snap.merge(
         technical[["market", "symbol", "technical_score", "technical_signal", "return_20d"]]
@@ -444,6 +474,7 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         "macro_context": macro_context,
         "results": frame,
         "persisted_rows": persisted_rows,
+        "factor_universe": int(len(daily_factor_symbols)),
         "summary": {
             "top_candidates": [
                 {

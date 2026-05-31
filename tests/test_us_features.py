@@ -294,6 +294,16 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
+def test_daily_factor_symbol_prefilter(tmp_path: Path):
+    from us_screener.relative_strength import compute_rs_scores
+
+    store = _seed_store(tmp_path)
+    heat = compute_heat_scores(store, symbols={"NVDA"})
+    rs = compute_rs_scores(store, benchmark="SPY", symbols={"NVDA"})
+    assert set(heat["symbol"]) == {"NVDA"}
+    assert set(rs["symbol"]) == {"NVDA"}
+
+
 def test_sec_growth_extraction():
     from us_screener.sec_bulk_loader import _fast_metrics
 
@@ -709,6 +719,47 @@ def test_scoring_excludes_china_concept(tmp_path: Path, monkeypatch):
     assert set(persisted["symbol"]) >= {"AAPL", "NVDA", "BABA", "IONQ"}
 
 
+def test_screen_keeps_low_liquidity_audit_row_but_skips_daily_factor_pass(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    store = _seed_store(tmp_path)
+    store.upsert_dataframe(
+        "market_snapshots",
+        pd.DataFrame(
+            [
+                {
+                    "market": "US",
+                    "symbol": "LOW",
+                    "asset_type": "stock",
+                    "board": "NYSE",
+                    "trade_date": pd.Timestamp("2026-05-29"),
+                    "name": "Low Liquidity Co",
+                    "last_price": 10.0,
+                    "pct_change": 0.0,
+                    "volume": 100.0,
+                    "amount": 100_000.0,
+                    "turnover_rate": None,
+                    "pe_ttm": 20.0,
+                    "pb": 2.0,
+                    "market_cap": 1_000_000_000.0,
+                    "source": "test",
+                    "updated_at": pd.Timestamp("2026-05-29"),
+                }
+            ]
+        ),
+    )
+
+    result = run_us_screen(store=store, persist=False)
+    scored = result["results"]
+    low = scored.loc[scored["symbol"] == "LOW"].iloc[0]
+    assert result["factor_universe"] == 4
+    assert "low_amount" in low["filter_reasons"]
+    assert bool(low["is_filtered"]) is True
+
+
 def test_reporting_payload_and_files(tmp_path: Path, monkeypatch):
     db_path = tmp_path / "us.duckdb"
     monkeypatch.setenv("US_SCREENER_DB", str(db_path))
@@ -815,7 +866,7 @@ def test_scheduler_uses_module_invocation(tmp_path: Path, monkeypatch):
     script_path, plist_path = install_us_launchd_schedule(repo_dir=tmp_path, hour=20, minute=30)
     script_text = script_path.read_text()
     assert "-m us_screener.cli update" in script_text
-    assert "-m us_screener.cli report" in script_text
+    assert "-m us_screener.cli report" not in script_text
     assert ".venv/bin/us-screener" not in script_text
     assert plist_path.exists()
 
@@ -938,6 +989,22 @@ def test_stooq_loader_synthetic(tmp_path: Path):
     load_stooq_us_zip(store2, zpath, since="2024-06-01", include_etf=False)
     syms2 = set(store2.query_df("SELECT DISTINCT symbol FROM daily_prices WHERE source='stooq.d'")["symbol"])
     assert "SPY" not in syms2 and "AAPL" in syms2
+
+
+def test_stooq_loader_rejects_zip_slip(tmp_path: Path):
+    import pytest
+    import zipfile
+
+    from us_screener.stooq_loader import load_stooq_zip
+
+    zpath = tmp_path / "d_us_txt.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("../evil.txt", "owned")
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    with pytest.raises(ValueError, match="unsafe zip member"):
+        load_stooq_zip(store, zpath, work_dir=tmp_path / "extract")
+    assert not (tmp_path / "evil.txt").exists()
 
 
 def test_stooq_path_market(tmp_path: Path):
