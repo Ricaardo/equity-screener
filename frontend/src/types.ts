@@ -121,6 +121,80 @@ export interface DailyBrief {
   reader_contract: string;
 }
 
+export interface UsMacroContext {
+  status?: string;
+  market_score?: number;
+  regime?: string;
+  summary?: string;
+  policy?: {
+    stance?: string;
+    rate_path_2y_minus_funds?: number;
+    cpi_yoy?: number;
+    cpi_accel_3m?: number;
+    summary?: string;
+  };
+}
+
+export interface UsCandidate {
+  market: Market;
+  symbol: string;
+  name: string;
+  expert_score?: number;
+  decision?: string;
+  fundamental_score_final?: number;
+  technical_score?: number;
+  valuation_score?: number;
+  market_cap?: number;
+  pe_ttm?: number | null;
+  pb?: number | null;
+  peg?: number | null;
+  liquidity_score?: number;
+  heat_score?: number;
+  rs_score?: number;
+  short_ratio?: number | null;
+  macro_score?: number;
+  concept_boards?: string[];
+  reasons_list?: string[];
+}
+
+export interface HotTheme {
+  board: string;
+  momentum_score?: number;
+  members?: number;
+  leaders_pct?: number;
+}
+
+export interface SqueezeItem {
+  symbol: string;
+  short_ratio?: number;
+  rs_score?: number;
+}
+
+export interface EarningsItem {
+  symbol: string;
+  earnings_date?: string;
+  in_days?: number;
+}
+
+export interface UsPremarketReport {
+  schema_version: string;
+  report_type: string;
+  report_date: string;
+  generated_at: string;
+  disclaimer: string;
+  macro_context: UsMacroContext;
+  counts: {
+    universe?: number;
+    candidates?: number;
+    filtered?: number;
+    core_candidates?: number;
+  };
+  top_candidates: UsCandidate[];
+  hot_themes: HotTheme[];
+  squeeze_watch: SqueezeItem[];
+  earnings_soon: EarningsItem[];
+}
+
 export interface ScreeningReport {
   schema_version: string;
   report_type: string;
