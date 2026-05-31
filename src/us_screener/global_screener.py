@@ -40,16 +40,41 @@ def _rvol(daily_prices: pd.DataFrame) -> pd.Series:
 
 def screen_market(
     store, market: str, *, top: int = 25, min_history: int = 120,
-    min_amount: float = 0.0, max_stale_days: int = 14, persist: bool = False,
+    min_amount: float = 0.0, max_stale_days: int = 14, lookback_days: int = 420,
+    persist: bool = False,
 ) -> dict[str, Any]:
-    """Rank a market's symbols by a trend/momentum/RVOL composite (price-only)."""
+    """Rank a market's symbols by a trend/momentum/RVOL composite (price-only).
+
+    Speed: only recent history (``lookback_days``) is loaded, and the ``min_amount``
+    liquidity filter is applied *before* the per-symbol technical computation, so a
+    higher threshold screens far fewer names (and runs much faster).
+    """
     from ah_screener.technical import compute_technical_indicators
 
     market = market.strip().upper()
-    daily = store.query_df("SELECT * FROM daily_prices WHERE market = ?", [market])
+    params: list[Any] = [market]
+    where_recent = ""
+    if lookback_days and lookback_days > 0:
+        cutoff = (pd.Timestamp.now() - pd.Timedelta(days=int(lookback_days))).strftime("%Y-%m-%d")
+        where_recent = "AND trade_date >= ?"
+        params.append(cutoff)
+    daily = store.query_df(
+        f"SELECT * FROM daily_prices WHERE market = ? {where_recent}", params
+    )
     if daily.empty:
         return {"market": market, "universe": 0, "candidates": []}
     daily["trade_date"] = pd.to_datetime(daily["trade_date"], errors="coerce")
+
+    # Liquidity pre-filter: drop illiquid names before the (per-symbol) technical pass.
+    if min_amount > 0:
+        latest_amt = (
+            daily.sort_values("trade_date").drop_duplicates("symbol", keep="last")
+            .set_index("symbol")["amount"]
+        )
+        keep = set(pd.to_numeric(latest_amt, errors="coerce").fillna(0).loc[lambda s: s >= min_amount].index)
+        daily = daily[daily["symbol"].isin(keep)]
+        if daily.empty:
+            return {"market": market, "universe": 0, "candidates": []}
 
     tech = compute_technical_indicators(daily, pd.DataFrame())
     if tech.empty:

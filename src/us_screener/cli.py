@@ -161,14 +161,15 @@ def global_screen_command(
     market: str = typer.Argument(..., help="Market code to screen (HK / JP / UK)."),
     db: Path = typer.Option(PROJECT_ROOT / "data" / "global_history.duckdb", help="Global history DuckDB."),
     top: int = typer.Option(25, help="Top candidates to return."),
-    min_amount: float = typer.Option(0.0, help="Minimum latest turnover filter."),
+    min_amount: float = typer.Option(0.0, help="Min latest turnover (pre-filter; higher = faster)."),
+    lookback_days: int = typer.Option(420, help="Only load this much recent history (faster)."),
     as_json: bool = typer.Option(False, "--json", help="Emit JSON."),
 ) -> None:
     """Price-only technical screen over the banked global history (no fundamentals)."""
     from ah_screener.storage import Store
     from us_screener.global_screener import screen_market
 
-    result = screen_market(Store(db), market, top=top, min_amount=min_amount)
+    result = screen_market(Store(db), market, top=top, min_amount=min_amount, lookback_days=lookback_days)
     _emit(result, as_json)
 
 
