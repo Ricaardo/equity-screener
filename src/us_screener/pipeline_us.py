@@ -18,6 +18,7 @@ from us_screener.classification_fd import tag_fd_classification
 from us_screener.concept_boards import tag_concept_boards
 from us_screener.config import get_us_config, use_us_database
 from us_screener.earnings import tag_earnings
+from us_screener.forward_estimates import enrich_forward_estimates
 from us_screener.short_interest import tag_short_interest
 from us_screener.macro import get_macro_context
 from us_screener.reporting_us import generate_us_premarket_report
@@ -43,6 +44,22 @@ def _step(result: dict[str, Any], name: str, fn: Callable[[], Any]) -> None:
     except Exception as exc:  # noqa: BLE001 — mirror ah_screener resilient pipeline
         logger.warning("us_screener step %s failed: %s", name, exc)
         result[name] = {"error": str(exc)}
+
+
+def _screen_macro_context(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Normalize the pipeline macro step for run_us_screen reuse."""
+    macro = result.get("macro")
+    if not isinstance(macro, dict):
+        return None
+    if "error" not in macro:
+        return macro
+    return {
+        "status": "error",
+        "market_score": 50.0,
+        "regime": "neutral",
+        "summary": "Macro step failed; screen uses neutral macro context.",
+        "errors": [{"source": "pipeline_macro", "error": str(macro.get("error"))}],
+    }
 
 
 def _backfill_universe(ah, *, batch_limit: int, include_etf: bool, max_symbols: int) -> dict[str, int]:
@@ -162,6 +179,7 @@ def run_us_full_backfill(
     )
     _step(result, "fundamentals", lambda: _localize_fundamentals(ah, store, fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
+    _step(result, "forward_estimates", lambda: enrich_forward_estimates(store, limit=120))
     _step(
         result,
         "technical",
@@ -177,7 +195,7 @@ def run_us_full_backfill(
     screen_result: dict[str, Any] = {}
 
     def _run_screen() -> dict[str, Any]:
-        payload = run_us_screen(store=store, persist=True)
+        payload = run_us_screen(store=store, persist=True, macro_context=_screen_macro_context(result))
         screen_result["payload"] = payload
         return {
             "persisted_rows": payload["persisted_rows"],
@@ -252,6 +270,7 @@ def run_us_premarket_update(
     if fundamentals_top:
         _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
+    _step(result, "forward_estimates", lambda: enrich_forward_estimates(store, limit=120))
     _step(
         result,
         "technical",
@@ -267,7 +286,7 @@ def run_us_premarket_update(
     screen_result: dict[str, Any] = {}
 
     def _run_screen() -> dict[str, Any]:
-        payload = run_us_screen(store=store, persist=True)
+        payload = run_us_screen(store=store, persist=True, macro_context=_screen_macro_context(result))
         screen_result["payload"] = payload
         return {
             "persisted_rows": payload["persisted_rows"],

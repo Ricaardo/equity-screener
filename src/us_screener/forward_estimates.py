@@ -45,12 +45,30 @@ def _fetch_forward(symbol: str) -> dict[str, Any] | None:
     }
 
 
-def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = True) -> dict[str, Any]:
-    """Tag top-liquid US names with forward PE + analyst recommendation (best-effort)."""
+def enrich_forward_estimates(
+    store, *, limit: int = 300, only_missing: bool = True, stale_days: int = 14
+) -> dict[str, Any]:
+    """Tag top-liquid US names with forward PE + analyst recommendation (best-effort).
+
+    ``only_missing`` really means "missing or stale": cached rows newer than
+    ``stale_days`` are skipped, but old forward estimates are refreshed so the overlay
+    does not become permanent stale state.
+    """
     snaps = store.query_df(
         """
-        SELECT symbol, amount FROM market_snapshots
-        WHERE market='US' AND COALESCE(asset_type,'stock')<>'etf' AND amount IS NOT NULL
+        WITH latest AS (
+            SELECT
+                symbol,
+                amount,
+                ROW_NUMBER() OVER (
+                    PARTITION BY UPPER(symbol)
+                    ORDER BY trade_date DESC NULLS LAST, updated_at DESC NULLS LAST, amount DESC NULLS LAST
+                ) AS rn
+            FROM market_snapshots
+            WHERE market='US' AND COALESCE(asset_type,'stock')<>'etf' AND amount IS NOT NULL
+        )
+        SELECT symbol, amount FROM latest
+        WHERE rn = 1
         ORDER BY amount DESC LIMIT ?
         """,
         [int(limit)],
@@ -59,13 +77,23 @@ def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = Tr
         return {"status": "empty", "updated": 0}
     if only_missing:
         have = store.query_df(
-            "SELECT DISTINCT symbol FROM company_tags WHERE market='US' AND tag_type=? AND source=?",
+            """
+            SELECT symbol, MAX(updated_at) AS updated_at
+            FROM company_tags
+            WHERE market='US' AND tag_type=? AND source=?
+            GROUP BY symbol
+            """,
             [TAG_TYPE, SOURCE],
         )
-        done = set(have["symbol"].astype(str).str.upper()) if not have.empty else set()
-        snaps = snaps[~snaps["symbol"].astype(str).str.upper().isin(done)]
+        fresh: set[str] = set()
+        if not have.empty:
+            cutoff = pd.Timestamp.now() - pd.Timedelta(days=max(int(stale_days), 0))
+            have["updated_at"] = pd.to_datetime(have["updated_at"], errors="coerce")
+            fresh = set(have.loc[have["updated_at"].ge(cutoff), "symbol"].astype(str).str.upper())
+        snaps = snaps[~snaps["symbol"].astype(str).str.upper().isin(fresh)]
 
     rows: list[dict[str, Any]] = []
+    attempted: list[str] = []
     rate_limited = False
     now = pd.Timestamp.now()
     for symbol in snaps["symbol"].astype(str).str.upper():
@@ -82,7 +110,9 @@ def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = Tr
             if _is_rate_limit(exc):
                 rate_limited = True
                 break
+            attempted.append(symbol)
             continue
+        attempted.append(symbol)
         if not data or data.get("forward_pe") is None:
             continue
         rows.append(
@@ -92,6 +122,12 @@ def enrich_forward_estimates(store, *, limit: int = 300, only_missing: bool = Tr
                 "evidence_level": "" if data.get("recommendation_mean") is None else f"rec={data['recommendation_mean']}",
                 "source": SOURCE, "updated_at": now,
             }
+        )
+    if attempted:
+        placeholders = ", ".join(["?"] * len(attempted))
+        store.execute(
+            f"DELETE FROM company_tags WHERE market='US' AND tag_type=? AND source=? AND symbol IN ({placeholders})",
+            [TAG_TYPE, SOURCE, *attempted],
         )
     if not rows:
         return {"status": "ok", "updated": 0, "rate_limited": rate_limited}
