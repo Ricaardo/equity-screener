@@ -18,7 +18,7 @@ from us_screener.classification_fd import tag_fd_classification
 from us_screener.concept_boards import tag_concept_boards
 from us_screener.config import get_us_config, use_us_database
 from us_screener.earnings import tag_earnings
-from us_screener.heat import compute_heat_scores
+from us_screener.short_interest import tag_short_interest
 from us_screener.macro import get_macro_context
 from us_screener.reporting_us import generate_us_premarket_report
 from us_screener.scoring_us import run_us_screen
@@ -162,19 +162,38 @@ def run_us_full_backfill(
     )
     _step(result, "fundamentals", lambda: _localize_fundamentals(ah, store, fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
-    _step(result, "technical", lambda: ah.run_technical_indicators())
+    _step(
+        result,
+        "technical",
+        lambda: ah.run_technical_indicators(lookback_days=lookback_days, markets=["US"]),
+    )
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
     _step(result, "fd_classification", lambda: tag_fd_classification(store))
     _step(result, "earnings", lambda: tag_earnings(store))
-    _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
+    _step(result, "short_interest", lambda: tag_short_interest(store))
+    _step(result, "heat", lambda: {"mode": "deferred_to_screen"})
     _step(result, "macro", lambda: get_macro_context(store))
+    screen_result: dict[str, Any] = {}
+
+    def _run_screen() -> dict[str, Any]:
+        payload = run_us_screen(store=store, persist=True)
+        screen_result["payload"] = payload
+        return {
+            "persisted_rows": payload["persisted_rows"],
+            "factor_universe": payload.get("factor_universe"),
+        }
+
     _step(
         result,
         "screen",
-        lambda: {"persisted_rows": run_us_screen(store=store, persist=True)["persisted_rows"]},
+        _run_screen,
     )
-    _step(result, "report", lambda: str(generate_us_premarket_report()))
+    _step(
+        result,
+        "report",
+        lambda: str(generate_us_premarket_report(store=store, screen_result=screen_result.get("payload"))),
+    )
     return result
 
 
@@ -233,17 +252,36 @@ def run_us_premarket_update(
     if fundamentals_top:
         _step(result, "fundamentals", lambda: ah.sync_fundamentals("US", top=fundamentals_top))
     _step(result, "valuation_enrich", lambda: enrich_us_valuation_all(store))
-    _step(result, "technical", lambda: ah.run_technical_indicators())
+    _step(
+        result,
+        "technical",
+        lambda: ah.run_technical_indicators(lookback_days=lookback_days, markets=["US"]),
+    )
     _step(result, "china_concept", lambda: tag_china_concept(store, use_sec=False))
     _step(result, "concept_boards", lambda: tag_concept_boards(store))
     _step(result, "fd_classification", lambda: tag_fd_classification(store))
     _step(result, "earnings", lambda: tag_earnings(store))
-    _step(result, "heat", lambda: {"rows": len(compute_heat_scores(store))})
+    _step(result, "short_interest", lambda: tag_short_interest(store))
+    _step(result, "heat", lambda: {"mode": "deferred_to_screen"})
     _step(result, "macro", lambda: get_macro_context(store))
+    screen_result: dict[str, Any] = {}
+
+    def _run_screen() -> dict[str, Any]:
+        payload = run_us_screen(store=store, persist=True)
+        screen_result["payload"] = payload
+        return {
+            "persisted_rows": payload["persisted_rows"],
+            "factor_universe": payload.get("factor_universe"),
+        }
+
     _step(
         result,
         "screen",
-        lambda: {"persisted_rows": run_us_screen(store=store, persist=True)["persisted_rows"]},
+        _run_screen,
     )
-    _step(result, "report", lambda: str(generate_us_premarket_report()))
+    _step(
+        result,
+        "report",
+        lambda: str(generate_us_premarket_report(store=store, screen_result=screen_result.get("payload"))),
+    )
     return result

@@ -35,6 +35,8 @@ from us_screener.concept_boards import concept_board_map
 from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
 from us_screener.macro import get_macro_context, score_macro_transmission
+from us_screener.relative_strength import compute_rs_scores
+from us_screener.short_interest import short_ratio_map
 
 STRATEGY_NAME = "us_premarket"
 DEFAULT_TECHNICAL_SCORE = getattr(weights, "DEFAULT_TECHNICAL_SCORE", 42.0)
@@ -202,6 +204,34 @@ def _filter_reasons(row: pd.Series, cfg) -> list[str]:
     return reasons
 
 
+def _daily_factor_symbols(frame: pd.DataFrame, cfg) -> set[str]:
+    """Symbols worth running expensive daily-price factors for.
+
+    The final scoring frame still keeps every latest snapshot for audit/filtering,
+    but heat and RS still scan/aggregate daily history. Running them only on names
+    that can pass the hard tradeability gates keeps daily screening bounded without
+    changing candidate eligibility.
+    """
+    if frame.empty:
+        return set()
+    symbols: set[str] = set()
+    for _, row in frame.iterrows():
+        symbol = str(row.get("symbol") or "").strip().upper()
+        if not symbol:
+            continue
+        price = _num(row.get("last_price"))
+        if price is None or price <= 0 or price < weights.US_PENNY_PRICE:
+            continue
+        amount = _num(row.get("amount"))
+        if amount is None or amount < cfg.min_us_amount:
+            continue
+        market_cap = _num(row.get("market_cap"))
+        if market_cap is not None and market_cap < cfg.min_market_cap:
+            continue
+        symbols.add(symbol)
+    return symbols
+
+
 def _risk_score(filter_reasons: list[str]) -> float:
     penalty_map = {
         "china_concept": 100.0,
@@ -303,11 +333,13 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
             "macro_context": get_macro_context(store),
             "results": empty,
             "persisted_rows": 0,
+            "factor_universe": 0,
             "summary": {"top_candidates": []},
         }
 
     latest_snap = _latest_by_symbol(snapshots, "trade_date")
     snapshot_date = pd.to_datetime(latest_snap["trade_date"], errors="coerce").max()
+    daily_factor_symbols = _daily_factor_symbols(latest_snap, cfg)
 
     technical = _latest_by_symbol(
         store.query_df("SELECT * FROM technical_indicators WHERE market = 'US'"), "snapshot_date"
@@ -315,7 +347,8 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     fundamentals = _latest_by_symbol(
         store.query_df("SELECT * FROM financial_metrics WHERE market = 'US'"), "snapshot_date"
     )
-    heat = compute_heat_scores(store)
+    heat = compute_heat_scores(store, symbols=daily_factor_symbols)
+    rs = compute_rs_scores(store, symbols=daily_factor_symbols)
 
     frame = latest_snap.merge(
         technical[["market", "symbol", "technical_score", "technical_signal", "return_20d"]]
@@ -328,7 +361,11 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         on=["market", "symbol"],
         how="left",
         suffixes=("", "_fund"),
-    ).merge(heat, on=["market", "symbol"], how="left")
+    ).merge(heat, on=["market", "symbol"], how="left").merge(
+        rs if not rs.empty else pd.DataFrame(columns=["market", "symbol", "rs_score", "rs_components"]),
+        on=["market", "symbol"],
+        how="left",
+    )
 
     boards_map = concept_board_map(store)
     china_symbols = china_concept_symbols(store)
@@ -337,6 +374,8 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     )
     frame["primary_board"] = frame["concept_boards"].map(lambda boards: boards[0] if boards else "")
     frame["is_china_concept"] = frame["symbol"].astype(str).str.upper().isin(china_symbols)
+    short_map = short_ratio_map(store)
+    frame["short_ratio"] = frame["symbol"].map(lambda s: short_map.get(str(s).strip().upper()))
 
     frame["fundamental_score_final"] = frame.apply(_compose_fundamental_score, axis=1)
     frame["technical_score"] = (
@@ -348,23 +387,33 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     frame["sector"] = frame["symbol"].map(
         lambda s: (sector_map.get(str(s).strip().upper()) or {}).get("sector", "")
     )
-    # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB
+    # PEG = PE / earnings growth (forward-ish: price relative to EXPECTED growth, not
+    # just trailing earnings). Only for positive growth; lower PEG scores higher.
+    _pe = pd.to_numeric(_series(frame, "pe_ttm"), errors="coerce")
+    _growth = pd.to_numeric(_series(frame, "net_profit_yoy"), errors="coerce")
+    frame["peg"] = (_pe / _growth.where(_growth > 0)).round(3)
+    # Valuation is ranked WITHIN sector peers (FD classification) — cross-sector PE/PB/PEG
     # aren't comparable. Falls back to a whole-universe rank where sector is unknown.
-    # Weighted-average over whichever of PE/PB is present, so a missing PB (common on
-    # the free path) does not blank out a name that still has a PE.
+    # Weighted-average over whichever component is present, so a missing one does not
+    # blank out a name that still has the others.
     _val = pd.DataFrame(
         {
             "pe": _peer_relative_score(_series(frame, "pe_ttm"), frame["sector"]),
             "pb": _peer_relative_score(_series(frame, "pb"), frame["sector"]),
+            "peg": _peer_relative_score(frame["peg"], frame["sector"]),
         }
     )
-    _w = pd.Series({"pe": 0.65, "pb": 0.35})
+    _w = pd.Series({"pe": 0.45, "pb": 0.25, "peg": 0.30})
     _wsum = _val.notna().mul(_w, axis=1).sum(axis=1).replace(0, np.nan)
     frame["valuation_score"] = (
         (_val.fillna(0.0).mul(_w, axis=1).sum(axis=1) / _wsum).fillna(50.0).clip(0, 100)
     )
     frame["liquidity_score"] = _liquidity_score(frame).fillna(50.0).clip(0, 100)
-    frame["heat_score"] = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
+    # Momentum factor blends absolute heat (RVOL/return/52w) with relative strength
+    # (excess return vs market) — leadership shows up in RS first.
+    _heat = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
+    frame["rs_score"] = pd.to_numeric(_series(frame, "rs_score"), errors="coerce").fillna(50.0)
+    frame["heat_score"] = (0.65 * _heat + 0.35 * frame["rs_score"]).clip(0, 100)
     frame["theme_score_final"] = frame["concept_boards"].map(_theme_score)
 
     macro_context = get_macro_context(store)
@@ -425,6 +474,7 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         "macro_context": macro_context,
         "results": frame,
         "persisted_rows": persisted_rows,
+        "factor_universe": int(len(daily_factor_symbols)),
         "summary": {
             "top_candidates": [
                 {

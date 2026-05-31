@@ -76,10 +76,6 @@ function listText(items?: string[], fallback = "暂无"): string {
   return items && items.length > 0 ? items.slice(0, 3).join("；") : fallback;
 }
 
-function matchesMarket<T extends { market?: Market }>(item: T, markets: Market[]): boolean {
-  return markets.length === 0 || (item.market ? markets.includes(item.market) : false);
-}
-
 function byScoreDesc<T>(field: keyof T) {
   return (a: T, b: T) => Number(b[field] ?? 0) - Number(a[field] ?? 0);
 }
@@ -90,7 +86,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeView, setActiveView] = useState<View>("brief");
-  const [markets, setMarkets] = useState<Market[]>(["A", "HK", "US"]);
+  const [activeMarket, setActiveMarket] = useState<Market>("A");
   const [minScore, setMinScore] = useState(55);
   const [query, setQuery] = useState("");
   const [selectedEtfUseCases, setSelectedEtfUseCases] = useState<string[]>([]);
@@ -118,7 +114,7 @@ function App() {
     if (!report) return [];
     const normalizedQuery = query.trim().toLowerCase();
     return report.refined_candidates
-      .filter((item) => matchesMarket(item, markets))
+      .filter((item) => item.market === activeMarket)
       .filter((item) => (item.expert_score ?? 0) >= minScore)
       .filter((item) => {
         if (!normalizedQuery) return true;
@@ -129,18 +125,18 @@ function App() {
           .includes(normalizedQuery);
       })
       .sort(byScoreDesc<Candidate>("expert_score"));
-  }, [markets, minScore, query, report]);
+  }, [activeMarket, minScore, query, report]);
 
   const filteredPotential = useMemo(() => {
     if (!report) return [];
     return report.potential_candidates
-      .filter((item) => matchesMarket(item, markets))
+      .filter((item) => item.market === activeMarket)
       .filter((item) => {
         const normalizedQuery = query.trim().toLowerCase();
         return !normalizedQuery || `${item.symbol} ${item.name}`.toLowerCase().includes(normalizedQuery);
       })
       .sort(byScoreDesc<PotentialCandidate>("potential_score"));
-  }, [markets, query, report]);
+  }, [activeMarket, query, report]);
 
   const etfUseCases = useMemo(() => {
     if (!report) return [];
@@ -197,25 +193,6 @@ function App() {
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="代码、名称、主题" />
         </label>
 
-        <section className="filter-group">
-          <div className="filter-group__title">市场</div>
-          <div className="segmented">
-            {(Object.keys(marketLabels) as Market[]).map((market) => (
-              <button
-                key={market}
-                className={markets.includes(market) ? "is-active" : ""}
-                onClick={() =>
-                  setMarkets((current) =>
-                    current.includes(market) ? current.filter((item) => item !== market) : [...current, market]
-                  )
-                }
-              >
-                {marketLabels[market]}
-              </button>
-            ))}
-          </div>
-        </section>
-
         <label className="field">
           <span>专家分下限 {minScore}</span>
           <input min={0} max={100} value={minScore} type="range" onChange={(event) => setMinScore(Number(event.target.value))} />
@@ -229,6 +206,7 @@ function App() {
               .map((item) => (
                 <button
                   key={item.key}
+                  aria-pressed={selectedEtfUseCases.includes(item.title)}
                   className={selectedEtfUseCases.includes(item.title) ? "is-active" : ""}
                   onClick={() =>
                     setSelectedEtfUseCases((current) =>
@@ -247,14 +225,34 @@ function App() {
       </aside>
 
       <section className="workspace">
-        <Hero report={report} />
+        <nav className="market-tabs" aria-label="市场页面">
+          {(Object.keys(marketLabels) as Market[]).map((market) => (
+            <button
+              key={market}
+              aria-pressed={activeMarket === market}
+              className={activeMarket === market ? "is-active" : ""}
+              onClick={() => setActiveMarket(market)}
+            >
+              {marketLabels[market]}
+              <b>{report.counts.refined_by_market?.[market] ?? 0}</b>
+            </button>
+          ))}
+        </nav>
+
+        <Hero report={report} market={activeMarket} />
         <KpiStrip report={report} />
 
-        <nav className="view-tabs" aria-label="主要视图">
+        <nav className="view-tabs" aria-label="主要视图" role="tablist">
           {views.map((view) => {
             const Icon = view.icon;
             return (
-              <button key={view.key} className={activeView === view.key ? "is-active" : ""} onClick={() => setActiveView(view.key)}>
+              <button
+                key={view.key}
+                aria-selected={activeView === view.key}
+                className={activeView === view.key ? "is-active" : ""}
+                role="tab"
+                onClick={() => setActiveView(view.key)}
+              >
                 <Icon size={16} />
                 {view.label}
               </button>
@@ -274,12 +272,12 @@ function App() {
   );
 }
 
-function Hero({ report }: { report: ScreeningReport }) {
+function Hero({ report, market }: { report: ScreeningReport; market: Market }) {
   return (
     <header className="hero">
       <section className="hero__main">
-        <div className="eyebrow">Research OS</div>
-        <h1>每日筛选摘要</h1>
+        <div className="eyebrow">Research OS · {marketLabels[market]}</div>
+        <h1>{marketLabels[market]}每日筛选摘要</h1>
         <p>{report.daily_brief.headline}</p>
       </section>
       <section className="hero__meta">

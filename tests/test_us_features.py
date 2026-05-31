@@ -294,6 +294,48 @@ def test_heat_scores_offline(tmp_path: Path):
     assert isinstance(heat.iloc[0]["heat_components"], dict)
 
 
+def test_daily_factor_symbol_prefilter(tmp_path: Path):
+    from us_screener.relative_strength import compute_rs_scores
+
+    store = _seed_store(tmp_path)
+    heat = compute_heat_scores(store, symbols={"NVDA"})
+    rs = compute_rs_scores(store, benchmark="SPY", symbols={"NVDA"})
+    assert set(heat["symbol"]) == {"NVDA"}
+    assert set(rs["symbol"]) == {"NVDA"}
+
+
+def test_sec_growth_extraction():
+    from us_screener.sec_bulk_loader import _fast_metrics
+
+    def annual(end, val):
+        return {"end": end, "val": val, "form": "10-K", "fp": "FY", "filed": end}
+
+    cf = {"facts": {"us-gaap": {
+        "NetIncomeLoss": {"units": {"USD": [annual("2024-12-31", 120.0), annual("2023-12-31", 100.0)]}},
+        "Revenues": {"units": {"USD": [annual("2024-12-31", 1100.0), annual("2023-12-31", 1000.0)]}},
+        "StockholdersEquity": {"units": {"USD": [annual("2024-12-31", 500.0)]}},
+    }}}
+    m = _fast_metrics(cf)
+    assert m["parent_net_profit_yoy"] == 20.0  # (120-100)/100
+    assert m["revenue_yoy"] == 10.0
+
+
+def test_forward_estimates_skip_and_tag(tmp_path: Path, monkeypatch):
+    from us_screener import forward_estimates
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe("market_snapshots", pd.DataFrame([
+        {"market": "US", "symbol": "AAPL", "asset_type": "stock", "trade_date": pd.Timestamp("2026-05-29"),
+         "name": "Apple", "last_price": 200.0, "amount": 1e10, "volume": 1e6, "pe_ttm": None, "pb": None,
+         "market_cap": None, "source": "test", "updated_at": pd.Timestamp("2026-05-29")}]))
+    monkeypatch.setattr(forward_estimates, "_fetch_forward",
+                        lambda s: {"forward_pe": 24.5, "recommendation_mean": 1.8, "analysts": 30})
+    out = forward_estimates.enrich_forward_estimates(store, limit=10)
+    assert out["status"] == "ok" and out["updated"] == 1
+    assert abs(forward_estimates.forward_pe_map(store)["AAPL"] - 24.5) < 1e-6
+
+
 def test_sec_latest_shares():
     from us_screener.sec_bulk_loader import _latest_shares
 
@@ -384,6 +426,89 @@ def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
     assert out["status"] == "ok" and out["shares"] == 1
     mcap = store.query_df("SELECT market_cap FROM market_snapshots WHERE symbol='AAPL'").iloc[0]["market_cap"]
     assert float(mcap) == 200.0 * 1.0e10  # shares x price, no API call
+
+
+def test_theme_momentum(tmp_path: Path):
+    from us_screener.theme_momentum import compute_theme_momentum
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    tags = [
+        {"market": "US", "symbol": s, "tag_type": "concept_board", "tag_name": b,
+         "evidence_level": "high", "source": "test", "updated_at": pd.Timestamp.now()}
+        for s, b in [("AAA", "AI算力"), ("BBB", "AI算力"), ("CCC", "AI算力"),
+                     ("DDD", "核电"), ("EEE", "核电"), ("FFF", "核电")]
+    ]
+    store.upsert_dataframe("company_tags", pd.DataFrame(tags))
+    rows = []
+    start = pd.Timestamp("2025-06-01")
+    plan = {"SPY": 0.1, "AAA": 1.2, "BBB": 1.1, "CCC": 1.0, "DDD": -0.3, "EEE": -0.2, "FFF": -0.4}
+    for sym, drift in plan.items():
+        for i in range(140):
+            c = max(100.0 + drift * i, 1.0)
+            rows.append({"market": "US", "symbol": sym, "trade_date": start + pd.Timedelta(days=i),
+                         "open": c, "high": c, "low": c, "close": c, "volume": 1000.0, "amount": 1000.0 * c,
+                         "adj_type": "stooq_adj", "source": "stooq.d", "updated_at": pd.Timestamp.now()})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+    tm = compute_theme_momentum(store)
+    boards = list(tm["board"])
+    assert boards.index("AI算力") < boards.index("核电")  # leading theme ranks higher
+    assert tm[tm["board"] == "AI算力"].iloc[0]["avg_rs"] > tm[tm["board"] == "核电"].iloc[0]["avg_rs"]
+
+
+def test_short_interest(tmp_path: Path, monkeypatch):
+    from us_screener import short_interest
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe("daily_prices", pd.DataFrame([
+        {"market": "US", "symbol": "AAPL", "trade_date": pd.Timestamp("2026-05-29"), "open": 1.0,
+         "high": 1.0, "low": 1.0, "close": 1.0, "volume": 1.0, "amount": 1.0, "adj_type": "stooq_adj",
+         "source": "stooq.d", "updated_at": pd.Timestamp.now()}]))
+    fake = pd.DataFrame([
+        {"symbol": "AAPL", "short_vol": 600.0, "total_vol": 1000.0},
+        {"symbol": "GME", "short_vol": 800.0, "total_vol": 1000.0},
+    ])
+    monkeypatch.setattr(short_interest, "fetch_finra_short", lambda d, **k: fake)
+    out = short_interest.tag_short_interest(store)
+    assert out["status"] == "ok" and out["tagged"] == 2
+    m = short_interest.short_ratio_map(store)
+    assert abs(m["AAPL"] - 0.6) < 1e-6 and abs(m["GME"] - 0.8) < 1e-6
+
+
+def test_squeeze_annotation():
+    from us_screener.reporting_us import _annotate_squeeze
+
+    payload = {"top_candidates": [
+        {"symbol": "SQZ", "short_ratio": 0.62, "rs_score": 88.0},   # high short + leader -> watch
+        {"symbol": "NOPE", "short_ratio": 0.62, "rs_score": 40.0},  # high short but weak -> not watch
+        {"symbol": "LOW", "short_ratio": 0.30, "rs_score": 90.0},   # low short -> not watch
+    ]}
+    _annotate_squeeze(payload)
+    syms = [w["symbol"] for w in payload["squeeze_watch"]]
+    assert syms == ["SQZ"]
+
+
+def test_relative_strength(tmp_path: Path):
+    from us_screener.relative_strength import compute_rs_scores
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    rows = []
+    start = pd.Timestamp("2025-06-01")
+    # SPY flat-ish, STRONG outperforms, WEAK underperforms
+    for sym, drift in [("SPY", 0.1), ("STRONG", 1.2), ("WEAK", -0.4)]:
+        for i in range(140):
+            close = max(100.0 + drift * i, 1.0)
+            rows.append({"market": "US", "symbol": sym, "trade_date": start + pd.Timedelta(days=i),
+                         "open": close, "high": close, "low": close, "close": close, "volume": 1000.0,
+                         "amount": 1000.0 * close, "adj_type": "stooq_adj", "source": "stooq.d",
+                         "updated_at": pd.Timestamp.now()})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+    rs = compute_rs_scores(store, benchmark="SPY")
+    scores = dict(zip(rs["symbol"], rs["rs_score"]))
+    assert scores["STRONG"] > scores["WEAK"]  # outperformer ranks higher
+    assert isinstance(rs[rs["symbol"] == "STRONG"].iloc[0]["rs_components"], dict)
 
 
 def test_peer_relative_valuation():
@@ -497,6 +622,42 @@ def test_fred_score_computation(monkeypatch):
     assert 60 <= out["fred_score"] <= 90
 
 
+def test_fred_policy_signal(monkeypatch):
+    from us_screener import fred
+
+    idx = pd.date_range("2024-01-01", periods=20, freq="MS")
+    cpi = pd.Series([300.0 + i for i in range(20)], index=idx)  # hot, rising
+    monkeypatch.setattr(
+        fred, "fetch_fred_series",
+        lambda sid, **k: cpi if sid == fred.CPI_SERIES else pd.Series(dtype="float64"),
+    )
+    # 2Y > funds + hot CPI -> hawkish (higher-for-longer)
+    hawk = fred._policy_signal({"DGS2": 3.99, "DFEDTARU": 3.75})
+    assert hawk["stance"] == "hawkish"
+    assert hawk["rate_path_2y_minus_funds"] == 0.24
+    assert hawk["cpi_yoy"] is not None and hawk["cpi_yoy"] >= 3.0
+    # 2Y well below funds -> dovish (cuts priced) even with hot CPI
+    dove = fred._policy_signal({"DGS2": 3.25, "DFEDTARU": 3.75})
+    assert dove["stance"] == "dovish"
+
+
+def test_macro_policy_tilt_penalizes_growth(tmp_path: Path):
+    from us_screener.macro import score_macro_transmission
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    ctx = {"market_score": 60.0, "regime": "bullish", "component_scores": {},
+           "policy": {"stance": "hawkish"}}
+    cands = pd.DataFrame([
+        {"market": "US", "symbol": "NVDA", "concept_boards": ["AI算力"]},
+        {"market": "US", "symbol": "KO", "concept_boards": []},
+    ])
+    out = score_macro_transmission(cands, store, ctx)
+    nvda = out[out["symbol"] == "NVDA"].iloc[0]["macro_score"]
+    ko = out[out["symbol"] == "KO"].iloc[0]["macro_score"]
+    assert nvda < ko  # hawkish penalizes the long-duration growth board
+
+
 def test_fd_classification(tmp_path: Path, monkeypatch):
     import pandas as pd
 
@@ -556,6 +717,47 @@ def test_scoring_excludes_china_concept(tmp_path: Path, monkeypatch):
         "SELECT symbol, decision FROM expert_screening_results WHERE strategy = 'us_premarket'"
     )
     assert set(persisted["symbol"]) >= {"AAPL", "NVDA", "BABA", "IONQ"}
+
+
+def test_screen_keeps_low_liquidity_audit_row_but_skips_daily_factor_pass(
+    tmp_path: Path,
+    monkeypatch,
+):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    store = _seed_store(tmp_path)
+    store.upsert_dataframe(
+        "market_snapshots",
+        pd.DataFrame(
+            [
+                {
+                    "market": "US",
+                    "symbol": "LOW",
+                    "asset_type": "stock",
+                    "board": "NYSE",
+                    "trade_date": pd.Timestamp("2026-05-29"),
+                    "name": "Low Liquidity Co",
+                    "last_price": 10.0,
+                    "pct_change": 0.0,
+                    "volume": 100.0,
+                    "amount": 100_000.0,
+                    "turnover_rate": None,
+                    "pe_ttm": 20.0,
+                    "pb": 2.0,
+                    "market_cap": 1_000_000_000.0,
+                    "source": "test",
+                    "updated_at": pd.Timestamp("2026-05-29"),
+                }
+            ]
+        ),
+    )
+
+    result = run_us_screen(store=store, persist=False)
+    scored = result["results"]
+    low = scored.loc[scored["symbol"] == "LOW"].iloc[0]
+    assert result["factor_universe"] == 4
+    assert "low_amount" in low["filter_reasons"]
+    assert bool(low["is_filtered"]) is True
 
 
 def test_reporting_payload_and_files(tmp_path: Path, monkeypatch):
@@ -664,7 +866,7 @@ def test_scheduler_uses_module_invocation(tmp_path: Path, monkeypatch):
     script_path, plist_path = install_us_launchd_schedule(repo_dir=tmp_path, hour=20, minute=30)
     script_text = script_path.read_text()
     assert "-m us_screener.cli update" in script_text
-    assert "-m us_screener.cli report" in script_text
+    assert "-m us_screener.cli report" not in script_text
     assert ".venv/bin/us-screener" not in script_text
     assert plist_path.exists()
 
@@ -787,6 +989,22 @@ def test_stooq_loader_synthetic(tmp_path: Path):
     load_stooq_us_zip(store2, zpath, since="2024-06-01", include_etf=False)
     syms2 = set(store2.query_df("SELECT DISTINCT symbol FROM daily_prices WHERE source='stooq.d'")["symbol"])
     assert "SPY" not in syms2 and "AAPL" in syms2
+
+
+def test_stooq_loader_rejects_zip_slip(tmp_path: Path):
+    import pytest
+    import zipfile
+
+    from us_screener.stooq_loader import load_stooq_zip
+
+    zpath = tmp_path / "d_us_txt.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("../evil.txt", "owned")
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    with pytest.raises(ValueError, match="unsafe zip member"):
+        load_stooq_zip(store, zpath, work_dir=tmp_path / "extract")
+    assert not (tmp_path / "evil.txt").exists()
 
 
 def test_stooq_path_market(tmp_path: Path):

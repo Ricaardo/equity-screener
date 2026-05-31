@@ -53,12 +53,12 @@ def _records(df: pd.DataFrame, fields: list[str]) -> list[dict[str, object]]:
     return rows
 
 
-def build_us_premarket_payload(store=None) -> dict[str, Any]:
+def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a JSON-serializable US pre-market payload without writing files."""
     if store is None:
         use_us_database()
         store = get_store()
-    result = run_us_screen(store=store, persist=True)
+    result = screen_result or run_us_screen(store=store, persist=True)
     scored = result["results"].copy()
     top = scored.loc[~scored["is_filtered"]].head(20).copy() if not scored.empty else pd.DataFrame()
     rejected = scored.loc[scored["is_filtered"]].copy() if not scored.empty else pd.DataFrame()
@@ -75,8 +75,11 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "market_cap",
         "pe_ttm",
         "pb",
+        "peg",
         "liquidity_score",
         "heat_score",
+        "rs_score",
+        "short_ratio",
         "macro_score",
         "concept_boards",
         "filter_reasons",
@@ -109,8 +112,54 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "rejected_candidates": _records(rejected.head(30), fields),
     }
     _annotate_earnings(payload, store)
+    _annotate_squeeze(payload)
+    _annotate_themes(payload, store, scored)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
+
+
+def _annotate_themes(payload: dict[str, Any], store, scored: pd.DataFrame | None = None) -> None:
+    """Rank concept boards by constituents' relative strength (what the market is
+    bidding up) and flag candidates riding a hot theme."""
+    from us_screener.theme_momentum import compute_theme_momentum
+
+    # Reuse the RS the screen already computed for the whole universe (avoid a second
+    # daily-history pass). Hot themes are based on tradable candidates, not the long
+    # tail of names already rejected by hard filters.
+    rs = None
+    if scored is not None and not scored.empty and "rs_score" in scored.columns:
+        tradable = scored.loc[~scored["is_filtered"]] if "is_filtered" in scored.columns else scored
+        rs = tradable[["market", "symbol", "rs_score"]].copy()
+    try:
+        frame = compute_theme_momentum(store, rs=rs)
+    except Exception:  # noqa: BLE001 — never let theme momentum break the report
+        frame = pd.DataFrame()
+    if frame.empty:
+        payload["hot_themes"] = []
+        return
+    hot = frame.head(8).to_dict("records")
+    payload["hot_themes"] = [
+        {"board": r["board"], "momentum_score": r["momentum_score"], "members": int(r["members"]),
+         "leaders_pct": r["leaders_pct"]}
+        for r in hot
+    ]
+    hot_set = {r["board"] for r in hot[:5] if r["momentum_score"] >= 55}
+    for item in payload.get("top_candidates") or []:
+        boards = item.get("concept_boards") or []
+        riding = [b for b in boards if b in hot_set]
+        if riding:
+            item["hot_themes"] = riding
+
+
+def _annotate_squeeze(payload: dict[str, Any]) -> None:
+    """Flag squeeze watch: elevated short-volume ratio + market leadership (high RS)."""
+    watch: list[dict[str, Any]] = []
+    for item in payload.get("top_candidates") or []:
+        sr = item.get("short_ratio")
+        rs = item.get("rs_score")
+        if isinstance(sr, (int, float)) and sr >= 0.5 and isinstance(rs, (int, float)) and rs >= 70:
+            watch.append({"symbol": item.get("symbol"), "short_ratio": round(float(sr), 3), "rs_score": rs})
+    payload["squeeze_watch"] = sorted(watch, key=lambda r: r["short_ratio"], reverse=True)
 
 
 def _annotate_earnings(payload: dict[str, Any], store) -> None:
@@ -157,9 +206,17 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         f"- Market score: {(payload.get('macro_context') or {}).get('market_score')}",
         f"- Summary: {(payload.get('macro_context') or {}).get('summary')}",
         "",
-        "## Top candidates",
-        "",
     ]
+    hot_themes = payload.get("hot_themes") or []
+    if hot_themes:
+        lines.extend(["## Hot themes (price momentum)", ""])
+        for theme in hot_themes[:6]:
+            lines.append(
+                f"- {theme['board']}: momentum {theme['momentum_score']} "
+                f"({theme['members']} 标的, {theme['leaders_pct']}% 领先)"
+            )
+        lines.append("")
+    lines.extend(["## Top candidates", ""])
     for item in payload.get("top_candidates") or []:
         earnings = (
             f", earnings {item['earnings_date']} (in {item.get('earnings_in_days')}d)"
@@ -201,10 +258,15 @@ def _render_markdown(payload: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
-def generate_us_premarket_report(output_dir: Path | None = None) -> Path:
+def generate_us_premarket_report(
+    output_dir: Path | None = None,
+    *,
+    store=None,
+    screen_result: dict[str, Any] | None = None,
+) -> Path:
     """Write dated and latest JSON/Markdown report artifacts."""
     cfg = get_us_config()
-    payload = build_us_premarket_payload()
+    payload = build_us_premarket_payload(store=store, screen_result=screen_result)
     output = output_dir or cfg.reports_dir
     output.mkdir(parents=True, exist_ok=True)
 

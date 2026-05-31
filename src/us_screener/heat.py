@@ -9,6 +9,7 @@ and liquidity. The output is ephemeral and does not require schema changes.
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 from typing import Any
 
 import numpy as np
@@ -18,6 +19,22 @@ from ah_screener.scoring import _rank_score
 
 
 HEAT_COLUMNS = ["market", "symbol", "heat_score", "heat_components"]
+
+
+def _normalize_symbols(symbols: Iterable[str] | None) -> set[str] | None:
+    if symbols is None:
+        return None
+    return {str(symbol).strip().upper() for symbol in symbols if str(symbol or "").strip()}
+
+
+def _symbol_filter(symbols: set[str] | None) -> tuple[str, list[str]]:
+    if symbols is None:
+        return "", []
+    if not symbols:
+        return " AND 1 = 0", []
+    ordered = sorted(symbols)
+    placeholders = ", ".join(["?"] * len(ordered))
+    return f" AND UPPER(symbol) IN ({placeholders})", ordered
 
 
 def _num(value: object) -> float | None:
@@ -36,7 +53,7 @@ def _score_bool(value: object) -> float:
     return 100.0 if bool(value) else 0.0
 
 
-def _series(frame: pd.DataFrame, column: str, dtype: str = "float") -> pd.Series:
+def _series(frame: pd.DataFrame, column: str, dtype: Any = "float") -> pd.Series:
     if column in frame.columns:
         return frame[column]
     return pd.Series(index=frame.index, dtype=dtype)
@@ -63,14 +80,28 @@ def _build_components(row: pd.Series) -> dict[str, Any]:
     }
 
 
-def compute_heat_scores(store) -> pd.DataFrame:
-    """Compute per-US-symbol heat scores from stored snapshots and daily prices."""
+def compute_heat_scores(
+    store,
+    *,
+    symbols: Iterable[str] | None = None,
+    lookback_days: int = 420,
+) -> pd.DataFrame:
+    """Compute per-US-symbol heat scores from stored snapshots and daily prices.
+
+    ``symbols`` is an optional pre-filter used by the daily screener: low-liquidity
+    names are still retained in the final audit frame, but they do not need an
+    expensive per-symbol price/volume pass.
+    """
+    symbol_set = _normalize_symbols(symbols)
+    symbol_sql, symbol_params = _symbol_filter(symbol_set)
     snapshots = store.query_df(
-        """
+        f"""
         SELECT market, symbol, trade_date, last_price, amount, asset_type
         FROM market_snapshots
         WHERE market = 'US' AND COALESCE(asset_type, 'stock') <> 'etf'
-        """
+        {symbol_sql}
+        """,
+        symbol_params,
     )
     if snapshots.empty:
         return pd.DataFrame(columns=HEAT_COLUMNS)
@@ -80,64 +111,106 @@ def compute_heat_scores(store) -> pd.DataFrame:
     latest = snapshots.sort_values("trade_date").drop_duplicates(["market", "symbol"], keep="last")
     latest = latest[["market", "symbol", "last_price", "amount"]].copy()
 
-    daily = store.query_df(
+    date_sql = ""
+    params: list[object] = list(symbol_params)
+    if lookback_days and lookback_days > 0:
+        date_sql = """
+        AND trade_date >= (
+            SELECT MAX(trade_date) - (? * INTERVAL '1 day')
+            FROM daily_prices
+            WHERE market = 'US'
+        )
         """
-        SELECT market, symbol, trade_date, close, high, volume, adj_type
-        FROM daily_prices
-        WHERE market = 'US'
-        """
+        params.append(int(lookback_days))
+    metric_df = store.query_df(
+        f"""
+        WITH filtered AS (
+            SELECT market, symbol, trade_date, close, high, volume, source, updated_at
+            FROM daily_prices
+            WHERE market = 'US'
+              AND COALESCE(LOWER(adj_type), '') <> 'benchmark'
+              {symbol_sql}
+              {date_sql}
+        ),
+        dedup AS (
+            SELECT market, symbol, trade_date, close, high, volume
+            FROM (
+                SELECT
+                    *,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY market, symbol, trade_date
+                        ORDER BY updated_at DESC NULLS LAST, source DESC NULLS LAST
+                    ) AS date_rank
+                FROM filtered
+            )
+            WHERE date_rank = 1
+        ),
+        features AS (
+            SELECT
+                market,
+                symbol,
+                trade_date,
+                close,
+                volume,
+                AVG(volume) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                    ROWS BETWEEN 20 PRECEDING AND 1 PRECEDING
+                ) AS prev_avg_volume_20,
+                AVG(close) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                    ROWS BETWEEN 19 PRECEDING AND CURRENT ROW
+                ) AS ma20,
+                AVG(close) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                    ROWS BETWEEN 49 PRECEDING AND CURRENT ROW
+                ) AS ma50,
+                LAG(close, 20) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                ) AS close_20d_ago,
+                MAX(high) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                    ROWS BETWEEN 251 PRECEDING AND CURRENT ROW
+                ) AS high_52w,
+                COUNT(high) OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date
+                    ROWS BETWEEN 251 PRECEDING AND CURRENT ROW
+                ) AS high_52w_count
+            FROM dedup
+        ),
+        latest AS (
+            SELECT
+                *,
+                ROW_NUMBER() OVER (
+                    PARTITION BY market, symbol
+                    ORDER BY trade_date DESC
+                ) AS latest_rank
+            FROM features
+        )
+        SELECT
+            market,
+            symbol,
+            close AS latest_close,
+            volume / NULLIF(prev_avg_volume_20, 0) AS rvol,
+            close / NULLIF(close_20d_ago, 0) - 1 AS return_20d,
+            CASE WHEN ma20 IS NULL OR close IS NULL THEN NULL ELSE close > ma20 END AS above_ma20,
+            CASE WHEN ma50 IS NULL OR close IS NULL THEN NULL ELSE close > ma50 END AS above_ma50,
+            CASE
+                WHEN high_52w_count >= 60 AND high_52w > 0 AND close IS NOT NULL
+                THEN close / high_52w
+                ELSE NULL
+            END AS proximity_52w_high
+        FROM latest
+        WHERE latest_rank = 1
+        """,
+        params,
     )
-    metrics: list[dict[str, object]] = []
-    if not daily.empty:
-        daily = daily.copy()
-        if "adj_type" in daily.columns:
-            daily = daily[
-                ~daily["adj_type"].fillna("").astype(str).str.lower().eq("benchmark")
-            ]
-        daily["trade_date"] = pd.to_datetime(daily["trade_date"], errors="coerce")
-        for (market, symbol), group in daily.groupby(["market", "symbol"]):
-            prices = group.sort_values(["trade_date"]).drop_duplicates("trade_date", keep="last")
-            if prices.empty:
-                continue
-            close = pd.to_numeric(prices["close"], errors="coerce")
-            high = pd.to_numeric(prices["high"], errors="coerce")
-            volume = pd.to_numeric(prices["volume"], errors="coerce")
-            latest_close = close.iloc[-1] if len(close) else np.nan
-            prev_avg_volume = volume.shift(1).rolling(20).mean().iloc[-1] if len(volume) >= 21 else np.nan
-            rvol = np.nan
-            if pd.notna(prev_avg_volume) and prev_avg_volume > 0 and pd.notna(volume.iloc[-1]):
-                rvol = float(volume.iloc[-1] / prev_avg_volume)
-            ma20 = close.rolling(20).mean().iloc[-1] if len(close) >= 20 else np.nan
-            ma50 = close.rolling(50).mean().iloc[-1] if len(close) >= 50 else np.nan
-            ret20 = (
-                float(latest_close / close.shift(20).iloc[-1] - 1)
-                if len(close) > 20 and pd.notna(close.shift(20).iloc[-1]) and close.shift(20).iloc[-1] > 0
-                else np.nan
-            )
-            high_52w = high.tail(252).max() if len(high.dropna()) >= 60 else np.nan
-            proximity = (
-                float(latest_close / high_52w)
-                if pd.notna(latest_close) and pd.notna(high_52w) and high_52w > 0
-                else np.nan
-            )
-            metrics.append(
-                {
-                    "market": market,
-                    "symbol": symbol,
-                    "latest_close": latest_close,
-                    "rvol": rvol,
-                    "return_20d": ret20,
-                    "above_ma20": latest_close > ma20
-                    if pd.notna(ma20) and pd.notna(latest_close)
-                    else pd.NA,
-                    "above_ma50": latest_close > ma50
-                    if pd.notna(ma50) and pd.notna(latest_close)
-                    else pd.NA,
-                    "proximity_52w_high": proximity,
-                }
-            )
 
-    metric_df = pd.DataFrame(metrics)
     merged = latest.merge(metric_df, on=["market", "symbol"], how="left")
     merged["rvol_score"] = _rank_score(_series(merged, "rvol"), ascending=True)
     merged["return_20d_score"] = _rank_score(_series(merged, "return_20d"), ascending=True)

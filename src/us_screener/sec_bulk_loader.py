@@ -57,8 +57,30 @@ def _latest_annual(gaap: dict[str, Any], tags: tuple[str, ...]) -> tuple[float |
     return best, best_key[0]
 
 
+def _annual_history(gaap: dict[str, Any], tags: tuple[str, ...], n: int = 2) -> list[float]:
+    """Most-recent ``n`` annual USD values (newest first) across the concept's tags."""
+    by_end: dict[str, float] = {}
+    for tag in tags:
+        for row in gaap.get(tag, {}).get("units", {}).get("USD", []) or []:
+            form = str(row.get("form") or "").upper()
+            fp = str(row.get("fp") or "").upper()
+            if form not in _ANNUAL_FORMS and fp != "FY":
+                continue
+            end = str(row.get("end") or "")
+            val = _num(row.get("val"))
+            if end and val is not None:
+                by_end[end] = val  # later filing for same end overwrites
+    return [by_end[e] for e in sorted(by_end, reverse=True)[:n]]
+
+
+def _yoy(values: list[float]) -> float | None:
+    if len(values) < 2 or values[1] == 0:
+        return None
+    return round((values[0] - values[1]) / abs(values[1]) * 100, 2)
+
+
 def _fast_metrics(companyfacts: dict[str, Any]) -> dict[str, Any]:
-    """Latest-annual key fundamentals via direct dict reads (no pandas per company)."""
+    """Latest-annual key fundamentals + YoY growth via direct dict reads."""
     gaap = companyfacts.get("facts", {}).get("us-gaap", {})
     out: dict[str, Any] = {}
     report_end = ""
@@ -68,6 +90,8 @@ def _fast_metrics(companyfacts: dict[str, Any]) -> dict[str, Any]:
         if end > report_end:
             report_end = end
     out["report_date"] = report_end or None
+    out["parent_net_profit_yoy"] = _yoy(_annual_history(gaap, _SEC_TAGS["parent_net_profit"]))
+    out["revenue_yoy"] = _yoy(_annual_history(gaap, _SEC_TAGS["revenue"]))
     return out
 
 
@@ -218,8 +242,10 @@ def load_companyfacts_zip(
                         "report_date": metrics.get("report_date") or snapshot_date,
                         "report_type": "annual",
                         "revenue": metrics.get("revenue"),
+                        "revenue_yoy": metrics.get("revenue_yoy"),
                         "gross_profit": metrics.get("gross_profit"),
                         "parent_net_profit": metrics.get("parent_net_profit"),
+                        "net_profit_yoy": metrics.get("parent_net_profit_yoy"),
                         "operating_cashflow": metrics.get("operating_cashflow"),
                         "total_assets": metrics.get("total_assets"),
                         "total_liabilities": metrics.get("total_liabilities"),
