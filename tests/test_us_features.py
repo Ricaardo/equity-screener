@@ -386,6 +386,39 @@ def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
     assert float(mcap) == 200.0 * 1.0e10  # shares x price, no API call
 
 
+def test_short_interest(tmp_path: Path, monkeypatch):
+    from us_screener import short_interest
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    store.upsert_dataframe("daily_prices", pd.DataFrame([
+        {"market": "US", "symbol": "AAPL", "trade_date": pd.Timestamp("2026-05-29"), "open": 1.0,
+         "high": 1.0, "low": 1.0, "close": 1.0, "volume": 1.0, "amount": 1.0, "adj_type": "stooq_adj",
+         "source": "stooq.d", "updated_at": pd.Timestamp.now()}]))
+    fake = pd.DataFrame([
+        {"symbol": "AAPL", "short_vol": 600.0, "total_vol": 1000.0},
+        {"symbol": "GME", "short_vol": 800.0, "total_vol": 1000.0},
+    ])
+    monkeypatch.setattr(short_interest, "fetch_finra_short", lambda d, **k: fake)
+    out = short_interest.tag_short_interest(store)
+    assert out["status"] == "ok" and out["tagged"] == 2
+    m = short_interest.short_ratio_map(store)
+    assert abs(m["AAPL"] - 0.6) < 1e-6 and abs(m["GME"] - 0.8) < 1e-6
+
+
+def test_squeeze_annotation():
+    from us_screener.reporting_us import _annotate_squeeze
+
+    payload = {"top_candidates": [
+        {"symbol": "SQZ", "short_ratio": 0.62, "rs_score": 88.0},   # high short + leader -> watch
+        {"symbol": "NOPE", "short_ratio": 0.62, "rs_score": 40.0},  # high short but weak -> not watch
+        {"symbol": "LOW", "short_ratio": 0.30, "rs_score": 90.0},   # low short -> not watch
+    ]}
+    _annotate_squeeze(payload)
+    syms = [w["symbol"] for w in payload["squeeze_watch"]]
+    assert syms == ["SQZ"]
+
+
 def test_relative_strength(tmp_path: Path):
     from us_screener.relative_strength import compute_rs_scores
 

@@ -36,6 +36,7 @@ from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
 from us_screener.macro import get_macro_context, score_macro_transmission
 from us_screener.relative_strength import compute_rs_scores
+from us_screener.short_interest import short_ratio_map
 
 STRATEGY_NAME = "us_premarket"
 DEFAULT_TECHNICAL_SCORE = getattr(weights, "DEFAULT_TECHNICAL_SCORE", 42.0)
@@ -343,6 +344,8 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     )
     frame["primary_board"] = frame["concept_boards"].map(lambda boards: boards[0] if boards else "")
     frame["is_china_concept"] = frame["symbol"].astype(str).str.upper().isin(china_symbols)
+    short_map = short_ratio_map(store)
+    frame["short_ratio"] = frame["symbol"].map(lambda s: short_map.get(str(s).strip().upper()))
 
     frame["fundamental_score_final"] = frame.apply(_compose_fundamental_score, axis=1)
     frame["technical_score"] = (

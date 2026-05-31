@@ -78,6 +78,7 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "liquidity_score",
         "heat_score",
         "rs_score",
+        "short_ratio",
         "macro_score",
         "concept_boards",
         "filter_reasons",
@@ -110,8 +111,20 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "rejected_candidates": _records(rejected.head(30), fields),
     }
     _annotate_earnings(payload, store)
+    _annotate_squeeze(payload)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
+
+
+def _annotate_squeeze(payload: dict[str, Any]) -> None:
+    """Flag squeeze watch: elevated short-volume ratio + market leadership (high RS)."""
+    watch: list[dict[str, Any]] = []
+    for item in payload.get("top_candidates") or []:
+        sr = item.get("short_ratio")
+        rs = item.get("rs_score")
+        if isinstance(sr, (int, float)) and sr >= 0.5 and isinstance(rs, (int, float)) and rs >= 70:
+            watch.append({"symbol": item.get("symbol"), "short_ratio": round(float(sr), 3), "rs_score": rs})
+    payload["squeeze_watch"] = sorted(watch, key=lambda r: r["short_ratio"], reverse=True)
 
 
 def _annotate_earnings(payload: dict[str, Any], store) -> None:
