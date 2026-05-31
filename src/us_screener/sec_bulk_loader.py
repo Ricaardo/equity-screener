@@ -11,6 +11,7 @@ PB for only ~22 names) without thousands of API calls.
 
 from __future__ import annotations
 
+import gc
 import json
 import logging
 import re
@@ -237,4 +238,8 @@ def load_companyfacts_zip(
         result["financial_metrics"] = int(store.upsert_dataframe("financial_metrics", metrics_df))
     if fill_snapshots and shares:
         result["snapshot_valuation"] = _fill_snapshot_valuation(store, shares, metrics_df)
+    # Release the parse buffers before the caller moves on to the heavy screen step
+    # (backfill runs this in-process), so peak memory stays bounded.
+    del metric_rows, metrics_df, shares
+    gc.collect()
     return result
