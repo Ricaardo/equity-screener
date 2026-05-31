@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _CODE_RE = re.compile(r"^[A-Za-z0-9]+$")
+_CAT_RE = re.compile(r"^[A-Za-z0-9 ]+$")
 
 
 def _safe_since(since: str) -> str:
@@ -58,6 +59,24 @@ def _market_case(market_map: dict[str, str]) -> str:
     return f"CASE _suffix {whens} ELSE _suffix END"
 
 
+def _safe_cat(cat: str) -> str:
+    """Validate a path-category substring (interpolated into a LIKE)."""
+    if not _CAT_RE.match(cat or ""):
+        raise ValueError(f"invalid path category: {cat!r}")
+    return cat.lower()
+
+
+def _path_market_case(path_market_map: dict[str, str]) -> str:
+    """SQL CASE mapping a path-category substring (e.g. 'cryptocurrencies') to a market
+    code. For archives like d_world where the directory, not the ticker suffix, is the
+    asset class."""
+    whens = " ".join(
+        f"WHEN lower(filename) LIKE '%{_safe_cat(cat)}%' THEN '{_safe_code(market).upper()}'"
+        for cat, market in path_market_map.items()
+    )
+    return f"CASE {whens} ELSE '' END"
+
+
 def load_stooq_zip(
     store,
     zip_path: str | Path,
@@ -66,6 +85,7 @@ def load_stooq_zip(
     include_etf: bool = True,
     markets: list[str] | None = None,
     market_map: dict[str, str] | None = None,
+    path_market_map: dict[str, str] | None = None,
     delete_zip: bool = False,
     work_dir: str | Path | None = None,
     keep_extracted: bool = False,
@@ -96,13 +116,17 @@ def load_stooq_zip(
             allowed = ", ".join(f"'{_safe_code(m).upper()}'" for m in markets)
             market_filter = f"AND _market IN ({allowed})"
 
-        # Derive market + symbol from the ticker suffix; one parallel read_csv.
+        # Market from the directory category (d_world: crypto/FX/indices/...) or, by
+        # default, the ticker suffix. One parallel read_csv either way.
+        market_expr = _path_market_case(path_market_map) if path_market_map else _market_case(market_map)
+        keep_filter = "_market <> ''" if path_market_map else "_suffix <> ''"
         sql = f"""
         INSERT OR REPLACE INTO daily_prices
             (market, symbol, trade_date, open, high, low, close, volume, amount,
              adj_type, source, updated_at)
         WITH parsed AS (
             SELECT
+                filename,
                 upper(regexp_extract("<TICKER>", '\\.([A-Za-z]+)$', 1)) AS _suffix,
                 upper(regexp_replace("<TICKER>", '\\.[A-Za-z]+$', '')) AS symbol,
                 strptime(CAST("<DATE>" AS VARCHAR), '%Y%m%d')::DATE AS trade_date,
@@ -116,12 +140,12 @@ def load_stooq_zip(
             WHERE "<CLOSE>" IS NOT NULL {etf_clause}
         )
         SELECT
-            {_market_case(market_map)} AS market,
+            _market AS market,
             symbol, trade_date, open, high, low, close, volume,
             (close * volume) AS amount,
             '{ADJ_TYPE}' AS adj_type, '{SOURCE}' AS source, now() AS updated_at
-        FROM (SELECT *, {_market_case(market_map)} AS _market FROM parsed)
-        WHERE _suffix <> '' AND trade_date >= DATE '{since}' {market_filter}
+        FROM (SELECT *, {market_expr} AS _market FROM parsed)
+        WHERE {keep_filter} AND trade_date >= DATE '{since}' {market_filter}
         """
         with store.connect() as conn:
             before = conn.execute("SELECT COUNT(*) FROM daily_prices WHERE source = ?", [SOURCE]).fetchone()[0]

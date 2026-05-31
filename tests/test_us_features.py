@@ -789,6 +789,48 @@ def test_stooq_loader_synthetic(tmp_path: Path):
     assert "SPY" not in syms2 and "AAPL" in syms2
 
 
+def test_stooq_path_market(tmp_path: Path):
+    import zipfile
+
+    from us_screener.stooq_loader import load_stooq_zip
+
+    header = "<TICKER>,<PER>,<DATE>,<TIME>,<OPEN>,<HIGH>,<LOW>,<CLOSE>,<VOL>,<OPENINT>"
+    aave = header + "\nAAVE.V,D,20250102,000000,300,310,295,305,1000,0\n"
+    zpath = tmp_path / "d_world_txt.zip"
+    with zipfile.ZipFile(zpath, "w") as z:
+        z.writestr("data/daily/world/cryptocurrencies/a/aave.v.txt", aave)
+    store = Store(tmp_path / "g.duckdb")
+    store.init_db()
+    out = load_stooq_zip(store, zpath, since="2024-06-01", path_market_map={"cryptocurrencies": "CRYPTO"})
+    assert out["status"] == "ok"
+    row = store.query_df("SELECT market, symbol FROM daily_prices").iloc[0]
+    assert row["market"] == "CRYPTO" and row["symbol"] == "AAVE"
+
+
+def test_global_screen_market(tmp_path: Path):
+    from us_screener.global_screener import screen_market
+
+    store = Store(tmp_path / "g.duckdb")
+    store.init_db()
+    rows = []
+    start = pd.Timestamp("2025-06-01")
+    for sym, drift in [("UPUP", 1.0), ("DOWN", -0.5)]:
+        for i in range(130):
+            close = 100.0 + drift * i
+            rows.append({"market": "HK", "symbol": sym, "trade_date": start + pd.Timedelta(days=i),
+                         "open": close, "high": close + 1, "low": close - 1, "close": max(close, 1.0),
+                         "volume": 1000.0 + i, "amount": (1000.0 + i) * max(close, 1.0),
+                         "adj_type": "stooq_adj", "source": "stooq.d", "updated_at": pd.Timestamp.now()})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+    out = screen_market(store, "HK", top=10, max_stale_days=0)
+    assert out["market"] == "HK"
+    assert out["universe"] >= 1
+    syms = [c["symbol"] for c in out["candidates"]]
+    # the uptrend name should rank ahead of the downtrend one
+    assert syms and syms[0] == "UPUP"
+    assert all("composite_score" in c and "technical_score" in c for c in out["candidates"])
+
+
 def test_stooq_loader_multimarket(tmp_path: Path):
     from us_screener.stooq_loader import load_stooq_zip
 
