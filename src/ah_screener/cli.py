@@ -42,6 +42,7 @@ from ah_screener.pipeline import (
     sync_benchmarks,
     sync_curated_theme_tags,
     sync_delisted_universe,
+    sync_etf_exposures,
     sync_fundamentals,
     sync_hkex_documents,
     sync_history,
@@ -86,6 +87,11 @@ def _is_na(value: object) -> bool:
 
 def _text(value: object) -> str:
     return "" if _is_na(value) else str(value)
+
+
+def _clip(value: object, length: int = 42) -> str:
+    text = _text(value)
+    return text if len(text) <= length else text[: length - 1] + "…"
 
 
 def _int(value: object) -> str:
@@ -136,6 +142,27 @@ def sync_spot_command(
     if normalized not in {"A", "HK", "US", "ETF", "ALL"}:
         raise typer.BadParameter("market must be A, HK, US, ETF, or all")
     result = sync_spot("all" if normalized == "ALL" else normalized)  # type: ignore[arg-type]
+    for key, count in result.items():
+        console.print(f"{key}: {count}")
+
+
+@app.command("sync-etf-exposures")
+def sync_etf_exposures_command(
+    market: str = typer.Option("A", help="A or all. Free holdings source currently covers A-listed funds."),
+    year: Optional[str] = typer.Option(None, help="Disclosure year, default current year."),
+    limit: Optional[int] = typer.Option(None, help="Maximum fund codes to fetch, sorted by turnover."),
+    min_amount: float = typer.Option(0.0, help="Minimum latest turnover in CNY before fetching."),
+) -> None:
+    """Sync ETF/LOF holdings and allocation disclosures for exposure-aware de-dup."""
+    normalized = market.upper()
+    if normalized not in {"A", "ALL"}:
+        raise typer.BadParameter("market must be A or all")
+    result = sync_etf_exposures(
+        market="all" if normalized == "ALL" else "A",
+        year=year,
+        limit=limit,
+        min_amount=min_amount,
+    )
     for key, count in result.items():
         console.print(f"{key}: {count}")
 
@@ -468,16 +495,24 @@ def etf_export_command(
         "--grouped/--raw",
         help="Merge same-index or same-theme ETFs and show the best candidate per group.",
     ),
+    dedup_by: str = typer.Option(
+        "rules",
+        help="Grouped mode only: rules or exposure. exposure uses synced holdings/allocation data.",
+    ),
 ) -> None:
     """Print classified and scored ETF candidates."""
     normalized_market = market.upper()
     if normalized_market not in {"A", "HK", "ALL"}:
         raise typer.BadParameter("market must be A, HK, or all")
+    normalized_dedup = dedup_by.lower()
+    if normalized_dedup not in {"rules", "exposure"}:
+        raise typer.BadParameter("dedup-by must be rules or exposure")
     df = export_etf_candidates(
         top=top,
         category=category,
         grouped=grouped,
         market=normalized_market,
+        dedup_by=normalized_dedup,
     )
     if df.empty:
         console.print("No ETF rows found. Run `uv run ah-screener sync-spot --market ETF` first.")
@@ -497,6 +532,13 @@ def etf_export_command(
         cols += [
             Col("peer_count", "peer_count", lambda v: str(int(v or 1))),
             Col("peer_alternatives", "peer_alternatives"),
+        ]
+    if grouped and normalized_dedup == "exposure":
+        cols += [
+            Col("etf_dedup_basis", "etf_dedup_basis"),
+            Col("etf_holding_coverage_pct", "holding_coverage", _fmt_optional_float),
+            Col("etf_top_holdings", "top_holdings", _clip),
+            Col("etf_primary_allocation", "primary_allocation", _clip),
         ]
     cols += [
         Col("pct_change", "pct_change", lambda v: _fmt_optional_float(v, 2, "%")),

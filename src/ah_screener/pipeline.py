@@ -32,6 +32,7 @@ from ah_screener.sources.akshare_client import (
     DEFAULT_BENCHMARKS,
     fetch_a_board_tags,
     fetch_a_delisted_lifecycle,
+    fetch_a_etf_exposure,
     fetch_a_etf_spot,
     fetch_benchmark_history,
     fetch_history,
@@ -197,6 +198,72 @@ def sync_spot(market: MarketArg) -> dict[str, int]:
     if market in {"HK", "ETF", "all"}:
         _ingest("HK_etf", fetch_hk_etf_spot)
     return result
+
+
+def sync_etf_exposures(
+    *,
+    market: Literal["A", "all"] = "A",
+    year: str | None = None,
+    limit: int | None = None,
+    min_amount: float = 0.0,
+) -> dict[str, int]:
+    """Fetch ETF/LOF disclosed holdings and allocation data for exposure-aware de-dup.
+
+    Currently the free holdings source is 天天基金 via AKShare, which covers A-listed
+    ETF/LOF/QDII fund codes. HK/US ETF constituents are intentionally left out until
+    a reliable free constituent source is added.
+    """
+    if market not in {"A", "all"}:
+        raise ValueError("sync_etf_exposures currently supports market='A' or 'all'")
+
+    store = get_store()
+    store.init_db()
+    snapshots = _latest_table(store, "market_snapshots", "trade_date")
+    pool = select_assets(snapshots, ETFS).copy() if not snapshots.empty else pd.DataFrame()
+    if pool.empty:
+        return {"etf_universe": 0, "holdings": 0, "industry_allocations": 0, "failed": 0}
+
+    pool = pool[pool["market"].astype(str).str.upper().eq("A")].copy()
+    if min_amount > 0 and "amount" in pool.columns:
+        pool = pool[pd.to_numeric(pool["amount"], errors="coerce").fillna(0) >= min_amount]
+    pool["amount_num"] = pd.to_numeric(
+        pool.get("amount", pd.Series(0, index=pool.index)), errors="coerce"
+    ).fillna(0)
+    pool = pool.sort_values("amount_num", ascending=False).drop_duplicates(["market", "symbol"])
+    if limit is not None:
+        pool = pool.head(limit)
+
+    target_year = str(year or datetime.now().year)
+    holdings_frames: list[pd.DataFrame] = []
+    allocation_frames: list[pd.DataFrame] = []
+    failed = 0
+    for symbol in pool["symbol"].astype(str):
+        try:
+            holdings, allocations = fetch_a_etf_exposure(symbol, target_year)
+            if not holdings.empty:
+                holdings_frames.append(holdings)
+            if not allocations.empty:
+                allocation_frames.append(allocations)
+        except Exception as exc:  # noqa: BLE001 - continue the universe scan
+            failed += 1
+            _record_ingest_failure(f"etf_exposure_{symbol}", str(exc)[:300])
+
+    holdings_count = 0
+    allocation_count = 0
+    if holdings_frames:
+        holdings_count = store.upsert_dataframe(
+            "etf_holdings", pd.concat(holdings_frames, ignore_index=True)
+        )
+    if allocation_frames:
+        allocation_count = store.upsert_dataframe(
+            "etf_industry_allocations", pd.concat(allocation_frames, ignore_index=True)
+        )
+    return {
+        "etf_universe": int(len(pool)),
+        "holdings": holdings_count,
+        "industry_allocations": allocation_count,
+        "failed": failed,
+    }
 
 
 def sync_us_spot(symbols: list[str], lookback_days: int = 14) -> dict[str, int]:

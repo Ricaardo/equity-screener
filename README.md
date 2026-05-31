@@ -161,7 +161,7 @@ ingest_failures
 - 本地 Futu OpenD 优先（可选依赖 `futu-api`）：A/H/US 股票和 ETF 主数据、快照、历史 K 线，A 股行业/概念板块，港股通成份，A/H/US 基准指数。
 - OpenD 不可用或不覆盖时自动回退：A 股北交所现货用 AKShare 补齐；A/H 财务、退市生命周期、公告文本和 US 基本面继续使用对应公开源。
 - 美股证券目录：OpenD 优先；不可用时回退 Nasdaq Trader symbol directory。
-- 美股历史行情：OpenD 优先，其次 AKShare `stock_us_daily`。（Stooq 已移除，因其免费 CSV 端点现需人工 captcha 获取 apikey，无法自动化。）
+- 美股历史行情：OpenD 优先（如可用）。免费路径下全量首 backfill 优先用本地 stooq 日线 ZIP（`US_SCREENER_US_STOOQ_ZIP`，全市场、零 API），无 ZIP 时用 Alpaca IEX 批量 bars，再回退 AKShare `stock_us_daily`。stooq 的**在线** CSV 端点已不可自动化（需人工 captcha 取 apikey），因此只用其可手动下载的批量 ZIP，不走在线逐个 CSV。
 - 美股基本面：SEC EDGAR Company Facts。
 - A/H 财务：AKShare 东方财富财务接口。
 - 退市/摘牌生命周期：A 股用 AKShare 上交所/深交所退市记录，港股用 HKEX 官方 Delisted companies 名单，美股用 Alpha Vantage `LISTING_STATUS state=delisted`（需设置 `AH_SCREENER_ALPHA_VANTAGE_KEY`，未设置时自动跳过 US lifecycle，不中断刷新）。

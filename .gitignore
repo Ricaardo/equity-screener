@@ -15,6 +15,8 @@ reports/ui-screenshots/
 reports/ah-screening-report-latest.json
 reports/ah-screening-report-latest.md
 reports/ah-screening-appendix-latest.md
+reports/us-premarket/us-premarket-latest.json
+reports/us-premarket/us-premarket-latest.md
 
 data/*.duckdb
 data/*.duckdb.*

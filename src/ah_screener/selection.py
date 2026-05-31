@@ -17,6 +17,7 @@ from ah_screener.etf_model import consolidate_etf_candidates, enrich_etf_snapsho
 # fallbacks) means classification failed — such ETFs must stay distinct rather
 # than collapsing into a single bogus group.
 _UNCLASSIFIED_TRACKS = ("其他ETF", "未识别")
+_FALLBACK_DEDUP_CATEGORIES = {"商品ETF", "债券ETF", "货币ETF", "宽基指数ETF", "行业ETF"}
 
 
 def etf_category_overview(pool: pd.DataFrame) -> pd.DataFrame:
@@ -65,6 +66,234 @@ def dedup_etf_pool(
         etf_dedup_group=cluster.where(~unclassified, cluster + "#" + enriched["symbol"].astype(str))
     )
     return consolidate_etf_candidates(enriched, top=top, group_col="etf_dedup_group")
+
+
+def _security_key(market: object, symbol: object) -> tuple[str, str]:
+    return str(market or "").upper(), str(symbol or "").zfill(6)
+
+
+def _component_key(symbol: object, name: object) -> str:
+    raw_symbol = str(symbol or "").strip().upper()
+    raw_name = str(name or "").strip().upper()
+    if raw_symbol and raw_symbol not in {"NAN", "NONE", "<NA>"}:
+        return raw_symbol
+    return raw_name
+
+
+def _latest_exposure_order(frame: pd.DataFrame) -> pd.Series:
+    if "report_date" in frame.columns:
+        parsed = pd.to_datetime(frame["report_date"], errors="coerce").fillna(
+            pd.Timestamp("1900-01-01")
+        )
+        return parsed.map(pd.Timestamp.toordinal)
+    if "report_period" in frame.columns:
+        period = frame["report_period"].astype(str)
+        extracted = period.str.extract(r"(?P<year>\d{4}).*?(?P<quarter>[1-4])\s*季")
+        year = pd.to_numeric(extracted["year"], errors="coerce").fillna(0)
+        quarter = pd.to_numeric(extracted["quarter"], errors="coerce").fillna(0)
+        return year * 10 + quarter
+    return pd.Series(0, index=frame.index)
+
+
+def _weight_vectors(
+    df: pd.DataFrame | None,
+    *,
+    key_column: str,
+    name_column: str,
+    max_items: int = 15,
+) -> tuple[dict[tuple[str, str], dict[str, float]], dict[tuple[str, str], str], dict[tuple[str, str], float]]:
+    if df is None or df.empty:
+        return {}, {}, {}
+    required = {"market", "symbol", key_column, "weight_pct"}
+    if not required.issubset(df.columns):
+        return {}, {}, {}
+    frame = df.copy()
+    frame["weight_num"] = pd.to_numeric(frame["weight_pct"], errors="coerce").fillna(0.0)
+    frame = frame[frame["weight_num"] > 0]
+    if frame.empty:
+        return {}, {}, {}
+    frame["security_key"] = list(zip(frame["market"].astype(str).str.upper(), frame["symbol"].astype(str)))
+    frame["period_order"] = _latest_exposure_order(frame)
+    latest = frame.groupby("security_key")["period_order"].transform("max")
+    frame = frame[frame["period_order"].eq(latest)]
+    name_series = frame[name_column] if name_column in frame.columns else pd.Series("", index=frame.index)
+    frame["component_key"] = [
+        _component_key(component, name)
+        for component, name in zip(frame[key_column], name_series, strict=False)
+    ]
+    frame = frame[frame["component_key"].astype(str).str.len() > 0]
+
+    vectors: dict[tuple[str, str], dict[str, float]] = {}
+    labels: dict[tuple[str, str], str] = {}
+    coverage: dict[tuple[str, str], float] = {}
+    for raw_key, group in frame.groupby("security_key", dropna=False):
+        market, symbol = raw_key
+        key = _security_key(market, symbol)
+        top = group.sort_values("weight_num", ascending=False).head(max_items)
+        vectors[key] = dict(zip(top["component_key"], top["weight_num"].astype(float)))
+        coverage[key] = round(float(top["weight_num"].sum()), 2)
+        label_items: list[str] = []
+        for _, item in top.head(5).iterrows():
+            label = str(item.get(name_column) or item.get(key_column) or item["component_key"]).strip()
+            label_items.append(f"{label} {float(item['weight_num']):.1f}%")
+        labels[key] = " | ".join(label_items)
+    return vectors, labels, coverage
+
+
+def _weighted_overlap(a: dict[str, float], b: dict[str, float]) -> float:
+    if not a or not b:
+        return 0.0
+    shared = set(a).intersection(b)
+    if not shared:
+        return 0.0
+    numerator = sum(min(a[item], b[item]) for item in shared)
+    denominator = min(sum(a.values()), sum(b.values()))
+    if denominator <= 0:
+        return 0.0
+    return float(numerator / denominator)
+
+
+def _fallback_group(row: pd.Series) -> str:
+    category = str(row.get("etf_category") or "")
+    track = str(row.get("etf_track") or "")
+    if track in _UNCLASSIFIED_TRACKS or track == category:
+        return f"{category}:{track}:{row.get('symbol')}"
+    return f"{category}:{track}"
+
+
+def _can_rule_fallback_merge(row: pd.Series, leader: pd.Series) -> bool:
+    category = str(row.get("etf_category") or "")
+    if category in _FALLBACK_DEDUP_CATEGORIES:
+        return True
+    if category == "跨境ETF":
+        return "LOF" not in str(row.get("name") or "").upper() and "LOF" not in str(
+            leader.get("name") or ""
+        ).upper()
+    return False
+
+
+def dedup_etf_pool_by_exposure(
+    pool: pd.DataFrame,
+    *,
+    holdings: pd.DataFrame | None = None,
+    allocations: pd.DataFrame | None = None,
+    technicals: pd.DataFrame | None = None,
+    top: int = 20,
+    category: str | None = None,
+    similarity_threshold: float = 0.72,
+) -> pd.DataFrame:
+    """De-duplicate ETFs by type plus disclosed underlying distribution.
+
+    Priority:
+      1. Same type/family and similar top-holding weights.
+      2. Same type/family and similar industry/allocation weights.
+      3. Conservative rule fallback for passive/commodity/cash/bond/industry tools.
+
+    Active cross-border LOFs without exposure data stay separate instead of being
+    collapsed solely by name keywords.
+    """
+    if pool is None or pool.empty:
+        return pd.DataFrame()
+
+    enriched = enrich_etf_snapshot(pool, technicals=technicals)
+    if category:
+        enriched = enriched[enriched["etf_category"].eq(category)].copy()
+    if enriched.empty:
+        return enriched
+
+    holding_vectors, holding_labels, holding_coverage = _weight_vectors(
+        holdings,
+        key_column="component_symbol",
+        name_column="component_name",
+    )
+    allocation_vectors, allocation_labels, allocation_coverage = _weight_vectors(
+        allocations,
+        key_column="allocation_name",
+        name_column="allocation_name",
+        max_items=8,
+    )
+
+    enriched = enriched.copy()
+    enriched["amount_num"] = pd.to_numeric(enriched.get("amount"), errors="coerce").fillna(0)
+    enriched["score_num"] = pd.to_numeric(enriched.get("etf_score"), errors="coerce").fillna(0)
+    enriched["_security_key"] = [
+        _security_key(market, symbol)
+        for market, symbol in zip(enriched["market"], enriched["symbol"], strict=False)
+    ]
+    enriched["etf_top_holdings"] = enriched["_security_key"].map(holding_labels).fillna("")
+    enriched["etf_holding_coverage_pct"] = (
+        enriched["_security_key"].map(holding_coverage).fillna(0.0)
+    )
+    enriched["etf_primary_allocation"] = enriched["_security_key"].map(allocation_labels).fillna("")
+    enriched["etf_allocation_coverage_pct"] = (
+        enriched["_security_key"].map(allocation_coverage).fillna(0.0)
+    )
+    enriched["_fallback_group"] = enriched.apply(_fallback_group, axis=1)
+
+    ranked = enriched.sort_values(["score_num", "amount_num"], ascending=[False, False]).copy()
+    group_ids: dict[int, str] = {}
+    group_basis: dict[int, str] = {}
+    leaders: list[tuple[str, pd.Series]] = []
+    next_group = 1
+
+    for idx, row in ranked.iterrows():
+        row_key = row["_security_key"]
+        row_holding = holding_vectors.get(row_key, {})
+        row_allocation = allocation_vectors.get(row_key, {})
+        assigned_group: str | None = None
+        assigned_basis = "rule_fallback"
+        for group_id, leader in leaders:
+            if row["_fallback_group"] != leader["_fallback_group"]:
+                continue
+            leader_key = leader["_security_key"]
+            leader_holding = holding_vectors.get(leader_key, {})
+            leader_allocation = allocation_vectors.get(leader_key, {})
+            if row_holding and leader_holding:
+                if _weighted_overlap(row_holding, leader_holding) >= similarity_threshold:
+                    assigned_group = group_id
+                    assigned_basis = "holding_overlap"
+                    break
+                continue
+            if row_allocation and leader_allocation:
+                if _weighted_overlap(row_allocation, leader_allocation) >= similarity_threshold:
+                    assigned_group = group_id
+                    assigned_basis = "allocation_overlap"
+                    break
+                continue
+            if _can_rule_fallback_merge(row, leader):
+                assigned_group = group_id
+                assigned_basis = "rule_fallback"
+                break
+
+        if assigned_group is None:
+            assigned_group = f"exposure_{next_group}"
+            assigned_basis = (
+                "holding_seed"
+                if row_holding
+                else "allocation_seed"
+                if row_allocation
+                else "rule_seed"
+            )
+            leaders.append((assigned_group, row))
+            next_group += 1
+        group_ids[idx] = assigned_group
+        group_basis[idx] = assigned_basis
+
+    grouped = ranked.assign(
+        etf_exposure_group=pd.Series(group_ids),
+        etf_dedup_basis=pd.Series(group_basis),
+    )
+    out = consolidate_etf_candidates(grouped, top=top, group_col="etf_exposure_group")
+    if out.empty:
+        return out
+    out["selection_note"] = out.apply(
+        lambda row: (
+            f"{row.get('etf_exposure_group')} 按底层分布/类型去重，"
+            f"同组{int(row.get('peer_count') or 1)}只，依据 {row.get('etf_dedup_basis')}"
+        ),
+        axis=1,
+    )
+    return out.drop(columns=["_security_key", "_fallback_group"], errors="ignore")
 
 
 def validate_etf_clusters(

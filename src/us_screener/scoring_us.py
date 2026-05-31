@@ -42,14 +42,9 @@ STRATEGY_NAME = "us_premarket"
 DEFAULT_TECHNICAL_SCORE = getattr(weights, "DEFAULT_TECHNICAL_SCORE", 42.0)
 DEFAULT_FUNDAMENTAL_SCORE = getattr(weights, "DEFAULT_FUNDAMENTAL_SCORE", 50.0)
 
-_SCORE_WEIGHTS = {
-    "fundamental": 0.24,
-    "technical": 0.20,
-    "valuation": 0.14,
-    "liquidity": 0.14,
-    "heat": 0.18,
-    "macro": 0.10,
-}
+# Model parameters live in ah_screener.weights (single source of truth, with
+# provenance) — see US_* entries. Aliased here for terse use in the blend below.
+_SCORE_WEIGHTS = weights.US_EXPERT_COMPOSITE
 
 _SCHEMA_COLUMNS = [
     "snapshot_date",
@@ -157,9 +152,10 @@ def _peer_relative_score(values: pd.Series, groups: pd.Series, *, min_group: int
 
 
 def _theme_score(boards: list[str]) -> float:
+    cfg = weights.US_THEME_SCORE
     if not boards:
-        return 35.0
-    return float(min(80.0, 45.0 + 8.0 * len(boards)))
+        return float(cfg["base_no_match"])
+    return float(min(cfg["cap"], cfg["base_match"] + cfg["per_theme"] * len(boards)))
 
 
 def _compose_fundamental_score(row: pd.Series) -> float:
@@ -210,67 +206,90 @@ def _daily_factor_symbols(frame: pd.DataFrame, cfg) -> set[str]:
     The final scoring frame still keeps every latest snapshot for audit/filtering,
     but heat and RS still scan/aggregate daily history. Running them only on names
     that can pass the hard tradeability gates keeps daily screening bounded without
-    changing candidate eligibility.
+    changing candidate eligibility. Vectorized: the gates are pure column predicates.
     """
     if frame.empty:
         return set()
-    symbols: set[str] = set()
-    for _, row in frame.iterrows():
-        symbol = str(row.get("symbol") or "").strip().upper()
-        if not symbol:
-            continue
-        price = _num(row.get("last_price"))
-        if price is None or price <= 0 or price < weights.US_PENNY_PRICE:
-            continue
-        amount = _num(row.get("amount"))
-        if amount is None or amount < cfg.min_us_amount:
-            continue
-        market_cap = _num(row.get("market_cap"))
-        if market_cap is not None and market_cap < cfg.min_market_cap:
-            continue
-        symbols.add(symbol)
-    return symbols
+    symbol = frame.get("symbol")
+    if symbol is None:
+        return set()
+    symbol = symbol.astype(str).str.strip().str.upper()
+    price = pd.to_numeric(_series(frame, "last_price"), errors="coerce")
+    amount = pd.to_numeric(_series(frame, "amount"), errors="coerce")
+    market_cap = pd.to_numeric(_series(frame, "market_cap"), errors="coerce")
+    keep = (
+        (symbol != "")
+        & price.gt(0)
+        & price.ge(weights.US_PENNY_PRICE)
+        & amount.ge(cfg.min_us_amount)
+        & ~market_cap.lt(cfg.min_market_cap)  # NaN cap passes (unknown != too-small)
+    )
+    return set(symbol[keep].tolist())
 
 
 def _risk_score(filter_reasons: list[str]) -> float:
-    penalty_map = {
-        "china_concept": 100.0,
-        "price_missing": 55.0,
-        "us_penny": 45.0,
-        "amount_missing": 60.0,
-        "low_amount": 35.0,
-        "low_market_cap": 25.0,
-    }
-    penalty = sum(penalty_map.get(reason, 0.0) for reason in filter_reasons)
+    penalty = sum(weights.US_RISK_PENALTY.get(reason, 0.0) for reason in filter_reasons)
     return float(np.clip(100.0 - penalty, 0, 100))
 
 
-def _decision(row: pd.Series) -> str:
-    if _bool_value(row.get("is_filtered")):
-        return "reject"
-    expert = float(row.get("expert_score") or 0.0)
-    technical = float(row.get("technical_score") or 0.0)
-    if expert >= 70.0 and technical >= 55.0:
-        return "core_candidate"
-    if expert >= 60.0:
-        return "watchlist"
-    if expert >= 50.0:
-        return "reserve"
-    return "reject"
+def _decision_series(frame: pd.DataFrame) -> pd.Series:
+    """Vectorized decision bucketing over the whole frame (was apply axis=1)."""
+    cuts = weights.US_DECISION
+    expert = pd.to_numeric(_series(frame, "expert_score"), errors="coerce").fillna(0.0)
+    technical = pd.to_numeric(_series(frame, "technical_score"), errors="coerce").fillna(0.0)
+    is_filtered = _series(frame, "is_filtered", dtype="bool").fillna(False).astype(bool)
+    conditions = [
+        is_filtered,
+        (expert >= cuts["core_min"]) & (technical >= cuts["core_technical_min"]),
+        expert >= cuts["watchlist_min"],
+        expert >= cuts["reserve_min"],
+    ]
+    choices = ["reject", "core_candidate", "watchlist", "reserve"]
+    return pd.Series(np.select(conditions, choices, default="reject"), index=frame.index)
 
 
-def _candidate_reasons(row: pd.Series) -> list[str]:
-    reasons: list[str] = []
-    boards = row.get("concept_boards") if isinstance(row.get("concept_boards"), list) else []
-    if boards:
-        reasons.append("主题板块: " + "、".join(boards[:3]))
-    reasons.append(f"heat={float(row.get('heat_score', 50.0)):.1f}")
-    reasons.append(f"macro={float(row.get('macro_score', 50.0)):.1f}")
-    reasons.append(f"technical={float(row.get('technical_score', DEFAULT_TECHNICAL_SCORE)):.1f}")
-    reasons.append(f"fundamental={float(row.get('fundamental_score_final', DEFAULT_FUNDAMENTAL_SCORE)):.1f}")
-    if row.get("filter_reasons"):
-        reasons.append("filtered: " + ", ".join(row["filter_reasons"]))
-    return reasons
+def _build_score_components(frame: pd.DataFrame) -> pd.Series:
+    """Build JSON-friendly component dicts without row-wise DataFrame.apply."""
+    values = pd.DataFrame(
+        {
+            "fundamental": pd.to_numeric(_series(frame, "fundamental_score_final"), errors="coerce").fillna(
+                DEFAULT_FUNDAMENTAL_SCORE
+            ),
+            "technical": pd.to_numeric(_series(frame, "technical_score"), errors="coerce").fillna(
+                DEFAULT_TECHNICAL_SCORE
+            ),
+            "valuation": pd.to_numeric(_series(frame, "valuation_score"), errors="coerce").fillna(50.0),
+            "liquidity": pd.to_numeric(_series(frame, "liquidity_score"), errors="coerce").fillna(50.0),
+            "heat": pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0),
+            "macro": pd.to_numeric(_series(frame, "macro_score"), errors="coerce").fillna(50.0),
+        },
+        index=frame.index,
+    ).round(2)
+    return pd.Series(values.to_dict("records"), index=frame.index)
+
+
+def _build_reasons(frame: pd.DataFrame) -> pd.Series:
+    """Build candidate reason lists from precomputed columns (cheaper than row apply)."""
+    boards = _series(frame, "concept_boards", dtype=object)
+    heat = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
+    macro = pd.to_numeric(_series(frame, "macro_score"), errors="coerce").fillna(50.0)
+    technical = pd.to_numeric(_series(frame, "technical_score"), errors="coerce").fillna(
+        DEFAULT_TECHNICAL_SCORE
+    )
+    fundamental = pd.to_numeric(_series(frame, "fundamental_score_final"), errors="coerce").fillna(
+        DEFAULT_FUNDAMENTAL_SCORE
+    )
+    filters = _series(frame, "filter_reasons", dtype=object)
+    rows: list[list[str]] = []
+    for bs, h, m, t, f, reasons in zip(boards, heat, macro, technical, fundamental, filters, strict=False):
+        items: list[str] = []
+        if isinstance(bs, list) and bs:
+            items.append("主题板块: " + "、".join(bs[:3]))
+        items.extend([f"heat={h:.1f}", f"macro={m:.1f}", f"technical={t:.1f}", f"fundamental={f:.1f}"])
+        if reasons:
+            items.append("filtered: " + ", ".join(reasons))
+        rows.append(items)
+    return pd.Series(rows, index=frame.index)
 
 
 def _persist_results(store, results: pd.DataFrame, snapshot_date: pd.Timestamp) -> int:
@@ -281,11 +300,12 @@ def _persist_results(store, results: pd.DataFrame, snapshot_date: pd.Timestamp) 
     payload["strategy"] = STRATEGY_NAME
     payload["canonical_id"] = None
     payload["master_score"] = payload["expert_score"]
+    _cm = weights.US_CHINA_MASTER_PROXY
     payload["china_master_score"] = (
-        payload["fundamental_score_final"].fillna(DEFAULT_FUNDAMENTAL_SCORE) * 0.55
-        + payload["valuation_score"].fillna(50.0) * 0.20
-        + payload["technical_score"].fillna(DEFAULT_TECHNICAL_SCORE) * 0.15
-        + payload["macro_score"].fillna(50.0) * 0.10
+        payload["fundamental_score_final"].fillna(DEFAULT_FUNDAMENTAL_SCORE) * _cm["fundamental"]
+        + payload["valuation_score"].fillna(50.0) * _cm["valuation"]
+        + payload["technical_score"].fillna(DEFAULT_TECHNICAL_SCORE) * _cm["technical"]
+        + payload["macro_score"].fillna(50.0) * _cm["macro"]
     ).clip(0, 100)
     payload["fundamental_score"] = payload["fundamental_score_final"]
     payload["detailed_industry"] = payload["primary_board"].fillna("")
@@ -311,7 +331,7 @@ def _persist_results(store, results: pd.DataFrame, snapshot_date: pd.Timestamp) 
     return store.upsert_dataframe("expert_screening_results", schema_payload)
 
 
-def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
+def run_us_screen(store=None, *, persist: bool = True, macro_context: dict[str, Any] | None = None) -> dict[str, Any]:
     """Run the US-tuned screen and optionally persist schema-compatible rows."""
     if store is None:
         use_us_database()
@@ -328,9 +348,18 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     )
     if snapshots.empty:
         empty = pd.DataFrame()
+        try:
+            macro_ctx = macro_context or get_macro_context(store)
+        except Exception as exc:  # noqa: BLE001 — empty-universe path must not abort on macro
+            macro_ctx = {
+                "status": "error",
+                "market_score": 50.0,
+                "regime": "neutral",
+                "errors": [{"source": "macro_context", "error": str(exc)}],
+            }
         return {
             "snapshot_date": None,
-            "macro_context": get_macro_context(store),
+            "macro_context": macro_ctx,
             "results": empty,
             "persisted_rows": 0,
             "factor_universe": 0,
@@ -374,6 +403,10 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     )
     frame["primary_board"] = frame["concept_boards"].map(lambda boards: boards[0] if boards else "")
     frame["is_china_concept"] = frame["symbol"].astype(str).str.upper().isin(china_symbols)
+    # short_ratio is carried for the report's squeeze_watch annotation only (elevated
+    # short-volume + high RS). It is NOT a scoring factor: the FINRA daily short-VOLUME
+    # ratio is a noisy market-maker-heavy proxy (not true short interest / days-to-cover),
+    # so it stays out of expert_score / risk_score to avoid polluting the composite.
     short_map = short_ratio_map(store)
     frame["short_ratio"] = frame["symbol"].map(lambda s: short_map.get(str(s).strip().upper()))
 
@@ -387,8 +420,11 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     frame["sector"] = frame["symbol"].map(
         lambda s: (sector_map.get(str(s).strip().upper()) or {}).get("sector", "")
     )
-    # PEG = PE / earnings growth (forward-ish: price relative to EXPECTED growth, not
-    # just trailing earnings). Only for positive growth; lower PEG scores higher.
+    # PEG = trailing PE / trailing earnings growth (SEC net_profit_yoy). This is a
+    # growth-adjusted valuation from the always-available bulk fundamentals — NOT a
+    # forward/analyst PEG (forward estimates aren't free in bulk; see
+    # forward_estimates.py, which surfaces forward PE as a report-only annotation).
+    # Only for positive growth; lower PEG scores higher.
     _pe = pd.to_numeric(_series(frame, "pe_ttm"), errors="coerce")
     _growth = pd.to_numeric(_series(frame, "net_profit_yoy"), errors="coerce")
     frame["peg"] = (_pe / _growth.where(_growth > 0)).round(3)
@@ -403,7 +439,7 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
             "peg": _peer_relative_score(frame["peg"], frame["sector"]),
         }
     )
-    _w = pd.Series({"pe": 0.45, "pb": 0.25, "peg": 0.30})
+    _w = pd.Series(weights.US_VALUATION_WEIGHTS)
     _wsum = _val.notna().mul(_w, axis=1).sum(axis=1).replace(0, np.nan)
     frame["valuation_score"] = (
         (_val.fillna(0.0).mul(_w, axis=1).sum(axis=1) / _wsum).fillna(50.0).clip(0, 100)
@@ -413,11 +449,25 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
     # (excess return vs market) — leadership shows up in RS first.
     _heat = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
     frame["rs_score"] = pd.to_numeric(_series(frame, "rs_score"), errors="coerce").fillna(50.0)
-    frame["heat_score"] = (0.65 * _heat + 0.35 * frame["rs_score"]).clip(0, 100)
+    _hb = weights.US_HEAT_RS_BLEND
+    frame["heat_score"] = (_hb["heat"] * _heat + _hb["rs"] * frame["rs_score"]).clip(0, 100)
     frame["theme_score_final"] = frame["concept_boards"].map(_theme_score)
 
-    macro_context = get_macro_context(store)
-    macro_scores = score_macro_transmission(frame[["market", "symbol", "concept_boards"]], store, macro_context)
+    # Macro is an optional tilt: a failure here must leave every name at a neutral
+    # macro_score, never abort the screen.
+    try:
+        macro_context = macro_context or get_macro_context(store)
+        macro_scores = score_macro_transmission(
+            frame[["market", "symbol", "concept_boards"]], store, macro_context
+        )
+    except Exception as exc:  # noqa: BLE001 — degrade to neutral macro, keep the screen running
+        macro_context = {
+            "status": "error",
+            "market_score": 50.0,
+            "regime": "neutral",
+            "errors": [{"source": "macro_scoring", "error": str(exc)}],
+        }
+        macro_scores = pd.DataFrame(columns=["market", "symbol", "macro_score", "macro_components"])
     frame = frame.merge(macro_scores, on=["market", "symbol"], how="left")
     frame["macro_score"] = pd.to_numeric(_series(frame, "macro_score"), errors="coerce").fillna(50.0)
     if "macro_components" not in frame.columns:
@@ -437,19 +487,9 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         + frame["macro_score"] * _SCORE_WEIGHTS["macro"]
     ).clip(0, 100)
     frame.loc[frame["is_filtered"], "expert_score"] = 0.0
-    frame["reasons_list"] = frame.apply(_candidate_reasons, axis=1)
-    frame["decision"] = frame.apply(_decision, axis=1)
-    frame["score_components"] = frame.apply(
-        lambda row: {
-            "fundamental": round(float(row.get("fundamental_score_final", DEFAULT_FUNDAMENTAL_SCORE)), 2),
-            "technical": round(float(row.get("technical_score", DEFAULT_TECHNICAL_SCORE)), 2),
-            "valuation": round(float(row.get("valuation_score", 50.0)), 2),
-            "liquidity": round(float(row.get("liquidity_score", 50.0)), 2),
-            "heat": round(float(row.get("heat_score", 50.0)), 2),
-            "macro": round(float(row.get("macro_score", 50.0)), 2),
-        },
-        axis=1,
-    )
+    frame["reasons_list"] = _build_reasons(frame)
+    frame["decision"] = _decision_series(frame)
+    frame["score_components"] = _build_score_components(frame)
 
     frame["expert_score"] = pd.to_numeric(frame["expert_score"], errors="coerce").fillna(0).round(2)
     frame["macro_score"] = pd.to_numeric(frame["macro_score"], errors="coerce").fillna(50).round(2)

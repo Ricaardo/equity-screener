@@ -335,6 +335,29 @@ def test_forward_estimates_skip_and_tag(tmp_path: Path, monkeypatch):
     assert out["status"] == "ok" and out["updated"] == 1
     assert abs(forward_estimates.forward_pe_map(store)["AAPL"] - 24.5) < 1e-6
 
+    # Fresh cache is skipped, but stale cache is refreshed instead of becoming
+    # permanent state.
+    monkeypatch.setattr(forward_estimates, "_fetch_forward",
+                        lambda s: {"forward_pe": 30.0, "recommendation_mean": 2.0, "analysts": 25})
+    fresh = forward_estimates.enrich_forward_estimates(store, limit=10, stale_days=14)
+    assert fresh["updated"] == 0
+    store.execute(
+        "UPDATE company_tags SET updated_at=? WHERE market='US' AND symbol='AAPL' AND tag_type=? AND source=?",
+        [pd.Timestamp.now() - pd.Timedelta(days=30), forward_estimates.TAG_TYPE, forward_estimates.SOURCE],
+    )
+    stale = forward_estimates.enrich_forward_estimates(store, limit=10, stale_days=14)
+    assert stale["updated"] == 1
+    assert abs(forward_estimates.forward_pe_map(store)["AAPL"] - 30.0) < 1e-6
+
+    store.execute(
+        "UPDATE company_tags SET updated_at=? WHERE market='US' AND symbol='AAPL' AND tag_type=? AND source=?",
+        [pd.Timestamp.now() - pd.Timedelta(days=30), forward_estimates.TAG_TYPE, forward_estimates.SOURCE],
+    )
+    monkeypatch.setattr(forward_estimates, "_fetch_forward", lambda s: None)
+    unavailable = forward_estimates.enrich_forward_estimates(store, limit=10, stale_days=14)
+    assert unavailable["updated"] == 0
+    assert "AAPL" not in forward_estimates.forward_pe_map(store)
+
 
 def test_sec_latest_shares():
     from us_screener.sec_bulk_loader import _latest_shares
@@ -489,6 +512,16 @@ def test_squeeze_annotation():
     assert syms == ["SQZ"]
 
 
+def test_forward_annotation_always_sets_coverage(tmp_path: Path):
+    from us_screener.reporting_us import _annotate_forward
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    payload = {"top_candidates": [{"symbol": "AAPL"}]}
+    _annotate_forward(payload, store)
+    assert payload["forward_pe_coverage"] == 0
+
+
 def test_relative_strength(tmp_path: Path):
     from us_screener.relative_strength import compute_rs_scores
 
@@ -600,6 +633,7 @@ def test_macro_context_uses_fred(tmp_path: Path, monkeypatch):
     assert ctx["market_score"] == 72.0
     assert ctx["regime"] == "bullish"
     assert ctx["fred"]["fred_score"] == 72.0
+    assert ctx["as_of"] == "2026-05-28"
 
 
 def test_fred_score_computation(monkeypatch):

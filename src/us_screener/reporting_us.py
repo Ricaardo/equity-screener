@@ -113,6 +113,7 @@ def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | No
     }
     _annotate_earnings(payload, store)
     _annotate_squeeze(payload)
+    _annotate_forward(payload, store)
     _annotate_themes(payload, store, scored)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
@@ -160,6 +161,28 @@ def _annotate_squeeze(payload: dict[str, Any]) -> None:
         if isinstance(sr, (int, float)) and sr >= 0.5 and isinstance(rs, (int, float)) and rs >= 70:
             watch.append({"symbol": item.get("symbol"), "short_ratio": round(float(sr), 3), "rs_score": rs})
     payload["squeeze_watch"] = sorted(watch, key=lambda r: r["short_ratio"], reverse=True)
+
+
+def _annotate_forward(payload: dict[str, Any], store) -> None:
+    """Attach best-effort forward PE (analyst-expectation colour) to each top candidate.
+
+    Read-only: reads whatever ``forward_estimates`` cached into ``company_tags`` (the
+    pipeline enriches a bounded top-liquid set). Display-only — forward PE never feeds
+    the score (free forward estimates are sparse / fragile; see forward_estimates.py).
+    """
+    from us_screener.forward_estimates import forward_pe_map
+
+    try:
+        fmap = forward_pe_map(store)
+    except Exception:  # noqa: BLE001 — never let the forward overlay break the report
+        fmap = {}
+    covered = 0
+    for item in payload.get("top_candidates") or []:
+        forward_pe = fmap.get(str(item.get("symbol") or "").strip().upper())
+        if forward_pe is not None:
+            item["forward_pe"] = round(float(forward_pe), 2)
+            covered += 1
+    payload["forward_pe_coverage"] = covered
 
 
 def _annotate_earnings(payload: dict[str, Any], store) -> None:
@@ -223,11 +246,12 @@ def _render_markdown(payload: dict[str, Any]) -> str:
             if item.get("earnings_date")
             else ""
         )
+        fwd = f", fwdPE {item['forward_pe']}" if item.get("forward_pe") is not None else ""
         lines.append(
             "- "
             f"{item.get('symbol')} {item.get('name')}: score {item.get('expert_score')}, "
             f"decision {item.get('decision')}, boards {', '.join(item.get('concept_boards') or []) or '--'}"
-            f"{earnings}"
+            f"{fwd}{earnings}"
         )
     if not (payload.get("top_candidates") or []):
         lines.append("- No candidates.")

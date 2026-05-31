@@ -113,6 +113,70 @@ DEFAULT_TECHNICAL_SCORE = 42.0
 DEFAULT_FUNDAMENTAL_SCORE = 50.0
 
 
+# =============================================================================
+# US screener (src/us_screener) — independent model parameters.
+# Same PROVENANCE caveat as above: hand-set priors from US-market practice, NOT
+# return-calibrated edges. Kept here so the US blend is inspectable / tunable in
+# one place rather than buried as magic numbers in ``scoring_us.py``.
+# =============================================================================
+
+# Final US expert_score composition (sums to 1.0). Prior: fundamentals + momentum
+# (heat/RS) lead; valuation/liquidity are peer-relative tie-breakers; macro is a
+# light transmission tilt. Theme/short are context-only and deliberately excluded.
+US_EXPERT_COMPOSITE: dict[str, float] = {
+    "fundamental": 0.24,
+    "technical": 0.20,
+    "valuation": 0.14,
+    "liquidity": 0.14,
+    "heat": 0.18,
+    "macro": 0.10,
+}
+
+# Momentum factor = blend of absolute heat (RVOL/return/52w) and relative strength
+# (excess return vs market). Leadership shows up in RS first.
+US_HEAT_RS_BLEND: dict[str, float] = {"heat": 0.65, "rs": 0.35}
+
+# Peer-relative valuation blend (lower multiple scores higher), ranked within sector.
+US_VALUATION_WEIGHTS: dict[str, float] = {"pe": 0.45, "pb": 0.25, "peg": 0.30}
+
+# china_master_score proxy for the US schema row (reporting/compat only; not the
+# primary US decision input, which is US_EXPERT_COMPOSITE).
+US_CHINA_MASTER_PROXY: dict[str, float] = {
+    "fundamental": 0.55,
+    "valuation": 0.20,
+    "technical": 0.15,
+    "macro": 0.10,
+}
+
+# Decision cut points on the US expert_score.
+US_DECISION: dict[str, float] = {
+    "core_min": 70.0,  # core_candidate needs score >= this ...
+    "core_technical_min": 55.0,  # ... and technical_score >= this
+    "watchlist_min": 60.0,  # watchlist needs score >= this ...
+    "reserve_min": 50.0,  # ... reserve needs score >= this; else reject
+}
+
+# Theme score (context-only bucket; never feeds US expert_score).
+US_THEME_SCORE: dict[str, float] = {
+    "base_no_match": 35.0,
+    "base_match": 45.0,
+    "per_theme": 8.0,
+    "cap": 80.0,
+}
+
+# US tradeability risk penalties (additive; subtracted from 100). china_concept is a
+# hard exclude (full penalty); the rest are price/liquidity floors guarding delisting
+# and untradeable names.
+US_RISK_PENALTY: dict[str, float] = {
+    "china_concept": 100.0,
+    "price_missing": 55.0,
+    "us_penny": 45.0,
+    "amount_missing": 60.0,
+    "low_amount": 35.0,
+    "low_market_cap": 25.0,
+}
+
+
 # --- Risk penalties (additive). Centralizes scoring._risk_penalty + expert gate. ---
 # Prior: hard red flags (ST/退市/退市生命周期命中) dominate; missing data is treated as
 # uncertainty rather than neutrality (P2-2); price/penny floors guard delisting risk.
