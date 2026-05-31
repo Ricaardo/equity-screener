@@ -24,13 +24,13 @@ function registerReportRoutes(middlewares: Connect.Server) {
     }
   });
 
-  middlewares.use("/api/report/appendix", async (_req, res) => {
+  middlewares.use("/api/report/us", async (_req, res) => {
     try {
-      const file = await fs.readFile(path.join(reportsDir, "ah-screening-appendix-latest.md"), "utf8");
-      send(res, 200, "text/markdown; charset=utf-8", file);
+      const file = await fs.readFile(path.join(reportsDir, "us-premarket", "us-premarket-latest.json"), "utf8");
+      send(res, 200, "application/json; charset=utf-8", file);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      send(res, 404, "text/plain; charset=utf-8", message);
+      send(res, 404, "application/json; charset=utf-8", JSON.stringify({ error: message }));
     }
   });
 }
