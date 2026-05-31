@@ -418,6 +418,34 @@ def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
     assert float(mcap) == 200.0 * 1.0e10  # shares x price, no API call
 
 
+def test_theme_momentum(tmp_path: Path):
+    from us_screener.theme_momentum import compute_theme_momentum
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    tags = [
+        {"market": "US", "symbol": s, "tag_type": "concept_board", "tag_name": b,
+         "evidence_level": "high", "source": "test", "updated_at": pd.Timestamp.now()}
+        for s, b in [("AAA", "AI算力"), ("BBB", "AI算力"), ("CCC", "AI算力"),
+                     ("DDD", "核电"), ("EEE", "核电"), ("FFF", "核电")]
+    ]
+    store.upsert_dataframe("company_tags", pd.DataFrame(tags))
+    rows = []
+    start = pd.Timestamp("2025-06-01")
+    plan = {"SPY": 0.1, "AAA": 1.2, "BBB": 1.1, "CCC": 1.0, "DDD": -0.3, "EEE": -0.2, "FFF": -0.4}
+    for sym, drift in plan.items():
+        for i in range(140):
+            c = max(100.0 + drift * i, 1.0)
+            rows.append({"market": "US", "symbol": sym, "trade_date": start + pd.Timedelta(days=i),
+                         "open": c, "high": c, "low": c, "close": c, "volume": 1000.0, "amount": 1000.0 * c,
+                         "adj_type": "stooq_adj", "source": "stooq.d", "updated_at": pd.Timestamp.now()})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+    tm = compute_theme_momentum(store)
+    boards = list(tm["board"])
+    assert boards.index("AI算力") < boards.index("核电")  # leading theme ranks higher
+    assert tm[tm["board"] == "AI算力"].iloc[0]["avg_rs"] > tm[tm["board"] == "核电"].iloc[0]["avg_rs"]
+
+
 def test_short_interest(tmp_path: Path, monkeypatch):
     from us_screener import short_interest
 

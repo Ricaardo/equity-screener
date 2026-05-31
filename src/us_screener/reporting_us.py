@@ -113,8 +113,35 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
     }
     _annotate_earnings(payload, store)
     _annotate_squeeze(payload)
+    _annotate_themes(payload, store)
     payload["llm_opinion"] = generate_us_llm_opinion(payload)
     return payload
+
+
+def _annotate_themes(payload: dict[str, Any], store) -> None:
+    """Rank concept boards by constituents' relative strength (what the market is
+    bidding up) and flag candidates riding a hot theme."""
+    from us_screener.theme_momentum import compute_theme_momentum
+
+    try:
+        frame = compute_theme_momentum(store)
+    except Exception:  # noqa: BLE001 — never let theme momentum break the report
+        frame = pd.DataFrame()
+    if frame.empty:
+        payload["hot_themes"] = []
+        return
+    hot = frame.head(8).to_dict("records")
+    payload["hot_themes"] = [
+        {"board": r["board"], "momentum_score": r["momentum_score"], "members": int(r["members"]),
+         "leaders_pct": r["leaders_pct"]}
+        for r in hot
+    ]
+    hot_set = {r["board"] for r in hot[:5] if r["momentum_score"] >= 55}
+    for item in payload.get("top_candidates") or []:
+        boards = item.get("concept_boards") or []
+        riding = [b for b in boards if b in hot_set]
+        if riding:
+            item["hot_themes"] = riding
 
 
 def _annotate_squeeze(payload: dict[str, Any]) -> None:
@@ -172,9 +199,17 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         f"- Market score: {(payload.get('macro_context') or {}).get('market_score')}",
         f"- Summary: {(payload.get('macro_context') or {}).get('summary')}",
         "",
-        "## Top candidates",
-        "",
     ]
+    hot_themes = payload.get("hot_themes") or []
+    if hot_themes:
+        lines.extend(["## Hot themes (price momentum)", ""])
+        for theme in hot_themes[:6]:
+            lines.append(
+                f"- {theme['board']}: momentum {theme['momentum_score']} "
+                f"({theme['members']} 标的, {theme['leaders_pct']}% 领先)"
+            )
+        lines.append("")
+    lines.extend(["## Top candidates", ""])
     for item in payload.get("top_candidates") or []:
         earnings = (
             f", earnings {item['earnings_date']} (in {item.get('earnings_in_days')}d)"
