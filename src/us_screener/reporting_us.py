@@ -77,6 +77,7 @@ def build_us_premarket_payload(store=None) -> dict[str, Any]:
         "pb",
         "liquidity_score",
         "heat_score",
+        "rs_score",
         "macro_score",
         "concept_boards",
         "filter_reasons",

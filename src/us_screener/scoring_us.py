@@ -35,6 +35,7 @@ from us_screener.concept_boards import concept_board_map
 from us_screener.config import get_us_config, use_us_database
 from us_screener.heat import compute_heat_scores
 from us_screener.macro import get_macro_context, score_macro_transmission
+from us_screener.relative_strength import compute_rs_scores
 
 STRATEGY_NAME = "us_premarket"
 DEFAULT_TECHNICAL_SCORE = getattr(weights, "DEFAULT_TECHNICAL_SCORE", 42.0)
@@ -316,6 +317,7 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         store.query_df("SELECT * FROM financial_metrics WHERE market = 'US'"), "snapshot_date"
     )
     heat = compute_heat_scores(store)
+    rs = compute_rs_scores(store)
 
     frame = latest_snap.merge(
         technical[["market", "symbol", "technical_score", "technical_signal", "return_20d"]]
@@ -328,7 +330,11 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         on=["market", "symbol"],
         how="left",
         suffixes=("", "_fund"),
-    ).merge(heat, on=["market", "symbol"], how="left")
+    ).merge(heat, on=["market", "symbol"], how="left").merge(
+        rs if not rs.empty else pd.DataFrame(columns=["market", "symbol", "rs_score", "rs_components"]),
+        on=["market", "symbol"],
+        how="left",
+    )
 
     boards_map = concept_board_map(store)
     china_symbols = china_concept_symbols(store)
@@ -364,7 +370,11 @@ def run_us_screen(store=None, *, persist: bool = True) -> dict[str, Any]:
         (_val.fillna(0.0).mul(_w, axis=1).sum(axis=1) / _wsum).fillna(50.0).clip(0, 100)
     )
     frame["liquidity_score"] = _liquidity_score(frame).fillna(50.0).clip(0, 100)
-    frame["heat_score"] = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
+    # Momentum factor blends absolute heat (RVOL/return/52w) with relative strength
+    # (excess return vs market) — leadership shows up in RS first.
+    _heat = pd.to_numeric(_series(frame, "heat_score"), errors="coerce").fillna(50.0)
+    frame["rs_score"] = pd.to_numeric(_series(frame, "rs_score"), errors="coerce").fillna(50.0)
+    frame["heat_score"] = (0.65 * _heat + 0.35 * frame["rs_score"]).clip(0, 100)
     frame["theme_score_final"] = frame["concept_boards"].map(_theme_score)
 
     macro_context = get_macro_context(store)

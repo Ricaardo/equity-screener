@@ -386,6 +386,28 @@ def test_sec_bulk_loader_integration(tmp_path: Path, monkeypatch):
     assert float(mcap) == 200.0 * 1.0e10  # shares x price, no API call
 
 
+def test_relative_strength(tmp_path: Path):
+    from us_screener.relative_strength import compute_rs_scores
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    rows = []
+    start = pd.Timestamp("2025-06-01")
+    # SPY flat-ish, STRONG outperforms, WEAK underperforms
+    for sym, drift in [("SPY", 0.1), ("STRONG", 1.2), ("WEAK", -0.4)]:
+        for i in range(140):
+            close = max(100.0 + drift * i, 1.0)
+            rows.append({"market": "US", "symbol": sym, "trade_date": start + pd.Timedelta(days=i),
+                         "open": close, "high": close, "low": close, "close": close, "volume": 1000.0,
+                         "amount": 1000.0 * close, "adj_type": "stooq_adj", "source": "stooq.d",
+                         "updated_at": pd.Timestamp.now()})
+    store.upsert_dataframe("daily_prices", pd.DataFrame(rows))
+    rs = compute_rs_scores(store, benchmark="SPY")
+    scores = dict(zip(rs["symbol"], rs["rs_score"]))
+    assert scores["STRONG"] > scores["WEAK"]  # outperformer ranks higher
+    assert isinstance(rs[rs["symbol"] == "STRONG"].iloc[0]["rs_components"], dict)
+
+
 def test_peer_relative_valuation():
     from us_screener.scoring_us import _peer_relative_score
 
