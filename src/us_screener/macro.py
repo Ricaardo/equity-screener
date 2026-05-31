@@ -164,11 +164,18 @@ def get_macro_context(store) -> dict[str, Any]:
         regime = "neutral"
         summary = "Macro tape is mixed; stock selection matters more than broad beta."
 
+    # Forward policy read (rate path + inflation expectations) — separate from the
+    # risk-appetite tape. A risk-on tape can coexist with hawkish policy.
+    policy = fred.get("policy") if isinstance(fred, dict) else None
+    if policy and policy.get("summary"):
+        summary = f"{summary} 政策面：{policy['summary']}"
+
     return {
         "status": "ok",
         "market_score": market_score,
         "regime": regime,
         "summary": summary,
+        "policy": policy,
         "as_of": None if as_of is None or pd.isna(as_of) else as_of.strftime("%Y-%m-%d"),
         "component_scores": {key: round(value, 2) for key, value in component_scores.items()},
         "proxy_metrics": proxy_metrics,
@@ -190,6 +197,10 @@ def score_macro_transmission(
     infra_score = _num((context.get("component_scores") or {}).get("XLE"))
     small_cap_score = _num((context.get("component_scores") or {}).get("IWM"))
     rates_score = _num((context.get("component_scores") or {}).get("TLT"))
+    # Policy expectation tilt: higher-for-longer hurts long-duration growth/crypto;
+    # dovish helps. This is the forward-looking overlay (not a trailing level).
+    policy_stance = ((context.get("policy") or {}).get("stance")) or "neutral"
+    policy_delta = -6.0 if policy_stance == "hawkish" else (6.0 if policy_stance == "dovish" else 0.0)
 
     rows: list[dict[str, Any]] = []
     for _, row in candidates.iterrows():
@@ -217,6 +228,9 @@ def score_macro_transmission(
             delta = (rates_score - 50.0) * 0.15
             score += delta
             adjustments.append({"driver": "defensive_rates", "delta": round(delta, 2)})
+        if policy_delta and (_GROWTH_BOARDS | _CRYPTO_BOARDS).intersection(boards):
+            score += policy_delta
+            adjustments.append({"driver": f"policy_{policy_stance}", "delta": round(policy_delta, 2)})
 
         score = round(_clip(score), 2)
         rows.append(

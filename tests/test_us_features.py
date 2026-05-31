@@ -497,6 +497,42 @@ def test_fred_score_computation(monkeypatch):
     assert 60 <= out["fred_score"] <= 90
 
 
+def test_fred_policy_signal(monkeypatch):
+    from us_screener import fred
+
+    idx = pd.date_range("2024-01-01", periods=20, freq="MS")
+    cpi = pd.Series([300.0 + i for i in range(20)], index=idx)  # hot, rising
+    monkeypatch.setattr(
+        fred, "fetch_fred_series",
+        lambda sid, **k: cpi if sid == fred.CPI_SERIES else pd.Series(dtype="float64"),
+    )
+    # 2Y > funds + hot CPI -> hawkish (higher-for-longer)
+    hawk = fred._policy_signal({"DGS2": 3.99, "DFEDTARU": 3.75})
+    assert hawk["stance"] == "hawkish"
+    assert hawk["rate_path_2y_minus_funds"] == 0.24
+    assert hawk["cpi_yoy"] is not None and hawk["cpi_yoy"] >= 3.0
+    # 2Y well below funds -> dovish (cuts priced) even with hot CPI
+    dove = fred._policy_signal({"DGS2": 3.25, "DFEDTARU": 3.75})
+    assert dove["stance"] == "dovish"
+
+
+def test_macro_policy_tilt_penalizes_growth(tmp_path: Path):
+    from us_screener.macro import score_macro_transmission
+
+    store = Store(tmp_path / "us.duckdb")
+    store.init_db()
+    ctx = {"market_score": 60.0, "regime": "bullish", "component_scores": {},
+           "policy": {"stance": "hawkish"}}
+    cands = pd.DataFrame([
+        {"market": "US", "symbol": "NVDA", "concept_boards": ["AI算力"]},
+        {"market": "US", "symbol": "KO", "concept_boards": []},
+    ])
+    out = score_macro_transmission(cands, store, ctx)
+    nvda = out[out["symbol"] == "NVDA"].iloc[0]["macro_score"]
+    ko = out[out["symbol"] == "KO"].iloc[0]["macro_score"]
+    assert nvda < ko  # hawkish penalizes the long-duration growth board
+
+
 def test_fd_classification(tmp_path: Path, monkeypatch):
     import pandas as pd
 
