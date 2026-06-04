@@ -60,13 +60,22 @@ def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | No
         store = get_store()
     result = screen_result or run_us_screen(store=store, persist=True)
     scored = result["results"].copy()
-    top = scored.loc[~scored["is_filtered"]].head(20).copy() if not scored.empty else pd.DataFrame()
+    if not scored.empty and "is_recommendable" in scored.columns:
+        recommendable_mask = scored["is_recommendable"].fillna(False).astype(bool)
+    else:
+        recommendable_mask = ~scored["is_filtered"] if not scored.empty else pd.Series(dtype=bool)
+    top = scored.loc[recommendable_mask].head(20).copy() if not scored.empty else pd.DataFrame()
     rejected = scored.loc[scored["is_filtered"]].copy() if not scored.empty else pd.DataFrame()
+    recommendation_rejected = (
+        scored.loc[~recommendable_mask].copy() if not scored.empty else pd.DataFrame()
+    )
 
     fields = [
         "market",
         "symbol",
         "name",
+        "last_price",
+        "amount",
         "expert_score",
         "decision",
         "fundamental_score_final",
@@ -83,6 +92,8 @@ def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | No
         "macro_score",
         "concept_boards",
         "filter_reasons",
+        "is_recommendable",
+        "recommendation_filter_reasons",
         "score_components",
         "heat_components",
         "macro_components",
@@ -99,6 +110,7 @@ def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | No
         "counts": {
             "universe": int(len(scored)),
             "candidates": int((~scored["is_filtered"]).sum()) if not scored.empty else 0,
+            "recommendable": int(recommendable_mask.sum()) if not scored.empty else 0,
             "filtered": int(scored["is_filtered"].sum()) if not scored.empty else 0,
             "core_candidates": int((top["decision"] == "core_candidate").sum()) if not top.empty else 0,
         },
@@ -106,6 +118,15 @@ def build_us_premarket_payload(store=None, *, screen_result: dict[str, Any] | No
             key: int(value)
             for key, value in (
                 rejected["filter_reasons"].explode().value_counts().to_dict() if not rejected.empty else {}
+            ).items()
+        },
+        "recommendation_filtered_summary": {
+            key: int(value)
+            for key, value in (
+                recommendation_rejected["recommendation_filter_reasons"].explode().value_counts().to_dict()
+                if not recommendation_rejected.empty
+                and "recommendation_filter_reasons" in recommendation_rejected.columns
+                else {}
             ).items()
         },
         "top_candidates": _records(top, fields),
@@ -129,7 +150,10 @@ def _annotate_themes(payload: dict[str, Any], store, scored: pd.DataFrame | None
     # tail of names already rejected by hard filters.
     rs = None
     if scored is not None and not scored.empty and "rs_score" in scored.columns:
-        tradable = scored.loc[~scored["is_filtered"]] if "is_filtered" in scored.columns else scored
+        if "is_recommendable" in scored.columns:
+            tradable = scored.loc[scored["is_recommendable"].fillna(False).astype(bool)]
+        else:
+            tradable = scored.loc[~scored["is_filtered"]] if "is_filtered" in scored.columns else scored
         rs = tradable[["market", "symbol", "rs_score"]].copy()
     try:
         frame = compute_theme_momentum(store, rs=rs)
@@ -267,6 +291,12 @@ def _render_markdown(payload: dict[str, Any]) -> str:
         lines.append(f"- {key}: {value}")
     if not (payload.get("filtered_summary") or {}):
         lines.append("- No filtered names.")
+
+    lines.extend(["", "## Recommendation gate summary", ""])
+    for key, value in (payload.get("recommendation_filtered_summary") or {}).items():
+        lines.append(f"- {key}: {value}")
+    if not (payload.get("recommendation_filtered_summary") or {}):
+        lines.append("- No recommendation-gated names.")
 
     opinion = payload.get("llm_opinion") or {}
     lines.extend(["", "## LLM opinion", ""])

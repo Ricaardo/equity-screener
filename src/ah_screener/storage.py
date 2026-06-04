@@ -263,6 +263,11 @@ CREATE TABLE IF NOT EXISTS expert_screening_results (
     liquidity_score DOUBLE,
     valuation_score DOUBLE,
     risk_score DOUBLE,
+    last_price DOUBLE,
+    amount DOUBLE,
+    market_cap DOUBLE,
+    is_investable BOOLEAN DEFAULT true,
+    investability_reasons VARCHAR,
     decision VARCHAR,
     theme_matches VARCHAR,
     reasons VARCHAR,
@@ -298,6 +303,11 @@ CREATE TABLE IF NOT EXISTS refined_candidates (
     expert_score DOUBLE,
     fundamental_score DOUBLE,
     technical_score DOUBLE,
+    last_price DOUBLE,
+    amount DOUBLE,
+    market_cap DOUBLE,
+    is_investable BOOLEAN DEFAULT true,
+    investability_reasons VARCHAR,
     detailed_industry VARCHAR,
     industry_peer_group VARCHAR,
     peer_score DOUBLE,
@@ -390,6 +400,11 @@ ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS industry_fit_score
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS canonical_id VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS detailed_industry VARCHAR;
 ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS valuation_percentile DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS last_price DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS amount DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS market_cap DOUBLE;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS is_investable BOOLEAN DEFAULT true;
+ALTER TABLE expert_screening_results ADD COLUMN IF NOT EXISTS investability_reasons VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS peer_group VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS style_bucket VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS selection_note VARCHAR;
@@ -399,6 +414,11 @@ ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS industry_fit_score DOUBL
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS canonical_id VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS detailed_industry VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS valuation_percentile DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS last_price DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS amount DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS market_cap DOUBLE;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS is_investable BOOLEAN DEFAULT true;
+ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS investability_reasons VARCHAR;
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS snapshot_source VARCHAR DEFAULT 'natural';
 ALTER TABLE refined_candidates ADD COLUMN IF NOT EXISTS is_replay BOOLEAN DEFAULT false;
 UPDATE refined_candidates

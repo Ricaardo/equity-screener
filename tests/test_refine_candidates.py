@@ -80,3 +80,19 @@ class RefineCandidatesTest(TestCase):
         self.assertEqual(len(refined), 1)
         self.assertEqual(refined.iloc[0]["market"], "US")
         self.assertEqual(refined.iloc[0]["peer_group"], "阿里巴巴")
+
+    def test_non_investable_candidate_cannot_enter_refined_pool(self) -> None:
+        results = pd.DataFrame(
+            [
+                _candidate("US", "NVDA", "NVIDIA", 82, "AI算力硬件"),
+                {
+                    **_candidate("US", "SPACU", "Example Acquisition Corp Unit", 95, "AI算力硬件"),
+                    "is_investable": False,
+                    "investability_reasons": json.dumps(["us_shell_structure"]),
+                },
+            ]
+        )
+
+        refined = refine_candidates(results, max_per_bucket=3)
+
+        self.assertEqual(set(refined["symbol"]), {"NVDA"})

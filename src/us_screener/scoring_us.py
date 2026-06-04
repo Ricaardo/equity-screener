@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import datetime
 from typing import Any
 
@@ -45,6 +46,10 @@ DEFAULT_FUNDAMENTAL_SCORE = getattr(weights, "DEFAULT_FUNDAMENTAL_SCORE", 50.0)
 # Model parameters live in ah_screener.weights (single source of truth, with
 # provenance) — see US_* entries. Aliased here for terse use in the blend below.
 _SCORE_WEIGHTS = weights.US_EXPERT_COMPOSITE
+_SHELL_STRUCTURE_RE = re.compile(
+    r"\b(blank check|special purpose acquisition|acquisition corp|spac|warrant|rights?|units?)\b",
+    re.IGNORECASE,
+)
 
 _SCHEMA_COLUMNS = [
     "snapshot_date",
@@ -67,6 +72,11 @@ _SCHEMA_COLUMNS = [
     "liquidity_score",
     "valuation_score",
     "risk_score",
+    "last_price",
+    "amount",
+    "market_cap",
+    "is_investable",
+    "investability_reasons",
     "decision",
     "theme_matches",
     "reasons",
@@ -200,6 +210,39 @@ def _filter_reasons(row: pd.Series, cfg) -> list[str]:
     return reasons
 
 
+def _recommendation_filter_reasons(row: pd.Series, cfg) -> list[str]:
+    """Stricter recommendation-grade gate used by reports/UI.
+
+    The base ``is_filtered`` gate keeps the full audit universe bounded and rejects
+    untradeable names. This second gate keeps small caps, missing market-cap names,
+    low-price equities, and SPAC/warrant/unit structures out of actionable suggestions.
+    """
+    reasons: list[str] = []
+    price = _num(row.get("last_price"))
+    if price is None or price <= 0:
+        reasons.append("price_missing")
+    elif price < cfg.recommend_min_price:
+        reasons.append("us_low_price")
+
+    amount = _num(row.get("amount"))
+    if amount is None or amount <= 0:
+        reasons.append("amount_missing")
+    elif amount < cfg.recommend_min_us_amount:
+        reasons.append("low_amount")
+
+    market_cap = _num(row.get("market_cap"))
+    if market_cap is None or market_cap <= 0:
+        reasons.append("market_cap_missing")
+    elif market_cap < cfg.recommend_min_market_cap:
+        reasons.append("low_market_cap")
+
+    text = f"{row.get('symbol') or ''} {row.get('name') or ''}"
+    if _SHELL_STRUCTURE_RE.search(text):
+        reasons.append("us_shell_structure")
+
+    return list(dict.fromkeys(reasons))
+
+
 def _daily_factor_symbols(frame: pd.DataFrame, cfg) -> set[str]:
     """Symbols worth running expensive daily-price factors for.
 
@@ -280,14 +323,27 @@ def _build_reasons(frame: pd.DataFrame) -> pd.Series:
         DEFAULT_FUNDAMENTAL_SCORE
     )
     filters = _series(frame, "filter_reasons", dtype=object)
+    recommendation_filters = _series(frame, "recommendation_filter_reasons", dtype=object)
     rows: list[list[str]] = []
-    for bs, h, m, t, f, reasons in zip(boards, heat, macro, technical, fundamental, filters, strict=False):
+    zipped = zip(
+        boards,
+        heat,
+        macro,
+        technical,
+        fundamental,
+        filters,
+        recommendation_filters,
+        strict=False,
+    )
+    for bs, h, m, t, f, reasons, recommendation_reasons in zipped:
         items: list[str] = []
         if isinstance(bs, list) and bs:
             items.append("主题板块: " + "、".join(bs[:3]))
         items.extend([f"heat={h:.1f}", f"macro={m:.1f}", f"technical={t:.1f}", f"fundamental={f:.1f}"])
         if reasons:
             items.append("filtered: " + ", ".join(reasons))
+        if recommendation_reasons:
+            items.append("recommendation_filtered: " + ", ".join(recommendation_reasons))
         rows.append(items)
     return pd.Series(rows, index=frame.index)
 
@@ -315,6 +371,10 @@ def _persist_results(store, results: pd.DataFrame, snapshot_date: pd.Timestamp) 
     payload["valuation_percentile"] = (100.0 - payload["valuation_score"].fillna(50.0)).clip(0, 100)
     payload["theme_score"] = payload["theme_score_final"].fillna(35.0)
     payload["risk_score"] = payload["risk_score"].fillna(100.0)
+    payload["is_investable"] = payload["is_recommendable"].fillna(False).astype(bool)
+    payload["investability_reasons"] = payload["recommendation_filter_reasons"].map(
+        lambda items: json.dumps(items or [], ensure_ascii=False)
+    )
     payload["theme_matches"] = payload["concept_boards"].map(
         lambda boards: json.dumps(boards or [], ensure_ascii=False)
     )
@@ -476,6 +536,12 @@ def run_us_screen(store=None, *, persist: bool = True, macro_context: dict[str, 
 
     frame["filter_reasons"] = frame.apply(lambda row: _filter_reasons(row, cfg), axis=1)
     frame["is_filtered"] = frame["filter_reasons"].map(bool).astype(bool)
+    frame["recommendation_filter_reasons"] = frame.apply(
+        lambda row: _recommendation_filter_reasons(row, cfg), axis=1
+    )
+    frame["is_recommendable"] = (
+        ~frame["is_filtered"] & ~frame["recommendation_filter_reasons"].map(bool)
+    ).astype(bool)
     frame["risk_score"] = frame["filter_reasons"].map(_risk_score)
 
     frame["expert_score"] = (
@@ -502,10 +568,12 @@ def run_us_screen(store=None, *, persist: bool = True, macro_context: dict[str, 
         .round(2)
     )
     frame["is_filtered"] = frame["is_filtered"].map(_bool_value).astype(bool)
+    frame["is_recommendable"] = frame["is_recommendable"].map(_bool_value).astype(bool)
     frame["is_china_concept"] = frame["is_china_concept"].map(_bool_value).astype(bool)
 
     frame = frame.sort_values(
-        ["is_filtered", "expert_score", "heat_score", "symbol"], ascending=[True, False, False, True]
+        ["is_filtered", "is_recommendable", "expert_score", "heat_score", "symbol"],
+        ascending=[True, False, False, False, True],
     ).reset_index(drop=True)
 
     persisted_rows = _persist_results(store, frame, snapshot_date) if persist and snapshot_date is not None else 0
@@ -524,7 +592,9 @@ def run_us_screen(store=None, *, persist: bool = True, macro_context: dict[str, 
                     "expert_score": _clean(row.get("expert_score")),
                     "decision": _clean(row.get("decision")),
                     "is_filtered": _clean(row.get("is_filtered")),
+                    "is_recommendable": _clean(row.get("is_recommendable")),
                     "filter_reasons": _clean(row.get("filter_reasons")),
+                    "recommendation_filter_reasons": _clean(row.get("recommendation_filter_reasons")),
                     "concept_boards": _clean(row.get("concept_boards")),
                     "score_components": _clean(row.get("score_components")),
                 }

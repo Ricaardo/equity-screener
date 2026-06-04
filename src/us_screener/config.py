@@ -60,6 +60,9 @@ class USConfig:
     # universe / hard filters
     min_us_amount: float
     min_market_cap: float
+    recommend_min_us_amount: float
+    recommend_min_market_cap: float
+    recommend_min_price: float
     exclude_china_concept: bool
     # data source: free providers by default (futu-independent)
     use_futu: bool
@@ -101,6 +104,9 @@ def get_us_config() -> USConfig:
         reports_dir=Path(os.getenv("US_SCREENER_REPORTS", DEFAULT_REPORTS_DIR)),
         min_us_amount=float(os.getenv("US_SCREENER_MIN_AMOUNT", "3000000")),
         min_market_cap=float(os.getenv("US_SCREENER_MIN_MKTCAP", "300000000")),
+        recommend_min_us_amount=float(os.getenv("US_SCREENER_RECOMMEND_MIN_AMOUNT", "20000000")),
+        recommend_min_market_cap=float(os.getenv("US_SCREENER_RECOMMEND_MIN_MKTCAP", "5000000000")),
+        recommend_min_price=float(os.getenv("US_SCREENER_RECOMMEND_MIN_PRICE", "5")),
         exclude_china_concept=os.getenv("US_SCREENER_EXCLUDE_CHINA", "1").strip().lower() in _TRUE,
         use_futu=use_futu(),
         stooq_zip=os.getenv("US_SCREENER_STOOQ_ZIP") or None,

@@ -13,6 +13,7 @@ from ah_screener.config import get_settings
 from ah_screener.selection import dedup_etf_pool, etf_category_overview
 from ah_screener.universe import ETFS, select_assets
 from ah_screener.expert_model import STRATEGY_NAME
+from ah_screener.investability import summarize_reason_lists
 from ah_screener.storage import Store
 
 
@@ -432,6 +433,7 @@ def _build_daily_brief(
     freshness: list[dict[str, object]],
     date_warning: str,
     portfolio_notes: list[str],
+    investability_summary: dict[str, int],
 ) -> dict[str, object]:
     return {
         "headline": CONCLUSION_LINES[0],
@@ -448,6 +450,7 @@ def _build_daily_brief(
             "coverage_counts": {key: int(value) for key, value in coverage.items()},
             "freshness": freshness,
             "warning": date_warning or None,
+            "investability_summary": investability_summary,
         },
         "portfolio_notes": portfolio_notes[:4],
         "reader_contract": "默认只读短摘要；完整覆盖率、长表和证据口径进入附录。",
@@ -766,6 +769,10 @@ def _render_daily_brief(payload: dict[str, object]) -> str:
     data_health = brief.get("data_health") if isinstance(brief.get("data_health"), dict) else {}
     if data_health.get("warning"):
         lines.append(f"- {data_health.get('warning')}")
+    investability = data_health.get("investability_summary")
+    if isinstance(investability, dict) and investability:
+        summary = "；".join(f"{key} {value}" for key, value in list(investability.items())[:6])
+        lines.append(f"- 推荐池过滤：{summary}")
     lines.append(f"- 完整长表和覆盖率见 `{payload.get('appendix_report')}`。")
     return "\n".join(lines).strip() + "\n"
 
@@ -781,6 +788,11 @@ def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, str, d
     refined_all = data["refined"]
     refined = _latest(data["refined"], "snapshot_date")
     expert = _latest(data["expert"], "snapshot_date")
+    investability_summary = (
+        summarize_reason_lists(expert["investability_reasons"])
+        if not expert.empty and "investability_reasons" in expert.columns
+        else {}
+    )
     fundamentals = _latest(data["fundamentals"], "snapshot_date")
     for column in [
         "revenue_cagr_3y",
@@ -1273,6 +1285,7 @@ def _report_artifacts(store: Store, generated_at: datetime) -> tuple[str, str, d
         bias_notes=bias_notes,
         markdown_relpath=markdown_relpath,
         appendix_relpath=appendix_relpath,
+        investability_summary=investability_summary,
     )
     brief_text = _render_daily_brief(payload)
     return brief_text, appendix_text, payload
@@ -1320,6 +1333,7 @@ def _build_payload(
     bias_notes: list[str],
     markdown_relpath: str,
     appendix_relpath: str,
+    investability_summary: dict[str, int] | None = None,
 ) -> dict[str, object]:
     """Assemble the machine-readable report payload (stable English keys).
 
@@ -1327,6 +1341,7 @@ def _build_payload(
     parsed ``reasons`` evidence chain, mirroring exactly what the Markdown shows.
     """
     # Stock candidates are A/HK/US equities (the expert universe is stocks-only).
+    investability_summary = investability_summary or {}
     refined = refined.copy()
     if not refined.empty:
         refined["trading_system"] = [_trading_system(m, "stock") for m in refined["market"]]
@@ -1338,6 +1353,11 @@ def _build_payload(
         "trading_system",
         "symbol",
         "name",
+        "last_price",
+        "amount",
+        "market_cap",
+        "is_investable",
+        "investability_reasons",
         "expert_score",
         "fundamental_score",
         "technical_score",
@@ -1363,6 +1383,11 @@ def _build_payload(
         "trading_system",
         "symbol",
         "name",
+        "last_price",
+        "amount",
+        "market_cap",
+        "is_investable",
+        "investability_reasons",
         "expert_score",
         "master_score",
         "china_master_score",
@@ -1457,10 +1482,14 @@ def _build_payload(
         changes = _records(renamed, list(change_key_map.values()))
 
     refined_records = _annotate_candidate_records(
-        _records(refined, refined_fields, list_fields=("theme_matches", "reasons"))
+        _records(
+            refined,
+            refined_fields,
+            list_fields=("theme_matches", "reasons", "investability_reasons"),
+        )
     )
     core_records = _annotate_candidate_records(
-        _records(core, core_fields, list_fields=("theme_matches", "reasons"))
+        _records(core, core_fields, list_fields=("theme_matches", "reasons", "investability_reasons"))
     )
     potential_records = _annotate_potential_records(_records(potential, potential_fields))
     etf_records = _annotate_etf_records(_records(etf_leaders, etf_fields))
@@ -1476,6 +1505,7 @@ def _build_payload(
         freshness=freshness,
         date_warning=date_warning,
         portfolio_notes=portfolio_notes,
+        investability_summary=investability_summary,
     )
 
     return {
@@ -1493,6 +1523,7 @@ def _build_payload(
         "external_context": EXTERNAL_CONTEXT,
         "data_freshness": freshness,
         "data_freshness_warning": date_warning or None,
+        "investability_summary": investability_summary,
         "coverage_counts": {key: int(value) for key, value in coverage.items()},
         "decision_distribution": decision_distribution,
         "counts": {

@@ -8,6 +8,11 @@ export interface Candidate {
   trading_system: string;
   symbol: string;
   name: string;
+  last_price?: number | null;
+  amount?: number | null;
+  market_cap?: number | null;
+  is_investable?: boolean;
+  investability_reasons?: string[];
   expert_score?: number;
   master_score?: number;
   china_master_score?: number;
@@ -116,6 +121,7 @@ export interface DailyBrief {
     coverage_counts: Record<string, number>;
     freshness: Array<{ market: Market; latest_date: string }>;
     warning?: string | null;
+    investability_summary?: Record<string, number>;
   };
   portfolio_notes: string[];
   reader_contract: string;
@@ -141,6 +147,8 @@ export interface UsCandidate {
   name: string;
   expert_score?: number;
   decision?: string;
+  last_price?: number | null;
+  amount?: number | null;
   fundamental_score_final?: number;
   technical_score?: number;
   valuation_score?: number;
@@ -154,6 +162,9 @@ export interface UsCandidate {
   short_ratio?: number | null;
   macro_score?: number;
   concept_boards?: string[];
+  filter_reasons?: string[];
+  is_recommendable?: boolean;
+  recommendation_filter_reasons?: string[];
   reasons_list?: string[];
 }
 
@@ -186,9 +197,12 @@ export interface UsPremarketReport {
   counts: {
     universe?: number;
     candidates?: number;
+    recommendable?: number;
     filtered?: number;
     core_candidates?: number;
   };
+  filtered_summary?: Record<string, number>;
+  recommendation_filtered_summary?: Record<string, number>;
   top_candidates: UsCandidate[];
   hot_themes: HotTheme[];
   squeeze_watch: SqueezeItem[];
@@ -210,6 +224,7 @@ export interface ScreeningReport {
   external_context: Array<{ name: string; url: string; note: string }>;
   data_freshness: Array<{ market: Market; latest_date: string }>;
   data_freshness_warning?: string | null;
+  investability_summary?: Record<string, number>;
   coverage_counts: Record<string, number>;
   decision_distribution: Array<{ decision: string; count: number }>;
   counts: {

@@ -813,6 +813,22 @@ def test_reporting_payload_and_files(tmp_path: Path, monkeypatch):
     assert written["report_type"] == "us-premarket"
 
 
+def test_us_report_uses_stricter_recommendation_gate(tmp_path: Path, monkeypatch):
+    monkeypatch.setenv("US_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    monkeypatch.setenv("AH_SCREENER_DB", str(tmp_path / "us.duckdb"))
+    store = _seed_store(tmp_path)
+    _tag_baba(store)
+
+    payload = build_us_premarket_payload(store)
+    symbols = {item["symbol"] for item in payload["top_candidates"]}
+
+    assert "NVDA" in symbols
+    assert "AAPL" not in symbols  # 15M turnover: tradable scan, not recommendation-grade.
+    assert "IONQ" not in symbols  # 4.5M turnover: too small for actionable suggestions.
+    assert payload["counts"]["recommendable"] < payload["counts"]["candidates"]
+    assert "low_amount" in payload["recommendation_filtered_summary"]
+
+
 def test_llm_skip_without_keys(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)

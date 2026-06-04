@@ -10,6 +10,7 @@ import pandas as pd
 
 from ah_screener import weights
 from ah_screener.config import Settings
+from ah_screener.investability import REASON_LABELS, investability_reasons
 from ah_screener.scoring import _liquidity_score, _risk_penalty, _valuation_score
 
 
@@ -784,6 +785,12 @@ def run_expert_model(
 
         p = weights.RISK_PENALTY
         penalty, risk_reasons = _risk_penalty(row, settings, delisted_keys)
+        investability = investability_reasons(row, settings)
+        is_investable = len(investability) == 0
+        if not is_investable:
+            penalty += 100.0
+            labels = [REASON_LABELS.get(reason, reason) for reason in investability]
+            risk_reasons.append("可投资性过滤：" + "、".join(labels))
         document_penalty, document_reasons = _document_risk_penalty(str(risk_tag_text.get(key, "")))
         penalty += document_penalty
         risk_reasons.extend(document_reasons)
@@ -923,6 +930,11 @@ def run_expert_model(
                 "liquidity_score": liquidity,
                 "valuation_score": valuation,
                 "risk_score": float(np.clip(penalty, 0, 100)),
+                "last_price": row.get("last_price"),
+                "amount": row.get("amount"),
+                "market_cap": row.get("market_cap"),
+                "is_investable": is_investable,
+                "investability_reasons": json.dumps(investability, ensure_ascii=False),
                 "decision": decision,
                 "theme_matches": json.dumps([theme.name for theme in matches], ensure_ascii=False),
                 "reasons": json.dumps(reason_parts, ensure_ascii=False),
@@ -1111,6 +1123,9 @@ def refine_candidates(
     candidates = results[
         results["decision"].isin(["core_candidate", "watchlist", "reserve"])
     ].copy()
+    if "is_investable" in candidates.columns:
+        investable = candidates["is_investable"]
+        candidates = candidates[investable.isna() | investable.eq(True)]
     candidates = candidates[candidates["expert_score"] >= 56]
     if candidates.empty:
         return pd.DataFrame()
@@ -1128,6 +1143,11 @@ def refine_candidates(
         ("detailed_industry", ""),
         ("valuation_percentile", 50.0),
         ("canonical_id", None),
+        ("last_price", pd.NA),
+        ("amount", pd.NA),
+        ("market_cap", pd.NA),
+        ("is_investable", True),
+        ("investability_reasons", "[]"),
         ("snapshot_source", "natural"),
         ("is_replay", False),
     ]:
