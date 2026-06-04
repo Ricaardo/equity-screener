@@ -23,6 +23,7 @@ data/*.duckdb.*
 data/hkex_documents/
 
 .DS_Store
+.vercel/
 
 # Serena MCP tool artifacts
 .serena/
