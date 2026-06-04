@@ -4,11 +4,13 @@ import {
   CheckCircle2,
   CircleAlert,
   ClipboardCheck,
+  Clock,
   Filter,
   Flame,
   LineChart,
   RefreshCcw,
   Target,
+  TriangleAlert,
   WalletCards,
   Zap
 } from "lucide-react";
@@ -126,6 +128,30 @@ function summarizeReasons(summary?: Record<string, number>): string {
     .join(" / ");
 }
 
+// Data freshness powers the trust signal in the top bar. A daily pipeline run
+// should refresh within ~a day; older than that means a run was likely missed.
+const STALE_HOURS = 28;
+const VERY_STALE_HOURS = 52;
+
+type Freshness = { text: string; tone: "fresh" | "warn" | "stale"; exact: string };
+
+function freshnessFrom(generatedAt?: string): Freshness {
+  const then = generatedAt ? new Date(generatedAt).getTime() : NaN;
+  if (!Number.isFinite(then)) {
+    return { text: "更新时间未知", tone: "warn", exact: "无生成时间" };
+  }
+  const exact = new Date(then).toLocaleString("zh-CN", { hour12: false });
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60_000));
+  const hours = minutes / 60;
+  let text: string;
+  if (minutes < 1) text = "刚刚更新";
+  else if (minutes < 60) text = `${minutes} 分钟前更新`;
+  else if (hours < 24) text = `${Math.round(hours)} 小时前更新`;
+  else text = `${Math.floor(hours / 24)} 天前更新`;
+  const tone: Freshness["tone"] = hours <= STALE_HOURS ? "fresh" : hours <= VERY_STALE_HOURS ? "warn" : "stale";
+  return { text, tone, exact: `生成于 ${exact}` };
+}
+
 function actionForCandidate(candidate: Candidate, index: number): string {
   const score = Number(candidate.expert_score ?? 0);
   if (index === 0 || score >= 74) return "优先验证";
@@ -203,6 +229,35 @@ function actionItemsFromRecommendations(items: Recommendation[]): ActionItem[] {
   }));
 }
 
+function DataFreshness({
+  market,
+  dataDate,
+  generatedAt,
+  warning
+}: {
+  market: Market;
+  dataDate: string;
+  generatedAt?: string;
+  warning?: string | null;
+}) {
+  const fresh = freshnessFrom(generatedAt);
+  return (
+    <div className={`freshness freshness--${fresh.tone}`} title={fresh.exact}>
+      <span className="freshness__data">
+        <Clock size={13} />
+        {marketLabels[market]}数据 {dataDate}
+      </span>
+      <b>{fresh.text}</b>
+      {warning ? (
+        <em className="freshness__warn">
+          <TriangleAlert size={12} />
+          {warning}
+        </em>
+      ) : null}
+    </div>
+  );
+}
+
 function App() {
   const [report, setReport] = useState<ScreeningReport | null>(null);
   const [us, setUs] = useState<UsPremarketReport | null>(null);
@@ -260,7 +315,12 @@ function App() {
   };
 
   const marketDate = (market: Market): string =>
-    market === "US" ? us?.report_date ?? "—" : report.report_date;
+    market === "US"
+      ? us?.report_date ?? "—"
+      : report.data_freshness.find((f) => f.market === market)?.latest_date ?? report.report_date;
+
+  const activeGeneratedAt = activeMarket === "US" ? us?.generated_at : report.generated_at;
+  const freshnessWarning = activeMarket === "US" ? null : report.data_freshness_warning;
 
   return (
     <main className="page">
@@ -268,9 +328,12 @@ function App() {
         <div className="topbar__brand">
           <div className="eyebrow">A/H/US daily brief</div>
           <strong>今日建议</strong>
-          <span>
-            {marketLabels[activeMarket]} · {marketDate(activeMarket)}
-          </span>
+          <DataFreshness
+            market={activeMarket}
+            dataDate={marketDate(activeMarket)}
+            generatedAt={activeGeneratedAt}
+            warning={freshnessWarning}
+          />
         </div>
         <nav className="market-tabs" aria-label="市场">
           {markets.map((market) => (
@@ -561,9 +624,12 @@ function ActionQueue({ items }: { items: ActionItem[] }) {
         <EmptyState title="暂无行动项" description="当前市场没有通过推荐门槛的候选。" />
       ) : (
         <div className="action-list">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <article className={`action-row action-row--${item.kind}`} key={item.id}>
-              <span>{item.label}</span>
+              <span className="action-row__head">
+                <i className="action-row__rank">{index + 1}</i>
+                {item.label}
+              </span>
               <strong>{item.title}</strong>
               <p>{item.meta || "等待进一步核验"}</p>
               <b>{fmtScore(item.score)}</b>
