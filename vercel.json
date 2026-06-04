@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm run build",
+  "outputDirectory": "frontend/dist",
+  "build": {
+    "env": {
+      "VITE_DATA_BASE_URL": "https://raw.githubusercontent.com/Ricaardo/ah-stock-screener/data-latest"
+    }
+  },
+  "git": {
+    "deploymentEnabled": {
+      "data-latest": false
+    }
+  }
+}
