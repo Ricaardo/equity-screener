@@ -381,6 +381,81 @@ CREATE TABLE IF NOT EXISTS ingest_failures (
     occurred_at TIMESTAMP,
     PRIMARY KEY (run_date, step)
 );
+
+CREATE TABLE IF NOT EXISTS lhb_detail (
+    trade_date DATE NOT NULL,
+    symbol VARCHAR NOT NULL,
+    name VARCHAR,
+    reason VARCHAR NOT NULL,
+    interpretation VARCHAR,
+    close_price DOUBLE,
+    pct_change DOUBLE,
+    lhb_net_buy DOUBLE,
+    lhb_buy DOUBLE,
+    lhb_sell DOUBLE,
+    lhb_turnover DOUBLE,
+    market_turnover DOUBLE,
+    net_buy_ratio DOUBLE,
+    turnover_ratio DOUBLE,
+    turnover_rate DOUBLE,
+    free_float_mcap DOUBLE,
+    d1_chg DOUBLE,
+    d2_chg DOUBLE,
+    d5_chg DOUBLE,
+    d10_chg DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (trade_date, symbol, reason, source)
+);
+
+CREATE TABLE IF NOT EXISTS capital_flow (
+    trade_date DATE NOT NULL,
+    symbol VARCHAR NOT NULL,
+    flow_scope VARCHAR NOT NULL,
+    name VARCHAR,
+    close DOUBLE,
+    pct_change DOUBLE,
+    close2 DOUBLE,
+    pct_change2 DOUBLE,
+    main_net DOUBLE,
+    main_net_pct DOUBLE,
+    super_net DOUBLE,
+    super_net_pct DOUBLE,
+    large_net DOUBLE,
+    large_net_pct DOUBLE,
+    medium_net DOUBLE,
+    medium_net_pct DOUBLE,
+    small_net DOUBLE,
+    small_net_pct DOUBLE,
+    indicator VARCHAR,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (trade_date, symbol, flow_scope, source)
+);
+
+CREATE TABLE IF NOT EXISTS northbound_flow (
+    trade_date DATE NOT NULL,
+    channel VARCHAR NOT NULL,
+    flow_type VARCHAR NOT NULL,
+    net_buy DOUBLE,
+    buy_amt DOUBLE,
+    sell_amt DOUBLE,
+    accum_net_buy DOUBLE,
+    fund_inflow DOUBLE,
+    quota_balance DOUBLE,
+    hold_market_cap DOUBLE,
+    up_count DOUBLE,
+    flat_count DOUBLE,
+    down_count DOUBLE,
+    index_close DOUBLE,
+    index_pct DOUBLE,
+    lead_stock_name VARCHAR,
+    lead_stock_symbol VARCHAR,
+    lead_stock_pct DOUBLE,
+    source VARCHAR NOT NULL,
+    updated_at TIMESTAMP,
+    PRIMARY KEY (trade_date, channel, flow_type, source)
+);
 """
 
 MIGRATION_SQL = """

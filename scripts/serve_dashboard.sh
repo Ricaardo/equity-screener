@@ -15,7 +15,7 @@ PORT="${DASHBOARD_PORT:-4319}"
 HOST="${DASHBOARD_HOST:-127.0.0.1}"
 NODE_BIN="/usr/local/bin/node"
 
-cd /Users/x/ah-stock-screener/frontend
+cd /Users/x/nimbus-stack/equity-screener/frontend
 
 if [[ ! -f dist/index.html ]]; then
   echo "$(date +%Y-%m-%dT%H:%M:%S%z) dist/ missing — build first: VITE_DATA_BASE_URL=... npm run build" >&2

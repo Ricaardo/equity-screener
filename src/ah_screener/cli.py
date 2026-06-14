@@ -876,6 +876,36 @@ def report_command(
     console.print(f"Report generated: {path}")
 
 
+@app.command("update-exclusives")
+def update_exclusives_command(
+    days: int = typer.Option(5, help="Lookback window (natural days) for 龙虎榜."),
+    top: int = typer.Option(100, help="Top liquid A-share stocks for individual capital flow."),
+    channels: Optional[str] = typer.Option(
+        None,
+        help="Comma-separated northbound channels, for example 北向资金,沪股通,深股通. Defaults to 北向资金.",
+    ),
+    include_rank: bool = typer.Option(False, help="Reserved: include capital-flow rank table (not yet implemented)."),
+    include_summary: bool = typer.Option(False, help="Reserved: include northbound summary rows (not yet implemented)."),
+) -> None:
+    """Sync 龙虎榜, A-share capital flow, and northbound (沪深港通) flow into local DB."""
+    from ah_screener.exclusives import update_exclusives
+
+    channel_list = (
+        [item.strip() for item in channels.split(",") if item.strip()]
+        if channels
+        else None
+    )
+    result = update_exclusives(
+        days=days,
+        top=top,
+        channels=channel_list,
+        include_rank=include_rank,
+        include_summary=include_summary,
+    )
+    for k, v in result.items():
+        console.print(f"{k}: {v}")
+
+
 @app.command("update-all")
 def update_all_command(
     top: int = typer.Option(120, help="Top liquid names per market for daily-price history."),
