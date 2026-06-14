@@ -1,0 +1,4573 @@
+{
+  "schema_version": "1.2",
+  "report_type": "ah-screening",
+  "generated_at": "2026-06-07T09:24:28",
+  "report_date": "2026-06-07",
+  "strategy": "china_masters_fundamental_theme_technical_v2",
+  "database": "/Users/x/ah-stock-screener/data/ah_screener.duckdb",
+  "disclaimer": "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。",
+  "markdown_report": "ah-screening-report-2026-06-07.md",
+  "appendix_report": "ah-screening-appendix-2026-06-07.md",
+  "conclusion": [
+    "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
+    "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。"
+  ],
+  "bias_notes": [
+    "回测默认只使用定时/手动自然生成的候选快照；历史回放快照必须显式传 `--include-replay`，只作诊断，不作 edge 证明。",
+    "`potential-sweep` 是同一历史样本内的阈值扫描；RS 阈值证据必须以 `potential-walk-forward` 的样本外结果为准。",
+    "当前 active universe 已按日期留痕；退市/摘牌生命周期已入库（A 349, HK 717）。US 历史摘牌依赖 `AH_SCREENER_ALPHA_VANTAGE_KEY`；自然快照样本积累前，早期历史验证仍保留幸存者偏差。"
+  ],
+  "external_context": [
+    {
+      "name": "国务院“人工智能+”行动意见",
+      "url": "https://www.cac.gov.cn/2025-08/27/c_1758018277755538.htm",
+      "note": "政策层面强调 AI 与产业、科技、消费、治理等重点领域融合。"
+    },
+    {
+      "name": "国家发展改革委、国家能源局“人工智能+能源”实施意见",
+      "url": "https://www.nda.gov.cn/sjj/zwgk/zcfb/0908/20250908201317566927066_pc.html",
+      "note": "算力与电力协同、智能电网、储能和新能源是政策明确支持方向。"
+    },
+    {
+      "name": "中国证券报：港股结构性机会",
+      "url": "https://www.cs.com.cn/gppd/ggzx/2026/05/06/detail_2026050610009410.html",
+      "note": "港股更适合聚焦科技 AI、高股息和创新医药等结构性机会。"
+    },
+    {
+      "name": "财联社转载中信证券科技策略",
+      "url": "https://www.cls.cn/detail/2365601",
+      "note": "科技硬件端景气度领先，关注 AI 算力、光通信、半导体设备和上游涨价链。"
+    }
+  ],
+  "data_freshness": [
+    {
+      "market": "HK",
+      "latest_date": "2026-06-06"
+    },
+    {
+      "market": "A",
+      "latest_date": "2026-06-07"
+    },
+    {
+      "market": "US",
+      "latest_date": "2026-06-07"
+    }
+  ],
+  "data_freshness_warning": null,
+  "investability_summary": {
+    "low_market_cap": 5366,
+    "hk_non_connect_illiquid": 3306,
+    "low_amount": 2990,
+    "amount_missing": 1454,
+    "market_cap_missing": 1314,
+    "hk_penny": 1100,
+    "price_missing": 929,
+    "a_excluded_board": 397,
+    "a_st_or_delisting_name": 265,
+    "distress_name": 8
+  },
+  "coverage_counts": {
+    "证券快照": 12852,
+    "技术指标": 1462,
+    "标准化基本面": 288,
+    "专家评分": 9410,
+    "提炼候选": 24,
+    "退市生命周期": 1134
+  },
+  "decision_distribution": [
+    {
+      "decision": "reject",
+      "count": 9094
+    },
+    {
+      "decision": "reserve",
+      "count": 242
+    },
+    {
+      "decision": "watchlist",
+      "count": 57
+    },
+    {
+      "decision": "core_candidate",
+      "count": 17
+    }
+  ],
+  "counts": {
+    "refined_candidates": 24,
+    "core_candidates": 17,
+    "potential_candidates": 0,
+    "etf_leaders": 20,
+    "refined_by_market": {
+      "HK": 23,
+      "A": 1
+    }
+  },
+  "daily_brief": {
+    "headline": "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
+    "focus": "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
+    "priority_candidates": [
+      {
+        "bucket": "AI算力硬件",
+        "rank_in_bucket": 1,
+        "style_bucket": "科技成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "09999",
+        "name": "网易-S",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 79.21393571417995,
+        "fundamental_score": 83.59864676709307,
+        "technical_score": 59.150000000000006,
+        "detailed_industry": "AI平台与云软件",
+        "industry_peer_group": "AI平台与云软件",
+        "peer_score": 87.72222222222221,
+        "industry_fit_score": 86.60257216514331,
+        "valuation_percentile": 58.88888888888889,
+        "theme_matches": [
+          "AI算力硬件",
+          "港股AI互联网平台"
+        ],
+        "reasons": [
+          "大师框架分=74.2",
+          "中国大师框架分=83.3",
+          "基本面分=83.6",
+          "行业适配=86.6",
+          "同类分位=87.7",
+          "同类组=AI平台与云软件",
+          "细分行业=AI平台与云软件",
+          "估值同类分位=58.9",
+          "主题参考分=71.8（不计入综合分）",
+          "技术信号=constructive",
+          "行业化阈值=科技硬件/平台:86.6",
+          "研发费用率=15.7%",
+          "资本开支/经营现金流=0.04",
+          "现金流/利润=1.50",
+          "匹配主题=AI算力硬件、港股AI互联网平台"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=网易；风格=科技成长；同类组=AI平台与云软件；同类分位=87.7；行业适配=86.6；估值同类分位=58.9",
+        "why_selected": [
+          "专家分 79.2，进入当前提炼池",
+          "基本面 83.6，质量/成长支撑较强",
+          "同类分位 87.7，在可比组内靠前",
+          "行业适配 86.6，财务特征符合行业阈值"
+        ],
+        "key_risks": [
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "AI算力硬件",
+        "rank_in_bucket": 2,
+        "style_bucket": "科技成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "06869",
+        "name": "长飞光纤光缆",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 64.48706490889332,
+        "fundamental_score": 51.40499219730032,
+        "technical_score": 70.15,
+        "detailed_industry": "AI平台与云软件",
+        "industry_peer_group": "AI平台与云软件",
+        "peer_score": 72.72222222222223,
+        "industry_fit_score": 46.77768848372547,
+        "valuation_percentile": 10.0,
+        "theme_matches": [
+          "AI算力硬件"
+        ],
+        "reasons": [
+          "大师框架分=68.3",
+          "中国大师框架分=67.0",
+          "基本面分=51.4",
+          "行业适配=46.8",
+          "同类分位=72.7",
+          "同类组=AI平台与云软件",
+          "细分行业=AI平台与云软件",
+          "估值同类分位=10.0",
+          "主题参考分=56.0（不计入综合分）",
+          "技术信号=constructive",
+          "行业化阈值=科技硬件/平台:46.8",
+          "研发费用率=6.3%",
+          "资本开支/经营现金流=0.39",
+          "现金流/利润=4.49",
+          "匹配主题=AI算力硬件",
+          "基本面预警=[\"多期成长或稳定性偏弱\"]"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:长飞光纤光缆；风格=科技成长；同类组=AI平台与云软件；同类分位=72.7；行业适配=46.8；估值同类分位=10.0",
+        "why_selected": [
+          "专家分 64.5，进入当前提炼池",
+          "基本面 51.4，更依赖技术或主题验证",
+          "主题匹配：AI算力硬件"
+        ],
+        "key_risks": [
+          "基本面支撑偏弱，需核验利润和现金流质量",
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "AI算力硬件",
+        "rank_in_bucket": 3,
+        "style_bucket": "智能汽车",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "01810",
+        "name": "小米集团-W",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 60.03269013761927,
+        "fundamental_score": 70.00398787718746,
+        "technical_score": 0.0,
+        "detailed_industry": "AI平台与云软件",
+        "industry_peer_group": "AI平台与云软件",
+        "peer_score": 69.77777777777779,
+        "industry_fit_score": 76.43926471742272,
+        "valuation_percentile": 62.22222222222222,
+        "theme_matches": [
+          "AI算力硬件",
+          "港股AI互联网平台",
+          "汽车智能化与出海"
+        ],
+        "reasons": [
+          "大师框架分=57.0",
+          "中国大师框架分=72.4",
+          "基本面分=70.0",
+          "行业适配=76.4",
+          "同类分位=69.8",
+          "同类组=AI平台与云软件",
+          "细分行业=AI平台与云软件",
+          "估值同类分位=62.2",
+          "主题参考分=85.3（不计入综合分）",
+          "技术信号=weak",
+          "行业化阈值=能源汽车:76.4",
+          "研发费用率=7.2%",
+          "资本开支/经营现金流=0.37",
+          "现金流/利润=0.82",
+          "匹配主题=AI算力硬件、港股AI互联网平台、汽车智能化与出海"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:小米；风格=智能汽车；同类组=AI平台与云软件；同类分位=69.8；行业适配=76.4；估值同类分位=62.2",
+        "why_selected": [
+          "专家分 60.0，进入当前提炼池",
+          "基本面 70.0，质量/成长支撑较强",
+          "行业适配 76.4，财务特征符合行业阈值",
+          "主题匹配：AI算力硬件、港股AI互联网平台"
+        ],
+        "key_risks": [
+          "技术面未充分确认，避免只看主题或基本面分",
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的",
+          "等待趋势重新站稳关键均线或相对强度修复"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "创新药与医疗科技",
+        "rank_in_bucket": 1,
+        "style_bucket": "医药成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "02359",
+        "name": "药明康德",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 73.96670982244781,
+        "fundamental_score": 81.83632313806945,
+        "technical_score": 46.0,
+        "detailed_industry": "创新药与医疗科技",
+        "industry_peer_group": "创新药与医疗科技",
+        "peer_score": 91.1842105263158,
+        "industry_fit_score": 79.32240380047949,
+        "valuation_percentile": 67.29323308270678,
+        "theme_matches": [
+          "创新药与医疗科技"
+        ],
+        "reasons": [
+          "大师框架分=67.8",
+          "中国大师框架分=80.2",
+          "基本面分=81.8",
+          "行业适配=79.3",
+          "同类分位=91.2",
+          "同类组=创新药与医疗科技",
+          "细分行业=创新药与医疗科技",
+          "估值同类分位=67.3",
+          "主题参考分=52.0（不计入综合分）",
+          "技术信号=neutral",
+          "行业化阈值=通用质量:79.3",
+          "研发费用率=2.5%",
+          "资本开支/经营现金流=0.34",
+          "现金流/利润=0.86",
+          "匹配主题=创新药与医疗科技"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:药明康德；风格=医药成长；同类组=创新药与医疗科技；同类分位=91.2；行业适配=79.3；估值同类分位=67.3",
+        "why_selected": [
+          "专家分 74.0，进入当前提炼池",
+          "基本面 81.8，质量/成长支撑较强",
+          "同类分位 91.2，在可比组内靠前",
+          "行业适配 79.3，财务特征符合行业阈值"
+        ],
+        "key_risks": [
+          "技术面未充分确认，避免只看主题或基本面分",
+          "医药波动受临床、BD、集采和现金消耗影响"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的",
+          "等待趋势重新站稳关键均线或相对强度修复"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "创新药与医疗科技",
+        "rank_in_bucket": 2,
+        "style_bucket": "医药成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "02269",
+        "name": "药明生物",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 61.021329307918485,
+        "fundamental_score": 78.4422465903497,
+        "technical_score": 5.5,
+        "detailed_industry": "创新药与医疗科技",
+        "industry_peer_group": "创新药与医疗科技",
+        "peer_score": 60.24436090225564,
+        "industry_fit_score": 68.44931872215462,
+        "valuation_percentile": 21.052631578947366,
+        "theme_matches": [
+          "创新药与医疗科技"
+        ],
+        "reasons": [
+          "大师框架分=55.9",
+          "中国大师框架分=74.9",
+          "基本面分=78.4",
+          "行业适配=68.4",
+          "同类分位=60.2",
+          "同类组=创新药与医疗科技",
+          "细分行业=创新药与医疗科技",
+          "估值同类分位=21.1",
+          "主题参考分=52.0（不计入综合分）",
+          "技术信号=weak",
+          "行业化阈值=通用质量:68.4",
+          "研发费用率=3.9%",
+          "资本开支/经营现金流=0.59",
+          "现金流/利润=1.29",
+          "匹配主题=创新药与医疗科技"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:药明生物；风格=医药成长；同类组=创新药与医疗科技；同类分位=60.2；行业适配=68.4；估值同类分位=21.1",
+        "why_selected": [
+          "专家分 61.0，进入当前提炼池",
+          "基本面 78.4，质量/成长支撑较强",
+          "主题匹配：创新药与医疗科技"
+        ],
+        "key_risks": [
+          "技术面未充分确认，避免只看主题或基本面分",
+          "医药波动受临床、BD、集采和现金消耗影响"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的",
+          "等待趋势重新站稳关键均线或相对强度修复"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "创新药与医疗科技",
+        "rank_in_bucket": 3,
+        "style_bucket": "医药成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "01801",
+        "name": "信达生物",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 58.48204110160628,
+        "fundamental_score": 67.63891031128833,
+        "technical_score": 11.0,
+        "detailed_industry": "创新药与医疗科技",
+        "industry_peer_group": "创新药与医疗科技",
+        "peer_score": 57.59398496240601,
+        "industry_fit_score": 74.05681619169931,
+        "valuation_percentile": 10.526315789473683,
+        "theme_matches": [
+          "创新药与医疗科技"
+        ],
+        "reasons": [
+          "大师框架分=54.1",
+          "中国大师框架分=69.3",
+          "基本面分=67.6",
+          "行业适配=74.1",
+          "同类分位=57.6",
+          "同类组=创新药与医疗科技",
+          "细分行业=创新药与医疗科技",
+          "估值同类分位=10.5",
+          "主题参考分=52.0（不计入综合分）",
+          "技术信号=weak",
+          "行业化阈值=创新医药:74.1",
+          "研发费用率=20.1%",
+          "资本开支/经营现金流=0.07",
+          "现金流/利润=12.29",
+          "匹配主题=创新药与医疗科技"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:信达生物；风格=医药成长；同类组=创新药与医疗科技；同类分位=57.6；行业适配=74.1；估值同类分位=10.5",
+        "why_selected": [
+          "专家分 58.5，进入当前提炼池",
+          "主题匹配：创新药与医疗科技"
+        ],
+        "key_risks": [
+          "技术面未充分确认，避免只看主题或基本面分",
+          "医药波动受临床、BD、集采和现金消耗影响"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的",
+          "等待趋势重新站稳关键均线或相对强度修复"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "半导体国产替代",
+        "rank_in_bucket": 1,
+        "style_bucket": "科技成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "00981",
+        "name": "中芯国际",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 59.226631330106926,
+        "fundamental_score": 55.97521839964465,
+        "technical_score": 45.0,
+        "detailed_industry": "半导体与AI硬件",
+        "industry_peer_group": "半导体与AI硬件",
+        "peer_score": 75.17241379310344,
+        "industry_fit_score": 47.251898133076864,
+        "valuation_percentile": 3.4482758620689653,
+        "theme_matches": [
+          "半导体国产替代"
+        ],
+        "reasons": [
+          "大师框架分=58.1",
+          "中国大师框架分=64.3",
+          "基本面分=56.0",
+          "行业适配=47.3",
+          "同类分位=75.2",
+          "同类组=半导体与AI硬件",
+          "细分行业=半导体与AI硬件",
+          "估值同类分位=3.4",
+          "主题参考分=54.2（不计入综合分）",
+          "技术信号=neutral",
+          "行业化阈值=通用质量:47.3",
+          "研发费用率=8.3%",
+          "资本开支/经营现金流=2.63",
+          "现金流/利润=4.66",
+          "匹配主题=半导体国产替代",
+          "基本面预警=[\"ROE偏低\", \"多期成长或稳定性偏弱\", \"资本开支对经营现金流占用偏高\"]"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=中芯国际；风格=科技成长；同类组=半导体与AI硬件；同类分位=75.2；行业适配=47.3；估值同类分位=3.4",
+        "why_selected": [
+          "专家分 59.2，进入当前提炼池",
+          "同类分位 75.2，在可比组内靠前",
+          "主题匹配：半导体国产替代"
+        ],
+        "key_risks": [
+          "技术面未充分确认，避免只看主题或基本面分",
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的",
+          "等待趋势重新站稳关键均线或相对强度修复"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      },
+      {
+        "bucket": "半导体国产替代",
+        "rank_in_bucket": 2,
+        "style_bucket": "科技成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "01347",
+        "name": "华虹半导体",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 57.35541421773642,
+        "fundamental_score": 38.65364937354663,
+        "technical_score": 70.15,
+        "detailed_industry": "半导体与AI硬件",
+        "industry_peer_group": "半导体与AI硬件",
+        "peer_score": 33.79310344827586,
+        "industry_fit_score": 38.55270653918902,
+        "valuation_percentile": 10.344827586206897,
+        "theme_matches": [
+          "半导体国产替代"
+        ],
+        "reasons": [
+          "大师框架分=67.3",
+          "中国大师框架分=61.7",
+          "基本面分=38.7",
+          "行业适配=38.6",
+          "同类分位=33.8",
+          "同类组=半导体与AI硬件",
+          "细分行业=半导体与AI硬件",
+          "估值同类分位=10.3",
+          "主题参考分=54.2（不计入综合分）",
+          "技术信号=constructive",
+          "行业化阈值=通用质量:38.6",
+          "资本开支/经营现金流=2.79",
+          "现金流/利润=11.84",
+          "匹配主题=半导体国产替代",
+          "基本面预警=[\"ROE偏低\", \"利润同比下滑\", \"多期成长或稳定性偏弱\", \"资本开支对经营现金流占用偏高\"]"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:华虹半导体；风格=科技成长；同类组=半导体与AI硬件；同类分位=33.8；行业适配=38.6；估值同类分位=10.3",
+        "why_selected": [
+          "专家分 57.4，进入当前提炼池",
+          "基本面 38.7，更依赖技术或主题验证",
+          "主题匹配：半导体国产替代"
+        ],
+        "key_risks": [
+          "基本面支撑偏弱，需核验利润和现金流质量",
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      }
+    ],
+    "potential_setups": [],
+    "etf_use_cases": [
+      {
+        "key": "core_allocation",
+        "title": "核心配置",
+        "description": "用于表达主要市场或风格暴露，避免同类重复持有。",
+        "leaders": [
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589850",
+            "name": "科创50ETF东财",
+            "etf_category": "宽基指数ETF",
+            "etf_cluster": "成长科创宽基",
+            "etf_track": "科创50",
+            "etf_score": 91.6,
+            "etf_recommendation": "优先观察",
+            "peer_count": 106,
+            "peer_alternatives": "HK:03147 南方创业板 | A:589150 科创50ETF平安 | HK:03151 PP科创50",
+            "pct_change": -4.01,
+            "amount": 100245709.0,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 成长科创宽基",
+              "成交额 1.00亿，流动性相对靠前",
+              "同组 106 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "HK:03147 南方创业板",
+              "A:589150 科创50ETF平安",
+              "HK:03151 PP科创50"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589800",
+            "name": "科创综指ETF易方达",
+            "etf_category": "其他ETF",
+            "etf_cluster": "其他ETF",
+            "etf_track": "其他ETF",
+            "etf_score": 91.3,
+            "etf_recommendation": "优先观察",
+            "peer_count": 1,
+            "peer_alternatives": "",
+            "pct_change": -2.17,
+            "amount": 109990808.0,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 其他ETF",
+              "成交额 1.10亿，流动性相对靠前",
+              "同组 1 只，可用备选追溯"
+            ],
+            "alternatives": [],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589680",
+            "name": "科创综指ETF鹏华",
+            "etf_category": "其他ETF",
+            "etf_cluster": "其他ETF",
+            "etf_track": "其他ETF",
+            "etf_score": 91.2,
+            "etf_recommendation": "优先观察",
+            "peer_count": 1,
+            "peer_alternatives": "",
+            "pct_change": -2.34,
+            "amount": 149486173.0,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 其他ETF",
+              "成交额 1.49亿，流动性相对靠前",
+              "同组 1 只，可用备选追溯"
+            ],
+            "alternatives": [],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 12
+      },
+      {
+        "key": "tactical_growth",
+        "title": "主题进攻",
+        "description": "用于表达科技、制造、新能源等高弹性方向。",
+        "leaders": [
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589130",
+            "name": "科创芯片ETF易方达",
+            "etf_category": "行业ETF",
+            "etf_cluster": "半导体芯片",
+            "etf_track": "半导体芯片",
+            "etf_score": 92.8,
+            "etf_recommendation": "优先观察",
+            "peer_count": 50,
+            "peer_alternatives": "A:589020 科创半导体设备ETF鹏华 | A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝",
+            "pct_change": -4.75,
+            "amount": 219334883.0,
+            "use_case": "tactical_growth",
+            "why_selected": [
+              "双层去重后保留，代表 半导体芯片",
+              "成交额 2.19亿，流动性相对靠前",
+              "同组 50 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:589020 科创半导体设备ETF鹏华",
+              "A:589100 科创芯片ETF国泰",
+              "A:589190 科创芯片ETF华宝"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589010",
+            "name": "科创人工智能ETF华夏",
+            "etf_category": "主题ETF",
+            "etf_cluster": "人工智能",
+            "etf_track": "人工智能",
+            "etf_score": 88.2,
+            "etf_recommendation": "优先观察",
+            "peer_count": 54,
+            "peer_alternatives": "A:589520 科创人工智能ETF华宝 | A:589230 科创人工智能ETF南方 | A:589110 科创人工智能ETF国泰",
+            "pct_change": -2.83,
+            "amount": 113491883.0,
+            "use_case": "tactical_growth",
+            "why_selected": [
+              "双层去重后保留，代表 人工智能",
+              "成交额 1.13亿，流动性相对靠前",
+              "同组 54 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:589520 科创人工智能ETF华宝",
+              "A:589230 科创人工智能ETF南方",
+              "A:589110 科创人工智能ETF国泰"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 2
+      },
+      {
+        "key": "cross_border_t0",
+        "title": "跨境与T+0",
+        "description": "用于海外市场、港股或可日内回转的配置工具。",
+        "leaders": [
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "03064",
+            "name": "GlobalX MSCI 亚太",
+            "etf_category": "跨境ETF",
+            "etf_cluster": "亚太精选",
+            "etf_track": "亚太精选",
+            "etf_score": 84.4,
+            "etf_recommendation": "观察",
+            "peer_count": 6,
+            "peer_alternatives": "A:159687 亚太精选ETF南方 | A:513730 东南亚科技ETF华泰柏瑞 | HK:09064 GlobalX MSCI亚太-U",
+            "pct_change": 0.0,
+            "amount": 66048720.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 亚太精选",
+              "成交额 6604.9万，流动性相对靠前",
+              "同组 6 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:159687 亚太精选ETF南方",
+              "A:513730 东南亚科技ETF华泰柏瑞",
+              "HK:09064 GlobalX MSCI亚太-U"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "07500",
+            "name": "南方两倍做空恒指",
+            "etf_category": "其他ETF",
+            "etf_cluster": "港股核心宽基",
+            "etf_track": "恒生指数",
+            "etf_score": 82.1,
+            "etf_recommendation": "优先观察",
+            "peer_count": 28,
+            "peer_alternatives": "HK:02828 恒生中国企业 | HK:02800 盈富基金 | HK:07200 南方两倍做多恒指",
+            "pct_change": 2.156640181611813,
+            "amount": 247871192.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 港股核心宽基",
+              "成交额 2.48亿，流动性相对靠前",
+              "同组 28 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "HK:02828 恒生中国企业",
+              "HK:02800 盈富基金",
+              "HK:07200 南方两倍做多恒指"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "03431",
+            "name": "南方港韩科技",
+            "etf_category": "其他ETF",
+            "etf_cluster": "其他ETF",
+            "etf_track": "其他ETF",
+            "etf_score": 81.8,
+            "etf_recommendation": "优先观察",
+            "peer_count": 1,
+            "peer_alternatives": "",
+            "pct_change": -4.459691252144083,
+            "amount": 149995017.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 其他ETF",
+              "成交额 1.50亿，流动性相对靠前",
+              "同组 1 只，可用备选追溯"
+            ],
+            "alternatives": [],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 6
+      }
+    ],
+    "top_changes": [
+      {
+        "change": "新增",
+        "bucket": "AI算力硬件",
+        "market": "HK",
+        "symbol": "06869",
+        "name": "长飞光纤光缆",
+        "latest_score": 64.48706490889332,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "新增",
+        "bucket": "AI算力硬件",
+        "market": "HK",
+        "symbol": "01810",
+        "name": "小米集团-W",
+        "latest_score": 60.03269013761927,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "新增",
+        "bucket": "半导体国产替代",
+        "market": "HK",
+        "symbol": "00981",
+        "name": "中芯国际",
+        "latest_score": 59.226631330106926,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "新增",
+        "bucket": "半导体国产替代",
+        "market": "HK",
+        "symbol": "01347",
+        "name": "华虹半导体",
+        "latest_score": 57.35541421773642,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "新增",
+        "bucket": "电力储能与能源转型",
+        "market": "A",
+        "symbol": "600023",
+        "name": "浙能电力",
+        "latest_score": 58.07413969769998,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "新增",
+        "bucket": "资源涨价与安全资产",
+        "market": "HK",
+        "symbol": "02600",
+        "name": "中国铝业",
+        "latest_score": 58.30617269809581,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "移出",
+        "bucket": "AI算力硬件",
+        "market": "A",
+        "symbol": "000988",
+        "name": "华工科技",
+        "latest_score": null,
+        "previous_score": 67.63345045365469,
+        "score_delta": null
+      },
+      {
+        "change": "移出",
+        "bucket": "AI算力硬件",
+        "market": "A",
+        "symbol": "688256",
+        "name": "寒武纪",
+        "latest_score": null,
+        "previous_score": 79.45731837853128,
+        "score_delta": null
+      },
+      {
+        "change": "移出",
+        "bucket": "半导体国产替代",
+        "market": "A",
+        "symbol": "002371",
+        "name": "北方华创",
+        "latest_score": null,
+        "previous_score": 68.94570811176632,
+        "score_delta": null
+      },
+      {
+        "change": "移出",
+        "bucket": "半导体国产替代",
+        "market": "A",
+        "symbol": "603005",
+        "name": "晶方科技",
+        "latest_score": null,
+        "previous_score": 73.09265301524876,
+        "score_delta": null
+      }
+    ],
+    "data_health": {
+      "coverage_counts": {
+        "证券快照": 12852,
+        "技术指标": 1462,
+        "标准化基本面": 288,
+        "专家评分": 9410,
+        "提炼候选": 24,
+        "退市生命周期": 1134
+      },
+      "freshness": [
+        {
+          "market": "HK",
+          "latest_date": "2026-06-06"
+        },
+        {
+          "market": "A",
+          "latest_date": "2026-06-07"
+        },
+        {
+          "market": "US",
+          "latest_date": "2026-06-07"
+        }
+      ],
+      "warning": null,
+      "investability_summary": {
+        "low_market_cap": 5366,
+        "hk_non_connect_illiquid": 3306,
+        "low_amount": 2990,
+        "amount_missing": 1454,
+        "market_cap_missing": 1314,
+        "hk_penny": 1100,
+        "price_missing": 929,
+        "a_excluded_board": 397,
+        "a_st_or_delisting_name": 265,
+        "distress_name": 8
+      }
+    },
+    "portfolio_notes": [
+      "组合上不建议把所有候选集中在单一景气方向，科技成长、红利防御、资源周期和医药成长需要分桶跟踪。",
+      "买入前应逐只复核最新公告、业绩会、估值分位、股东结构、减持和再融资风险。",
+      "AI/半导体相关候选较多，容易出现同涨同跌和估值拥挤，适合用分批和回撤条件控制节奏。",
+      "红利和能源资产提供防御属性，但仍需关注油煤价格、利率和分红可持续性。"
+    ],
+    "reader_contract": "默认只读短摘要；完整覆盖率、长表和证据口径进入附录。"
+  },
+  "top_actions": [
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "06869",
+      "name": "长飞光纤光缆",
+      "score": 64.48706490889332,
+      "delta": null,
+      "action": "新增 HK 06869 长飞光纤光缆"
+    },
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "01810",
+      "name": "小米集团-W",
+      "score": 60.03269013761927,
+      "delta": null,
+      "action": "新增 HK 01810 小米集团-W"
+    },
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "00981",
+      "name": "中芯国际",
+      "score": 59.226631330106926,
+      "delta": null,
+      "action": "新增 HK 00981 中芯国际"
+    },
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "01347",
+      "name": "华虹半导体",
+      "score": 57.35541421773642,
+      "delta": null,
+      "action": "新增 HK 01347 华虹半导体"
+    },
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "A",
+      "symbol": "600023",
+      "name": "浙能电力",
+      "score": 58.07413969769998,
+      "delta": null,
+      "action": "新增 A 600023 浙能电力"
+    },
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "02600",
+      "name": "中国铝业",
+      "score": 58.30617269809581,
+      "delta": null,
+      "action": "新增 HK 02600 中国铝业"
+    }
+  ],
+  "etf_use_cases": [
+    {
+      "key": "core_allocation",
+      "title": "核心配置",
+      "description": "用于表达主要市场或风格暴露，避免同类重复持有。",
+      "leaders": [
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589850",
+          "name": "科创50ETF东财",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "成长科创宽基",
+          "etf_track": "科创50",
+          "etf_score": 91.6,
+          "etf_recommendation": "优先观察",
+          "peer_count": 106,
+          "peer_alternatives": "HK:03147 南方创业板 | A:589150 科创50ETF平安 | HK:03151 PP科创50",
+          "pct_change": -4.01,
+          "amount": 100245709.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 成长科创宽基",
+            "成交额 1.00亿，流动性相对靠前",
+            "同组 106 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:03147 南方创业板",
+            "A:589150 科创50ETF平安",
+            "HK:03151 PP科创50"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589800",
+          "name": "科创综指ETF易方达",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 91.3,
+          "etf_recommendation": "优先观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": -2.17,
+          "amount": 109990808.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 1.10亿，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589680",
+          "name": "科创综指ETF鹏华",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 91.2,
+          "etf_recommendation": "优先观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": -2.34,
+          "amount": 149486173.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 1.49亿，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589880",
+          "name": "科创综指ETF建信",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 86.7,
+          "etf_recommendation": "观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": -2.3,
+          "amount": 42808903.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 4280.9万，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589660",
+          "name": "科创综指ETF南方",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 85.1,
+          "etf_recommendation": "观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": -2.28,
+          "amount": 43074817.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 4307.5万，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 12
+    },
+    {
+      "key": "tactical_growth",
+      "title": "主题进攻",
+      "description": "用于表达科技、制造、新能源等高弹性方向。",
+      "leaders": [
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589130",
+          "name": "科创芯片ETF易方达",
+          "etf_category": "行业ETF",
+          "etf_cluster": "半导体芯片",
+          "etf_track": "半导体芯片",
+          "etf_score": 92.8,
+          "etf_recommendation": "优先观察",
+          "peer_count": 50,
+          "peer_alternatives": "A:589020 科创半导体设备ETF鹏华 | A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝",
+          "pct_change": -4.75,
+          "amount": 219334883.0,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 半导体芯片",
+            "成交额 2.19亿，流动性相对靠前",
+            "同组 50 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:589020 科创半导体设备ETF鹏华",
+            "A:589100 科创芯片ETF国泰",
+            "A:589190 科创芯片ETF华宝"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589010",
+          "name": "科创人工智能ETF华夏",
+          "etf_category": "主题ETF",
+          "etf_cluster": "人工智能",
+          "etf_track": "人工智能",
+          "etf_score": 88.2,
+          "etf_recommendation": "优先观察",
+          "peer_count": 54,
+          "peer_alternatives": "A:589520 科创人工智能ETF华宝 | A:589230 科创人工智能ETF南方 | A:589110 科创人工智能ETF国泰",
+          "pct_change": -2.83,
+          "amount": 113491883.0,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 人工智能",
+            "成交额 1.13亿，流动性相对靠前",
+            "同组 54 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:589520 科创人工智能ETF华宝",
+            "A:589230 科创人工智能ETF南方",
+            "A:589110 科创人工智能ETF国泰"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 2
+    },
+    {
+      "key": "defensive_cash",
+      "title": "防御与现金",
+      "description": "用于现金管理、债券、红利或低波动防御。",
+      "leaders": [],
+      "count": 0
+    },
+    {
+      "key": "cross_border_t0",
+      "title": "跨境与T+0",
+      "description": "用于海外市场、港股或可日内回转的配置工具。",
+      "leaders": [
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "03064",
+          "name": "GlobalX MSCI 亚太",
+          "etf_category": "跨境ETF",
+          "etf_cluster": "亚太精选",
+          "etf_track": "亚太精选",
+          "etf_score": 84.4,
+          "etf_recommendation": "观察",
+          "peer_count": 6,
+          "peer_alternatives": "A:159687 亚太精选ETF南方 | A:513730 东南亚科技ETF华泰柏瑞 | HK:09064 GlobalX MSCI亚太-U",
+          "pct_change": 0.0,
+          "amount": 66048720.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 亚太精选",
+            "成交额 6604.9万，流动性相对靠前",
+            "同组 6 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:159687 亚太精选ETF南方",
+            "A:513730 东南亚科技ETF华泰柏瑞",
+            "HK:09064 GlobalX MSCI亚太-U"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "07500",
+          "name": "南方两倍做空恒指",
+          "etf_category": "其他ETF",
+          "etf_cluster": "港股核心宽基",
+          "etf_track": "恒生指数",
+          "etf_score": 82.1,
+          "etf_recommendation": "优先观察",
+          "peer_count": 28,
+          "peer_alternatives": "HK:02828 恒生中国企业 | HK:02800 盈富基金 | HK:07200 南方两倍做多恒指",
+          "pct_change": 2.156640181611813,
+          "amount": 247871192.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 港股核心宽基",
+            "成交额 2.48亿，流动性相对靠前",
+            "同组 28 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:02828 恒生中国企业",
+            "HK:02800 盈富基金",
+            "HK:07200 南方两倍做多恒指"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "03431",
+          "name": "南方港韩科技",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 81.8,
+          "etf_recommendation": "优先观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": -4.459691252144083,
+          "amount": 149995017.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 1.50亿，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "02823",
+          "name": "安硕A50",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "a50",
+          "etf_track": "a50",
+          "etf_score": 79.3,
+          "etf_recommendation": "观察",
+          "peer_count": 31,
+          "peer_alternatives": "HK:02822 南方A50 | HK:82823 安硕A50-R | HK:03111 易方达A50 ETF",
+          "pct_change": -2.198421645997728,
+          "amount": 67561020.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 a50",
+            "成交额 6756.1万，流动性相对靠前",
+            "同组 31 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:02822 南方A50",
+            "HK:82823 安硕A50-R",
+            "HK:03111 易方达A50 ETF"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "07552",
+          "name": "南方两倍做空恒科",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 78.2,
+          "etf_recommendation": "优先观察",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": 3.652392947103267,
+          "amount": 602932225.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "成交额 6.03亿，流动性相对靠前",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 6
+    },
+    {
+      "key": "commodity_resource",
+      "title": "商品资源",
+      "description": "用于黄金、有色、能源等实物或资源价格暴露。",
+      "leaders": [],
+      "count": 0
+    },
+    {
+      "key": "other_tools",
+      "title": "其他工具",
+      "description": "未归入上述用途，但双层去重后仍保留。",
+      "leaders": [],
+      "count": 0
+    }
+  ],
+  "refined_candidates": [
+    {
+      "bucket": "AI算力硬件",
+      "rank_in_bucket": 1,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09999",
+      "name": "网易-S",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.21393571417995,
+      "fundamental_score": 83.59864676709307,
+      "technical_score": 59.150000000000006,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 87.72222222222221,
+      "industry_fit_score": 86.60257216514331,
+      "valuation_percentile": 58.88888888888889,
+      "theme_matches": [
+        "AI算力硬件",
+        "港股AI互联网平台"
+      ],
+      "reasons": [
+        "大师框架分=74.2",
+        "中国大师框架分=83.3",
+        "基本面分=83.6",
+        "行业适配=86.6",
+        "同类分位=87.7",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=58.9",
+        "主题参考分=71.8（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=科技硬件/平台:86.6",
+        "研发费用率=15.7%",
+        "资本开支/经营现金流=0.04",
+        "现金流/利润=1.50",
+        "匹配主题=AI算力硬件、港股AI互联网平台"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=网易；风格=科技成长；同类组=AI平台与云软件；同类分位=87.7；行业适配=86.6；估值同类分位=58.9",
+      "why_selected": [
+        "专家分 79.2，进入当前提炼池",
+        "基本面 83.6，质量/成长支撑较强",
+        "同类分位 87.7，在可比组内靠前",
+        "行业适配 86.6，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "AI算力硬件",
+      "rank_in_bucket": 2,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "06869",
+      "name": "长飞光纤光缆",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 64.48706490889332,
+      "fundamental_score": 51.40499219730032,
+      "technical_score": 70.15,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 72.72222222222223,
+      "industry_fit_score": 46.77768848372547,
+      "valuation_percentile": 10.0,
+      "theme_matches": [
+        "AI算力硬件"
+      ],
+      "reasons": [
+        "大师框架分=68.3",
+        "中国大师框架分=67.0",
+        "基本面分=51.4",
+        "行业适配=46.8",
+        "同类分位=72.7",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=10.0",
+        "主题参考分=56.0（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=科技硬件/平台:46.8",
+        "研发费用率=6.3%",
+        "资本开支/经营现金流=0.39",
+        "现金流/利润=4.49",
+        "匹配主题=AI算力硬件",
+        "基本面预警=[\"多期成长或稳定性偏弱\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:长飞光纤光缆；风格=科技成长；同类组=AI平台与云软件；同类分位=72.7；行业适配=46.8；估值同类分位=10.0",
+      "why_selected": [
+        "专家分 64.5，进入当前提炼池",
+        "基本面 51.4，更依赖技术或主题验证",
+        "主题匹配：AI算力硬件"
+      ],
+      "key_risks": [
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "AI算力硬件",
+      "rank_in_bucket": 3,
+      "style_bucket": "智能汽车",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01810",
+      "name": "小米集团-W",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 60.03269013761927,
+      "fundamental_score": 70.00398787718746,
+      "technical_score": 0.0,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 69.77777777777779,
+      "industry_fit_score": 76.43926471742272,
+      "valuation_percentile": 62.22222222222222,
+      "theme_matches": [
+        "AI算力硬件",
+        "港股AI互联网平台",
+        "汽车智能化与出海"
+      ],
+      "reasons": [
+        "大师框架分=57.0",
+        "中国大师框架分=72.4",
+        "基本面分=70.0",
+        "行业适配=76.4",
+        "同类分位=69.8",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=62.2",
+        "主题参考分=85.3（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=能源汽车:76.4",
+        "研发费用率=7.2%",
+        "资本开支/经营现金流=0.37",
+        "现金流/利润=0.82",
+        "匹配主题=AI算力硬件、港股AI互联网平台、汽车智能化与出海"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:小米；风格=智能汽车；同类组=AI平台与云软件；同类分位=69.8；行业适配=76.4；估值同类分位=62.2",
+      "why_selected": [
+        "专家分 60.0，进入当前提炼池",
+        "基本面 70.0，质量/成长支撑较强",
+        "行业适配 76.4，财务特征符合行业阈值",
+        "主题匹配：AI算力硬件、港股AI互联网平台"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "创新药与医疗科技",
+      "rank_in_bucket": 1,
+      "style_bucket": "医药成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02359",
+      "name": "药明康德",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 73.96670982244781,
+      "fundamental_score": 81.83632313806945,
+      "technical_score": 46.0,
+      "detailed_industry": "创新药与医疗科技",
+      "industry_peer_group": "创新药与医疗科技",
+      "peer_score": 91.1842105263158,
+      "industry_fit_score": 79.32240380047949,
+      "valuation_percentile": 67.29323308270678,
+      "theme_matches": [
+        "创新药与医疗科技"
+      ],
+      "reasons": [
+        "大师框架分=67.8",
+        "中国大师框架分=80.2",
+        "基本面分=81.8",
+        "行业适配=79.3",
+        "同类分位=91.2",
+        "同类组=创新药与医疗科技",
+        "细分行业=创新药与医疗科技",
+        "估值同类分位=67.3",
+        "主题参考分=52.0（不计入综合分）",
+        "技术信号=neutral",
+        "行业化阈值=通用质量:79.3",
+        "研发费用率=2.5%",
+        "资本开支/经营现金流=0.34",
+        "现金流/利润=0.86",
+        "匹配主题=创新药与医疗科技"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:药明康德；风格=医药成长；同类组=创新药与医疗科技；同类分位=91.2；行业适配=79.3；估值同类分位=67.3",
+      "why_selected": [
+        "专家分 74.0，进入当前提炼池",
+        "基本面 81.8，质量/成长支撑较强",
+        "同类分位 91.2，在可比组内靠前",
+        "行业适配 79.3，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "医药波动受临床、BD、集采和现金消耗影响"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "创新药与医疗科技",
+      "rank_in_bucket": 2,
+      "style_bucket": "医药成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02269",
+      "name": "药明生物",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 61.021329307918485,
+      "fundamental_score": 78.4422465903497,
+      "technical_score": 5.5,
+      "detailed_industry": "创新药与医疗科技",
+      "industry_peer_group": "创新药与医疗科技",
+      "peer_score": 60.24436090225564,
+      "industry_fit_score": 68.44931872215462,
+      "valuation_percentile": 21.052631578947366,
+      "theme_matches": [
+        "创新药与医疗科技"
+      ],
+      "reasons": [
+        "大师框架分=55.9",
+        "中国大师框架分=74.9",
+        "基本面分=78.4",
+        "行业适配=68.4",
+        "同类分位=60.2",
+        "同类组=创新药与医疗科技",
+        "细分行业=创新药与医疗科技",
+        "估值同类分位=21.1",
+        "主题参考分=52.0（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=通用质量:68.4",
+        "研发费用率=3.9%",
+        "资本开支/经营现金流=0.59",
+        "现金流/利润=1.29",
+        "匹配主题=创新药与医疗科技"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:药明生物；风格=医药成长；同类组=创新药与医疗科技；同类分位=60.2；行业适配=68.4；估值同类分位=21.1",
+      "why_selected": [
+        "专家分 61.0，进入当前提炼池",
+        "基本面 78.4，质量/成长支撑较强",
+        "主题匹配：创新药与医疗科技"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "医药波动受临床、BD、集采和现金消耗影响"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "创新药与医疗科技",
+      "rank_in_bucket": 3,
+      "style_bucket": "医药成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01801",
+      "name": "信达生物",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 58.48204110160628,
+      "fundamental_score": 67.63891031128833,
+      "technical_score": 11.0,
+      "detailed_industry": "创新药与医疗科技",
+      "industry_peer_group": "创新药与医疗科技",
+      "peer_score": 57.59398496240601,
+      "industry_fit_score": 74.05681619169931,
+      "valuation_percentile": 10.526315789473683,
+      "theme_matches": [
+        "创新药与医疗科技"
+      ],
+      "reasons": [
+        "大师框架分=54.1",
+        "中国大师框架分=69.3",
+        "基本面分=67.6",
+        "行业适配=74.1",
+        "同类分位=57.6",
+        "同类组=创新药与医疗科技",
+        "细分行业=创新药与医疗科技",
+        "估值同类分位=10.5",
+        "主题参考分=52.0（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=创新医药:74.1",
+        "研发费用率=20.1%",
+        "资本开支/经营现金流=0.07",
+        "现金流/利润=12.29",
+        "匹配主题=创新药与医疗科技"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:信达生物；风格=医药成长；同类组=创新药与医疗科技；同类分位=57.6；行业适配=74.1；估值同类分位=10.5",
+      "why_selected": [
+        "专家分 58.5，进入当前提炼池",
+        "主题匹配：创新药与医疗科技"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "医药波动受临床、BD、集采和现金消耗影响"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "半导体国产替代",
+      "rank_in_bucket": 1,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00981",
+      "name": "中芯国际",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 59.226631330106926,
+      "fundamental_score": 55.97521839964465,
+      "technical_score": 45.0,
+      "detailed_industry": "半导体与AI硬件",
+      "industry_peer_group": "半导体与AI硬件",
+      "peer_score": 75.17241379310344,
+      "industry_fit_score": 47.251898133076864,
+      "valuation_percentile": 3.4482758620689653,
+      "theme_matches": [
+        "半导体国产替代"
+      ],
+      "reasons": [
+        "大师框架分=58.1",
+        "中国大师框架分=64.3",
+        "基本面分=56.0",
+        "行业适配=47.3",
+        "同类分位=75.2",
+        "同类组=半导体与AI硬件",
+        "细分行业=半导体与AI硬件",
+        "估值同类分位=3.4",
+        "主题参考分=54.2（不计入综合分）",
+        "技术信号=neutral",
+        "行业化阈值=通用质量:47.3",
+        "研发费用率=8.3%",
+        "资本开支/经营现金流=2.63",
+        "现金流/利润=4.66",
+        "匹配主题=半导体国产替代",
+        "基本面预警=[\"ROE偏低\", \"多期成长或稳定性偏弱\", \"资本开支对经营现金流占用偏高\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=中芯国际；风格=科技成长；同类组=半导体与AI硬件；同类分位=75.2；行业适配=47.3；估值同类分位=3.4",
+      "why_selected": [
+        "专家分 59.2，进入当前提炼池",
+        "同类分位 75.2，在可比组内靠前",
+        "主题匹配：半导体国产替代"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "半导体国产替代",
+      "rank_in_bucket": 2,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01347",
+      "name": "华虹半导体",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 57.35541421773642,
+      "fundamental_score": 38.65364937354663,
+      "technical_score": 70.15,
+      "detailed_industry": "半导体与AI硬件",
+      "industry_peer_group": "半导体与AI硬件",
+      "peer_score": 33.79310344827586,
+      "industry_fit_score": 38.55270653918902,
+      "valuation_percentile": 10.344827586206897,
+      "theme_matches": [
+        "半导体国产替代"
+      ],
+      "reasons": [
+        "大师框架分=67.3",
+        "中国大师框架分=61.7",
+        "基本面分=38.7",
+        "行业适配=38.6",
+        "同类分位=33.8",
+        "同类组=半导体与AI硬件",
+        "细分行业=半导体与AI硬件",
+        "估值同类分位=10.3",
+        "主题参考分=54.2（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=通用质量:38.6",
+        "资本开支/经营现金流=2.79",
+        "现金流/利润=11.84",
+        "匹配主题=半导体国产替代",
+        "基本面预警=[\"ROE偏低\", \"利润同比下滑\", \"多期成长或稳定性偏弱\", \"资本开支对经营现金流占用偏高\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:华虹半导体；风格=科技成长；同类组=半导体与AI硬件；同类分位=33.8；行业适配=38.6；估值同类分位=10.3",
+      "why_selected": [
+        "专家分 57.4，进入当前提炼池",
+        "基本面 38.7，更依赖技术或主题验证",
+        "主题匹配：半导体国产替代"
+      ],
+      "key_risks": [
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "未匹配主题",
+      "rank_in_bucket": 1,
+      "style_bucket": "质量成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03750",
+      "name": "宁德时代",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.96134853250418,
+      "fundamental_score": 73.81642817019332,
+      "technical_score": 91.75,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 75.32015681149952,
+      "industry_fit_score": 82.53224000298233,
+      "valuation_percentile": 1.8621365566808232,
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=76.2",
+        "中国大师框架分=78.2",
+        "基本面分=73.8",
+        "行业适配=82.5",
+        "同类分位=75.3",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=1.9",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:82.5",
+        "研发费用率=5.2%",
+        "资本开支/经营现金流=0.32",
+        "现金流/利润=1.85"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:宁德时代；风格=质量成长；同类组=港股综合；同类分位=75.3；行业适配=82.5；估值同类分位=1.9",
+      "why_selected": [
+        "专家分 80.0，进入当前提炼池",
+        "基本面 73.8，质量/成长支撑较强",
+        "技术面 91.8，趋势确认度高",
+        "同类分位 75.3，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "未匹配主题",
+      "rank_in_bucket": 2,
+      "style_bucket": "综合候选",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02018",
+      "name": "瑞声科技",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.33817246962046,
+      "fundamental_score": 66.43991219013587,
+      "technical_score": 100.0,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 88.11009474028097,
+      "industry_fit_score": 70.06089895139597,
+      "valuation_percentile": 54.06729826853969,
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=79.8",
+        "中国大师框架分=78.1",
+        "基本面分=66.4",
+        "行业适配=70.1",
+        "同类分位=88.1",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=54.1",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:70.1",
+        "研发费用率=7.3%",
+        "资本开支/经营现金流=0.37",
+        "现金流/利润=2.86"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:瑞声科技；风格=综合候选；同类组=港股综合；同类分位=88.1；行业适配=70.1；估值同类分位=54.1",
+      "why_selected": [
+        "专家分 79.3，进入当前提炼池",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 88.1，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "未匹配主题",
+      "rank_in_bucket": 3,
+      "style_bucket": "质量成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02382",
+      "name": "舜宇光学科技",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 78.45088648097989,
+      "fundamental_score": 70.40636451236706,
+      "technical_score": 83.25,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 87.7000980071872,
+      "industry_fit_score": 71.9535540633135,
+      "valuation_percentile": 51.878471087879774,
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=78.3",
+        "中国大师框架分=79.3",
+        "基本面分=70.4",
+        "行业适配=72.0",
+        "同类分位=87.7",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=51.9",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:72.0",
+        "研发费用率=7.5%",
+        "资本开支/经营现金流=0.35",
+        "现金流/利润=1.31"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:舜宇光学科技；风格=质量成长；同类组=港股综合；同类分位=87.7；行业适配=72.0；估值同类分位=51.9",
+      "why_selected": [
+        "专家分 78.5，进入当前提炼池",
+        "基本面 70.4，质量/成长支撑较强",
+        "技术面 83.2，趋势确认度高",
+        "同类分位 87.7，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "汽车智能化与出海",
+      "rank_in_bucket": 1,
+      "style_bucket": "智能汽车",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00175",
+      "name": "吉利汽车",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 64.72354856798685,
+      "fundamental_score": 60.759227307938495,
+      "technical_score": 35.0,
+      "detailed_industry": "智能汽车与出海",
+      "industry_peer_group": "智能汽车与出海",
+      "peer_score": 78.0,
+      "industry_fit_score": 73.52317875818598,
+      "valuation_percentile": 80.0,
+      "theme_matches": [
+        "汽车智能化与出海"
+      ],
+      "reasons": [
+        "大师框架分=65.7",
+        "中国大师框架分=72.1",
+        "基本面分=60.8",
+        "行业适配=73.5",
+        "同类分位=78.0",
+        "同类组=智能汽车与出海",
+        "细分行业=智能汽车与出海",
+        "估值同类分位=80.0",
+        "主题参考分=51.5（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=能源汽车:73.5",
+        "研发费用率=5.1%",
+        "资本开支/经营现金流=0.38",
+        "现金流/利润=2.81",
+        "匹配主题=汽车智能化与出海"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:吉利汽车；风格=智能汽车；同类组=智能汽车与出海；同类分位=78.0；行业适配=73.5；估值同类分位=80.0",
+      "why_selected": [
+        "专家分 64.7，进入当前提炼池",
+        "同类分位 78.0，在可比组内靠前",
+        "主题匹配：汽车智能化与出海"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "技术面未充分确认，避免只看主题或基本面分"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "港股AI互联网平台",
+      "rank_in_bucket": 1,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00992",
+      "name": "联想集团",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 61.80665407437276,
+      "fundamental_score": 60.278792605626265,
+      "technical_score": 70.65,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 75.72222222222223,
+      "industry_fit_score": 65.81053199154711,
+      "valuation_percentile": 16.666666666666664,
+      "theme_matches": [
+        "港股AI互联网平台"
+      ],
+      "reasons": [
+        "大师框架分=71.5",
+        "中国大师框架分=70.3",
+        "基本面分=60.3",
+        "行业适配=65.8",
+        "同类分位=75.7",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=16.7",
+        "主题参考分=53.8（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=通用质量:65.8",
+        "研发费用率=3.0%",
+        "资本开支/经营现金流=0.31",
+        "现金流/利润=2.10",
+        "匹配主题=港股AI互联网平台",
+        "RSI 偏热，追高风险",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:联想；风格=科技成长；同类组=AI平台与云软件；同类分位=75.7；行业适配=65.8；估值同类分位=16.7",
+      "why_selected": [
+        "专家分 61.8，进入当前提炼池",
+        "同类分位 75.7，在可比组内靠前",
+        "主题匹配：港股AI互联网平台"
+      ],
+      "key_risks": [
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "电力储能与能源转型",
+      "rank_in_bucket": 1,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00836",
+      "name": "华润电力",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.31198397535586,
+      "fundamental_score": 56.30318319244846,
+      "technical_score": 100.0,
+      "detailed_industry": "高股息公用与运营商",
+      "industry_peer_group": "高股息公用与运营商",
+      "peer_score": 96.46341463414635,
+      "industry_fit_score": 67.06456911171588,
+      "valuation_percentile": 87.8048780487805,
+      "theme_matches": [
+        "高股息央国企防御",
+        "电力储能与能源转型"
+      ],
+      "reasons": [
+        "大师框架分=87.6",
+        "中国大师框架分=77.1",
+        "基本面分=56.3",
+        "行业适配=67.1",
+        "同类分位=96.5",
+        "同类组=高股息公用与运营商",
+        "细分行业=高股息公用与运营商",
+        "估值同类分位=87.8",
+        "主题参考分=65.7（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:67.1",
+        "现金流/利润=3.08",
+        "匹配主题=高股息央国企防御、电力储能与能源转型",
+        "基本面预警=[\"收入同比下滑\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:华润电力；风格=红利防御；同类组=高股息公用与运营商；同类分位=96.5；行业适配=67.1；估值同类分位=87.8",
+      "why_selected": [
+        "专家分 79.3，进入当前提炼池",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 96.5，在可比组内靠前",
+        "主题匹配：高股息央国企防御、电力储能与能源转型"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "电力储能与能源转型",
+      "rank_in_bucket": 2,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00902",
+      "name": "华能国际电力股份",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 74.69672867148543,
+      "fundamental_score": 50.51010325327079,
+      "technical_score": 100.0,
+      "detailed_industry": "高股息公用与运营商",
+      "industry_peer_group": "高股息公用与运营商",
+      "peer_score": 91.58536585365853,
+      "industry_fit_score": 48.58062938810952,
+      "valuation_percentile": 78.04878048780488,
+      "theme_matches": [
+        "高股息央国企防御",
+        "电力储能与能源转型"
+      ],
+      "reasons": [
+        "大师框架分=85.5",
+        "中国大师框架分=73.9",
+        "基本面分=50.5",
+        "行业适配=48.6",
+        "同类分位=91.6",
+        "同类组=高股息公用与运营商",
+        "细分行业=高股息公用与运营商",
+        "估值同类分位=78.0",
+        "主题参考分=65.7（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:48.6",
+        "资本开支/经营现金流=0.87",
+        "现金流/利润=4.62",
+        "匹配主题=高股息央国企防御、电力储能与能源转型",
+        "基本面预警=[\"收入同比下滑\", \"多期成长或稳定性偏弱\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:华能国际电力；风格=红利防御；同类组=高股息公用与运营商；同类分位=91.6；行业适配=48.6；估值同类分位=78.0",
+      "why_selected": [
+        "专家分 74.7，进入当前提炼池",
+        "基本面 50.5，更依赖技术或主题验证",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 91.6，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "电力储能与能源转型",
+      "rank_in_bucket": 3,
+      "style_bucket": "红利防御",
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "600023",
+      "name": "浙能电力",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 58.07413969769998,
+      "fundamental_score": 50.0,
+      "technical_score": 100.0,
+      "detailed_industry": "高股息公用与运营商",
+      "industry_peer_group": "高股息公用与运营商",
+      "peer_score": 73.63122171945702,
+      "industry_fit_score": 50.0,
+      "valuation_percentile": 98.19004524886877,
+      "theme_matches": [
+        "高股息央国企防御",
+        "电力储能与能源转型"
+      ],
+      "reasons": [
+        "大师框架分=83.8",
+        "中国大师框架分=69.6",
+        "基本面分=50.0",
+        "行业适配=50.0",
+        "同类分位=73.6",
+        "同类组=高股息公用与运营商",
+        "细分行业=高股息公用与运营商",
+        "估值同类分位=98.2",
+        "主题参考分=65.7（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=缺少财报，按中性",
+        "匹配主题=高股息央国企防御、电力储能与能源转型",
+        "缺少财报基本面，基本面不确定性折扣"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:浙能电力；风格=红利防御；同类组=高股息公用与运营商；同类分位=73.6；行业适配=50.0；估值同类分位=98.2",
+      "why_selected": [
+        "专家分 58.1，进入当前提炼池",
+        "基本面 50.0，更依赖技术或主题验证",
+        "技术面 100.0，趋势确认度高",
+        "主题匹配：高股息央国企防御、电力储能与能源转型"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "资源涨价与安全资产",
+      "rank_in_bucket": 1,
+      "style_bucket": "资源周期",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02259",
+      "name": "紫金黄金国际",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 66.85466195694579,
+      "fundamental_score": 93.06687136873639,
+      "technical_score": 0.0,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 59.81707317073171,
+      "industry_fit_score": 94.92317712715759,
+      "valuation_percentile": 18.29268292682927,
+      "theme_matches": [
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=55.6",
+        "中国大师框架分=80.6",
+        "基本面分=93.1",
+        "行业适配=94.9",
+        "同类分位=59.8",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=18.3",
+        "主题参考分=51.7（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=通用质量:94.9",
+        "资本开支/经营现金流=0.26",
+        "现金流/利润=1.50",
+        "匹配主题=资源涨价与安全资产"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=name:紫金黄金国际；风格=资源周期；同类组=能源资源；同类分位=59.8；行业适配=94.9；估值同类分位=18.3",
+      "why_selected": [
+        "专家分 66.9，进入当前提炼池",
+        "基本面 93.1，质量/成长支撑较强",
+        "行业适配 94.9，财务特征符合行业阈值",
+        "主题匹配：资源涨价与安全资产"
+      ],
+      "key_risks": [
+        "技术面未充分确认，避免只看主题或基本面分",
+        "资源品受商品价格和资本开支周期影响明显"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "等待趋势重新站稳关键均线或相对强度修复"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "资源涨价与安全资产",
+      "rank_in_bucket": 2,
+      "style_bucket": "资源周期",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02600",
+      "name": "中国铝业",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 58.30617269809581,
+      "fundamental_score": 56.664763254514206,
+      "technical_score": 10.0,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 74.08536585365856,
+      "industry_fit_score": 76.98489638463373,
+      "valuation_percentile": 75.60975609756098,
+      "theme_matches": [
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=58.9",
+        "中国大师框架分=68.2",
+        "基本面分=56.7",
+        "行业适配=77.0",
+        "同类分位=74.1",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=75.6",
+        "主题参考分=51.7（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=资源周期:77.0",
+        "研发费用率=1.6%",
+        "资本开支/经营现金流=0.27",
+        "现金流/利润=2.67",
+        "匹配主题=资源涨价与安全资产"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:中国铝业；风格=资源周期；同类组=能源资源；同类分位=74.1；行业适配=77.0；估值同类分位=75.6",
+      "why_selected": [
+        "专家分 58.3，进入当前提炼池",
+        "行业适配 77.0，财务特征符合行业阈值",
+        "主题匹配：资源涨价与安全资产"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "技术面未充分确认，避免只看主题或基本面分",
+        "资源品受商品价格和资本开支周期影响明显"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息央国企防御",
+      "rank_in_bucket": 1,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03988",
+      "name": "中国银行",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 75.83869753804478,
+      "fundamental_score": 50.50912008676738,
+      "technical_score": 100.0,
+      "detailed_industry": "金融与交易基础设施",
+      "industry_peer_group": "金融与交易基础设施",
+      "peer_score": 90.14851485148515,
+      "industry_fit_score": 51.21313794465206,
+      "valuation_percentile": 69.3069306930693,
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=88.0",
+        "中国大师框架分=75.2",
+        "基本面分=50.5",
+        "行业适配=51.2",
+        "同类分位=90.1",
+        "同类组=金融与交易基础设施",
+        "细分行业=金融与交易基础设施",
+        "估值同类分位=69.3",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:51.2",
+        "资本开支/经营现金流=0.06",
+        "现金流/利润=3.34",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:中国银行；风格=红利防御；同类组=金融与交易基础设施；同类分位=90.1；行业适配=51.2；估值同类分位=69.3",
+      "why_selected": [
+        "专家分 75.8，进入当前提炼池",
+        "基本面 50.5，更依赖技术或主题验证",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 90.1，在可比组内靠前"
+      ],
+      "key_risks": [
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息央国企防御",
+      "rank_in_bucket": 2,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00941",
+      "name": "中国移动",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 71.24946979315969,
+      "fundamental_score": 59.06575474374719,
+      "technical_score": 56.5,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 94.84645540672983,
+      "industry_fit_score": 72.56357363888557,
+      "valuation_percentile": 82.03201568114994,
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=76.1",
+        "中国大师框架分=74.2",
+        "基本面分=59.1",
+        "行业适配=72.6",
+        "同类分位=94.8",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=82.0",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=neutral",
+        "行业化阈值=红利防御:72.6",
+        "资本开支/经营现金流=0.67",
+        "现金流/利润=1.70",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"利润同比下滑\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:中国移动；风格=红利防御；同类组=港股综合；同类分位=94.8；行业适配=72.6；估值同类分位=82.0",
+      "why_selected": [
+        "专家分 71.2，进入当前提炼池",
+        "同类分位 94.8，在可比组内靠前",
+        "主题匹配：高股息央国企防御"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息央国企防御",
+      "rank_in_bucket": 3,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00939",
+      "name": "建设银行",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 69.56888872137762,
+      "fundamental_score": 49.86541721947146,
+      "technical_score": 79.75,
+      "detailed_industry": "金融与交易基础设施",
+      "industry_peer_group": "金融与交易基础设施",
+      "peer_score": 48.31683168316832,
+      "industry_fit_score": 53.60029580194691,
+      "valuation_percentile": 71.28712871287128,
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=83.7",
+        "中国大师框架分=73.6",
+        "基本面分=49.9",
+        "行业适配=53.6",
+        "同类分位=48.3",
+        "同类组=金融与交易基础设施",
+        "细分行业=金融与交易基础设施",
+        "估值同类分位=71.3",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:53.6",
+        "资本开支/经营现金流=0.01",
+        "现金流/利润=6.20",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:建设银行；风格=红利防御；同类组=金融与交易基础设施；同类分位=48.3；行业适配=53.6；估值同类分位=71.3",
+      "why_selected": [
+        "专家分 69.6，进入当前提炼池",
+        "基本面 49.9，更依赖技术或主题验证",
+        "技术面 79.8，趋势确认度高",
+        "主题匹配：高股息央国企防御"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息资源防御",
+      "rank_in_bucket": 1,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01088",
+      "name": "中国神华",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 73.09343456205447,
+      "fundamental_score": 55.280943043951176,
+      "technical_score": 76.4,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 87.01219512195122,
+      "industry_fit_score": 83.29006657891966,
+      "valuation_percentile": 59.756097560975604,
+      "theme_matches": [
+        "高股息央国企防御",
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=76.5",
+        "中国大师框架分=71.9",
+        "基本面分=55.3",
+        "行业适配=83.3",
+        "同类分位=87.0",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=59.8",
+        "主题参考分=64.6（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:83.3",
+        "研发费用率=1.0%",
+        "资本开支/经营现金流=0.64",
+        "现金流/利润=1.38",
+        "匹配主题=高股息央国企防御、资源涨价与安全资产",
+        "基本面预警=[\"收入同比下滑\", \"利润同比下滑\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:中国神华；风格=红利防御；同类组=能源资源；同类分位=87.0；行业适配=83.3；估值同类分位=59.8",
+      "why_selected": [
+        "专家分 73.1，进入当前提炼池",
+        "技术面 76.4，趋势确认度高",
+        "同类分位 87.0，在可比组内靠前",
+        "行业适配 83.3，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "资源品受商品价格和资本开支周期影响明显",
+        "红利资产需确认分红持续性、利率和监管变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息资源防御",
+      "rank_in_bucket": 2,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00883",
+      "name": "中国海洋石油",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 68.4211662739922,
+      "fundamental_score": 64.60303424012753,
+      "technical_score": 30.9,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 78.10975609756098,
+      "industry_fit_score": 88.03712881335102,
+      "valuation_percentile": 84.14634146341463,
+      "theme_matches": [
+        "高股息央国企防御",
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=70.8",
+        "中国大师框架分=75.0",
+        "基本面分=64.6",
+        "行业适配=88.0",
+        "同类分位=78.1",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=84.1",
+        "主题参考分=64.6（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=红利防御:88.0",
+        "现金流/利润=1.71",
+        "匹配主题=高股息央国企防御、资源涨价与安全资产",
+        "基本面预警=[\"收入同比下滑\", \"利润同比下滑\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=中国海油AH；风格=红利防御；同类组=能源资源；同类分位=78.1；行业适配=88.0；估值同类分位=84.1",
+      "why_selected": [
+        "专家分 68.4，进入当前提炼池",
+        "同类分位 78.1，在可比组内靠前",
+        "行业适配 88.0，财务特征符合行业阈值",
+        "主题匹配：高股息央国企防御、资源涨价与安全资产"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "技术面未充分确认，避免只看主题或基本面分",
+        "资源品受商品价格和资本开支周期影响明显"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "bucket": "高股息资源防御",
+      "rank_in_bucket": 3,
+      "style_bucket": "红利防御",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00857",
+      "name": "中国石油股份",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 60.91624059761624,
+      "fundamental_score": 50.554953114791275,
+      "technical_score": 28.25,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 75.42682926829268,
+      "industry_fit_score": 73.41358642913539,
+      "valuation_percentile": 82.92682926829268,
+      "theme_matches": [
+        "高股息央国企防御",
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=66.8",
+        "中国大师框架分=67.9",
+        "基本面分=50.6",
+        "行业适配=73.4",
+        "同类分位=75.4",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=82.9",
+        "主题参考分=64.6（不计入综合分）",
+        "技术信号=weak",
+        "行业化阈值=资源周期:73.4",
+        "资本开支/经营现金流=0.00",
+        "现金流/利润=2.62",
+        "匹配主题=高股息央国企防御、资源涨价与安全资产",
+        "基本面预警=[\"收入同比下滑\", \"利润同比下滑\"]"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=fuzzy:中国石油；风格=红利防御；同类组=能源资源；同类分位=75.4；行业适配=73.4；估值同类分位=82.9",
+      "why_selected": [
+        "专家分 60.9，进入当前提炼池",
+        "基本面 50.6，更依赖技术或主题验证",
+        "同类分位 75.4，在可比组内靠前",
+        "主题匹配：高股息央国企防御、资源涨价与安全资产"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "技术面未充分确认，避免只看主题或基本面分",
+        "基本面支撑偏弱，需核验利润和现金流质量"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    }
+  ],
+  "core_candidates": [
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03750",
+      "name": "宁德时代",
+      "last_price": 711.0,
+      "amount": 4693792195.0,
+      "market_cap": 3289531917870.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.96134853250418,
+      "master_score": 76.15761125267643,
+      "china_master_score": 78.15627345196071,
+      "fundamental_score": 73.81642817019332,
+      "technical_score": 91.75,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 75.32015681149952,
+      "industry_fit_score": 82.53224000298233,
+      "valuation_percentile": 1.8621365566808232,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=76.2",
+        "中国大师框架分=78.2",
+        "基本面分=73.8",
+        "行业适配=82.5",
+        "同类分位=75.3",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=1.9",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:82.5",
+        "研发费用率=5.2%",
+        "资本开支/经营现金流=0.32",
+        "现金流/利润=1.85"
+      ],
+      "why_selected": [
+        "专家分 80.0，进入当前提炼池",
+        "基本面 73.8，质量/成长支撑较强",
+        "技术面 91.8，趋势确认度高",
+        "同类分位 75.3，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02018",
+      "name": "瑞声科技",
+      "last_price": 45.98,
+      "amount": 449443295.0,
+      "market_cap": 53418391510.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.33817246962046,
+      "master_score": 79.78306485320324,
+      "china_master_score": 78.07752096067766,
+      "fundamental_score": 66.43991219013587,
+      "technical_score": 100.0,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 88.11009474028097,
+      "industry_fit_score": 70.06089895139597,
+      "valuation_percentile": 54.06729826853969,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=79.8",
+        "中国大师框架分=78.1",
+        "基本面分=66.4",
+        "行业适配=70.1",
+        "同类分位=88.1",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=54.1",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:70.1",
+        "研发费用率=7.3%",
+        "资本开支/经营现金流=0.37",
+        "现金流/利润=2.86"
+      ],
+      "why_selected": [
+        "专家分 79.3，进入当前提炼池",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 88.1，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00836",
+      "name": "华润电力",
+      "last_price": 21.02,
+      "amount": 894965816.0,
+      "market_cap": 108821753694.8,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.31198397535586,
+      "master_score": 87.55595041926445,
+      "china_master_score": 77.13500449773703,
+      "fundamental_score": 56.30318319244846,
+      "technical_score": 100.0,
+      "detailed_industry": "高股息公用与运营商",
+      "industry_peer_group": "高股息公用与运营商",
+      "peer_score": 96.46341463414635,
+      "industry_fit_score": 67.06456911171588,
+      "valuation_percentile": 87.8048780487805,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御",
+        "电力储能与能源转型"
+      ],
+      "reasons": [
+        "大师框架分=87.6",
+        "中国大师框架分=77.1",
+        "基本面分=56.3",
+        "行业适配=67.1",
+        "同类分位=96.5",
+        "同类组=高股息公用与运营商",
+        "细分行业=高股息公用与运营商",
+        "估值同类分位=87.8",
+        "主题参考分=65.7（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:67.1",
+        "现金流/利润=3.08",
+        "匹配主题=高股息央国企防御、电力储能与能源转型",
+        "基本面预警=[\"收入同比下滑\"]"
+      ],
+      "why_selected": [
+        "专家分 79.3，进入当前提炼池",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 96.5，在可比组内靠前",
+        "主题匹配：高股息央国企防御、电力储能与能源转型"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09999",
+      "name": "网易-S",
+      "last_price": 188.4,
+      "amount": 1699841245.0,
+      "market_cap": 601116675098.4,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 79.21393571417995,
+      "master_score": 74.24102121900367,
+      "china_master_score": 83.33067904794689,
+      "fundamental_score": 83.59864676709307,
+      "technical_score": 59.150000000000006,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 87.72222222222221,
+      "industry_fit_score": 86.60257216514331,
+      "valuation_percentile": 58.88888888888889,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "AI算力硬件",
+        "港股AI互联网平台"
+      ],
+      "reasons": [
+        "大师框架分=74.2",
+        "中国大师框架分=83.3",
+        "基本面分=83.6",
+        "行业适配=86.6",
+        "同类分位=87.7",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=58.9",
+        "主题参考分=71.8（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=科技硬件/平台:86.6",
+        "研发费用率=15.7%",
+        "资本开支/经营现金流=0.04",
+        "现金流/利润=1.50",
+        "匹配主题=AI算力硬件、港股AI互联网平台"
+      ],
+      "why_selected": [
+        "专家分 79.2，进入当前提炼池",
+        "基本面 83.6，质量/成长支撑较强",
+        "同类分位 87.7，在可比组内靠前",
+        "行业适配 86.6，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02382",
+      "name": "舜宇光学科技",
+      "last_price": 82.05,
+      "amount": 1881395522.0,
+      "market_cap": 88529061840.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 78.45088648097989,
+      "master_score": 78.32913034640488,
+      "china_master_score": 79.26293172588647,
+      "fundamental_score": 70.40636451236706,
+      "technical_score": 83.25,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 87.7000980071872,
+      "industry_fit_score": 71.9535540633135,
+      "valuation_percentile": 51.878471087879774,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=78.3",
+        "中国大师框架分=79.3",
+        "基本面分=70.4",
+        "行业适配=72.0",
+        "同类分位=87.7",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=51.9",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:72.0",
+        "研发费用率=7.5%",
+        "资本开支/经营现金流=0.35",
+        "现金流/利润=1.31"
+      ],
+      "why_selected": [
+        "专家分 78.5，进入当前提炼池",
+        "基本面 70.4，质量/成长支撑较强",
+        "技术面 83.2，趋势确认度高",
+        "同类分位 87.7，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00293",
+      "name": "国泰航空",
+      "last_price": 12.96,
+      "amount": 513200474.0,
+      "market_cap": 78811419372.48,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 76.243720866458,
+      "master_score": 81.18475291116823,
+      "china_master_score": 77.14777613285003,
+      "fundamental_score": 59.780898861719606,
+      "technical_score": 89.65,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 95.80039202874877,
+      "industry_fit_score": 60.04430073520191,
+      "valuation_percentile": 85.4295981705325,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=81.2",
+        "中国大师框架分=77.1",
+        "基本面分=59.8",
+        "行业适配=60.0",
+        "同类分位=95.8",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=85.4",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:60.0",
+        "资本开支/经营现金流=0.39",
+        "现金流/利润=2.34"
+      ],
+      "why_selected": [
+        "专家分 76.2，进入当前提炼池",
+        "技术面 89.7，趋势确认度高",
+        "同类分位 95.8，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03988",
+      "name": "中国银行",
+      "last_price": 5.31,
+      "amount": 877241504.0,
+      "market_cap": 1710947906732.34,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 75.83869753804478,
+      "master_score": 88.02467262808557,
+      "china_master_score": 75.15812425247185,
+      "fundamental_score": 50.50912008676738,
+      "technical_score": 100.0,
+      "detailed_industry": "金融与交易基础设施",
+      "industry_peer_group": "金融与交易基础设施",
+      "peer_score": 90.14851485148515,
+      "industry_fit_score": 51.21313794465206,
+      "valuation_percentile": 69.3069306930693,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=88.0",
+        "中国大师框架分=75.2",
+        "基本面分=50.5",
+        "行业适配=51.2",
+        "同类分位=90.1",
+        "同类组=金融与交易基础设施",
+        "细分行业=金融与交易基础设施",
+        "估值同类分位=69.3",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:51.2",
+        "资本开支/经营现金流=0.06",
+        "现金流/利润=3.34",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "why_selected": [
+        "专家分 75.8，进入当前提炼池",
+        "基本面 50.5，更依赖技术或主题验证",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 90.1，在可比组内靠前"
+      ],
+      "key_risks": [
+        "基本面支撑偏弱，需核验利润和现金流质量"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00902",
+      "name": "华能国际电力股份",
+      "last_price": 7.1,
+      "amount": 651748147.0,
+      "market_cap": 111456462848.9,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 74.69672867148543,
+      "master_score": 85.51965315911926,
+      "china_master_score": 73.9100111108961,
+      "fundamental_score": 50.51010325327079,
+      "technical_score": 100.0,
+      "detailed_industry": "高股息公用与运营商",
+      "industry_peer_group": "高股息公用与运营商",
+      "peer_score": 91.58536585365853,
+      "industry_fit_score": 48.58062938810952,
+      "valuation_percentile": 78.04878048780488,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御",
+        "电力储能与能源转型"
+      ],
+      "reasons": [
+        "大师框架分=85.5",
+        "中国大师框架分=73.9",
+        "基本面分=50.5",
+        "行业适配=48.6",
+        "同类分位=91.6",
+        "同类组=高股息公用与运营商",
+        "细分行业=高股息公用与运营商",
+        "估值同类分位=78.0",
+        "主题参考分=65.7（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:48.6",
+        "资本开支/经营现金流=0.87",
+        "现金流/利润=4.62",
+        "匹配主题=高股息央国企防御、电力储能与能源转型",
+        "基本面预警=[\"收入同比下滑\", \"多期成长或稳定性偏弱\"]"
+      ],
+      "why_selected": [
+        "专家分 74.7，进入当前提炼池",
+        "基本面 50.5，更依赖技术或主题验证",
+        "技术面 100.0，趋势确认度高",
+        "同类分位 91.6，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01088",
+      "name": "中国神华",
+      "last_price": 46.1,
+      "amount": 680351142.0,
+      "market_cap": 999882921414.4,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 73.09343456205447,
+      "master_score": 76.5237976761296,
+      "china_master_score": 71.85810850995802,
+      "fundamental_score": 55.280943043951176,
+      "technical_score": 76.4,
+      "detailed_industry": "能源资源",
+      "industry_peer_group": "能源资源",
+      "peer_score": 87.01219512195122,
+      "industry_fit_score": 83.29006657891966,
+      "valuation_percentile": 59.756097560975604,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御",
+        "资源涨价与安全资产"
+      ],
+      "reasons": [
+        "大师框架分=76.5",
+        "中国大师框架分=71.9",
+        "基本面分=55.3",
+        "行业适配=83.3",
+        "同类分位=87.0",
+        "同类组=能源资源",
+        "细分行业=能源资源",
+        "估值同类分位=59.8",
+        "主题参考分=64.6（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:83.3",
+        "研发费用率=1.0%",
+        "资本开支/经营现金流=0.64",
+        "现金流/利润=1.38",
+        "匹配主题=高股息央国企防御、资源涨价与安全资产",
+        "基本面预警=[\"收入同比下滑\", \"利润同比下滑\"]"
+      ],
+      "why_selected": [
+        "专家分 73.1，进入当前提炼池",
+        "技术面 76.4，趋势确认度高",
+        "同类分位 87.0，在可比组内靠前",
+        "行业适配 83.3，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "资源品受商品价格和资本开支周期影响明显"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02888",
+      "name": "渣打集团",
+      "last_price": 201.4,
+      "amount": 629344796.0,
+      "market_cap": 443552720440.8,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 73.03223616105718,
+      "master_score": 76.68461407834376,
+      "china_master_score": 75.76717529834946,
+      "fundamental_score": 60.777297821656205,
+      "technical_score": 73.25,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 94.83502123489056,
+      "industry_fit_score": 61.5255323104052,
+      "valuation_percentile": 81.63998693237504,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=76.7",
+        "中国大师框架分=75.8",
+        "基本面分=60.8",
+        "行业适配=61.5",
+        "同类分位=94.8",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=81.6",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:61.5",
+        "资本开支/经营现金流=0.04",
+        "现金流/利润=7.25",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "why_selected": [
+        "专家分 73.0，进入当前提炼池",
+        "同类分位 94.8，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00148",
+      "name": "建滔集团",
+      "last_price": 62.35,
+      "amount": 1240509788.0,
+      "market_cap": 69103236739.6,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 72.76406764540272,
+      "master_score": 79.14668470854336,
+      "china_master_score": 74.03606455632934,
+      "fundamental_score": 55.094113794410205,
+      "technical_score": 87.4,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 93.9905259719046,
+      "industry_fit_score": 47.22466720349257,
+      "valuation_percentile": 78.24240444299248,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=79.1",
+        "中国大师框架分=74.0",
+        "基本面分=55.1",
+        "行业适配=47.2",
+        "同类分位=94.0",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=78.2",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:47.2",
+        "资本开支/经营现金流=0.83",
+        "现金流/利润=1.08"
+      ],
+      "why_selected": [
+        "专家分 72.8，进入当前提炼池",
+        "技术面 87.4，趋势确认度高",
+        "同类分位 94.0，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03808",
+      "name": "中国重汽",
+      "last_price": 41.58,
+      "amount": 407319458.0,
+      "market_cap": 114802103035.62,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 71.74926708533071,
+      "master_score": 72.28125099066135,
+      "china_master_score": 73.99639245391076,
+      "fundamental_score": 61.945971820802036,
+      "technical_score": 71.75,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 89.62267232930415,
+      "industry_fit_score": 67.91738640594774,
+      "valuation_percentile": 61.02580855929435,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=72.3",
+        "中国大师框架分=74.0",
+        "基本面分=61.9",
+        "行业适配=67.9",
+        "同类分位=89.6",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=61.0",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=通用质量:67.9",
+        "资本开支/经营现金流=0.14",
+        "现金流/利润=1.09"
+      ],
+      "why_selected": [
+        "专家分 71.7，进入当前提炼池",
+        "同类分位 89.6，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00941",
+      "name": "中国移动",
+      "last_price": 82.4,
+      "amount": 1573800111.0,
+      "market_cap": 1786383783063.2,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 71.24946979315969,
+      "master_score": 76.07851132685099,
+      "china_master_score": 74.2271444990366,
+      "fundamental_score": 59.06575474374719,
+      "technical_score": 56.5,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 94.84645540672983,
+      "industry_fit_score": 72.56357363888557,
+      "valuation_percentile": 82.03201568114994,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=76.1",
+        "中国大师框架分=74.2",
+        "基本面分=59.1",
+        "行业适配=72.6",
+        "同类分位=94.8",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=82.0",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=neutral",
+        "行业化阈值=红利防御:72.6",
+        "资本开支/经营现金流=0.67",
+        "现金流/利润=1.70",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"利润同比下滑\"]"
+      ],
+      "why_selected": [
+        "专家分 71.2，进入当前提炼池",
+        "同类分位 94.8，在可比组内靠前",
+        "主题匹配：高股息央国企防御"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00005",
+      "name": "汇丰控股",
+      "last_price": 141.8,
+      "amount": 4164406841.0,
+      "market_cap": 2436629352795.6,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 70.99239265430823,
+      "master_score": 76.18283765706235,
+      "china_master_score": 72.4218580686613,
+      "fundamental_score": 53.93379102791153,
+      "technical_score": 73.25,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 93.53642600457368,
+      "industry_fit_score": 59.738295780000385,
+      "valuation_percentile": 76.64162038549493,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=76.2",
+        "中国大师框架分=72.4",
+        "基本面分=53.9",
+        "行业适配=59.7",
+        "同类分位=93.5",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=76.6",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:59.7",
+        "资本开支/经营现金流=0.16",
+        "现金流/利润=1.41",
+        "基本面预警=[\"资产负债率偏高\", \"利润同比下滑\"]"
+      ],
+      "why_selected": [
+        "专家分 71.0，进入当前提炼池",
+        "基本面 53.9，更依赖技术或主题验证",
+        "同类分位 93.5，在可比组内靠前"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03986",
+      "name": "兆易创新",
+      "last_price": 723.0,
+      "amount": 1827879298.0,
+      "market_cap": 506897072073.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 70.21937826908355,
+      "master_score": 67.92559373247721,
+      "china_master_score": 75.65171122370198,
+      "fundamental_score": 73.12075364938231,
+      "technical_score": 59.150000000000006,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 75.65828160731789,
+      "industry_fit_score": 56.72162205708614,
+      "valuation_percentile": 4.0836327997386475,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=67.9",
+        "中国大师框架分=75.7",
+        "基本面分=73.1",
+        "行业适配=56.7",
+        "同类分位=75.7",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=4.1",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=通用质量:56.7",
+        "研发费用率=12.1%",
+        "资本开支/经营现金流=0.49",
+        "现金流/利润=1.29",
+        "基本面预警=[\"多期成长或稳定性偏弱\"]"
+      ],
+      "why_selected": [
+        "专家分 70.2，进入当前提炼池",
+        "基本面 73.1，质量/成长支撑较强",
+        "同类分位 75.7，在可比组内靠前"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "00939",
+      "name": "建设银行",
+      "last_price": 8.72,
+      "amount": 1900711368.0,
+      "market_cap": 2281155326322.48,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 69.56888872137762,
+      "master_score": 83.70938135189134,
+      "china_master_score": 73.63660231998495,
+      "fundamental_score": 49.86541721947146,
+      "technical_score": 79.75,
+      "detailed_industry": "金融与交易基础设施",
+      "industry_peer_group": "金融与交易基础设施",
+      "peer_score": 48.31683168316832,
+      "industry_fit_score": 53.60029580194691,
+      "valuation_percentile": 71.28712871287128,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "高股息央国企防御"
+      ],
+      "reasons": [
+        "大师框架分=83.7",
+        "中国大师框架分=73.6",
+        "基本面分=49.9",
+        "行业适配=53.6",
+        "同类分位=48.3",
+        "同类组=金融与交易基础设施",
+        "细分行业=金融与交易基础设施",
+        "估值同类分位=71.3",
+        "主题参考分=51.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=红利防御:53.6",
+        "资本开支/经营现金流=0.01",
+        "现金流/利润=6.20",
+        "匹配主题=高股息央国企防御",
+        "基本面预警=[\"资产负债率偏高\"]"
+      ],
+      "why_selected": [
+        "专家分 69.6，进入当前提炼池",
+        "基本面 49.9，更依赖技术或主题验证",
+        "技术面 79.8，趋势确认度高",
+        "主题匹配：高股息央国企防御"
+      ],
+      "key_risks": [
+        "估值处在同类较高分位，回撤时弹性可能放大",
+        "基本面支撑偏弱，需核验利润和现金流质量"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的",
+        "确认估值溢价是否有盈利增速或现金流支撑"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "01888",
+      "name": "建滔积层板",
+      "last_price": 49.92,
+      "amount": 4526799166.0,
+      "market_cap": 156515424000.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 68.08893160806345,
+      "master_score": 67.08502822113202,
+      "china_master_score": 69.31793947746351,
+      "fundamental_score": 60.983494158358916,
+      "technical_score": 76.0,
+      "detailed_industry": "港股综合",
+      "industry_peer_group": "港股综合",
+      "peer_score": 74.65370793858217,
+      "industry_fit_score": 52.27486075574075,
+      "valuation_percentile": 0.29402156158118264,
+      "decision": "core_candidate",
+      "theme_matches": [],
+      "reasons": [
+        "大师框架分=67.1",
+        "中国大师框架分=69.3",
+        "基本面分=61.0",
+        "行业适配=52.3",
+        "同类分位=74.7",
+        "同类组=港股综合",
+        "细分行业=港股综合",
+        "估值同类分位=0.3",
+        "主题参考分=28.0（不计入综合分）",
+        "技术信号=strong_trend",
+        "行业化阈值=通用质量:52.3",
+        "资本开支/经营现金流=0.59",
+        "现金流/利润=0.88"
+      ],
+      "why_selected": [
+        "专家分 68.1，进入当前提炼池",
+        "技术面 76.0，趋势确认度高"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    }
+  ],
+  "potential_candidates": [],
+  "etf_leaders": [
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589130",
+      "name": "科创芯片ETF易方达",
+      "etf_category": "行业ETF",
+      "etf_cluster": "半导体芯片",
+      "etf_track": "半导体芯片",
+      "etf_score": 92.8,
+      "etf_recommendation": "优先观察",
+      "peer_count": 50,
+      "peer_alternatives": "A:589020 科创半导体设备ETF鹏华 | A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝",
+      "pct_change": -4.75,
+      "amount": 219334883.0,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 半导体芯片",
+        "成交额 2.19亿，流动性相对靠前",
+        "同组 50 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:589020 科创半导体设备ETF鹏华",
+        "A:589100 科创芯片ETF国泰",
+        "A:589190 科创芯片ETF华宝"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589850",
+      "name": "科创50ETF东财",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "成长科创宽基",
+      "etf_track": "科创50",
+      "etf_score": 91.6,
+      "etf_recommendation": "优先观察",
+      "peer_count": 106,
+      "peer_alternatives": "HK:03147 南方创业板 | A:589150 科创50ETF平安 | HK:03151 PP科创50",
+      "pct_change": -4.01,
+      "amount": 100245709.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 成长科创宽基",
+        "成交额 1.00亿，流动性相对靠前",
+        "同组 106 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:03147 南方创业板",
+        "A:589150 科创50ETF平安",
+        "HK:03151 PP科创50"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589800",
+      "name": "科创综指ETF易方达",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 91.3,
+      "etf_recommendation": "优先观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.17,
+      "amount": 109990808.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 1.10亿，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589680",
+      "name": "科创综指ETF鹏华",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 91.2,
+      "etf_recommendation": "优先观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.34,
+      "amount": 149486173.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 1.49亿，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589010",
+      "name": "科创人工智能ETF华夏",
+      "etf_category": "主题ETF",
+      "etf_cluster": "人工智能",
+      "etf_track": "人工智能",
+      "etf_score": 88.2,
+      "etf_recommendation": "优先观察",
+      "peer_count": 54,
+      "peer_alternatives": "A:589520 科创人工智能ETF华宝 | A:589230 科创人工智能ETF南方 | A:589110 科创人工智能ETF国泰",
+      "pct_change": -2.83,
+      "amount": 113491883.0,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 人工智能",
+        "成交额 1.13亿，流动性相对靠前",
+        "同组 54 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:589520 科创人工智能ETF华宝",
+        "A:589230 科创人工智能ETF南方",
+        "A:589110 科创人工智能ETF国泰"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589880",
+      "name": "科创综指ETF建信",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 86.7,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.3,
+      "amount": 42808903.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 4280.9万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589660",
+      "name": "科创综指ETF南方",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 85.1,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.28,
+      "amount": 43074817.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 4307.5万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03064",
+      "name": "GlobalX MSCI 亚太",
+      "etf_category": "跨境ETF",
+      "etf_cluster": "亚太精选",
+      "etf_track": "亚太精选",
+      "etf_score": 84.4,
+      "etf_recommendation": "观察",
+      "peer_count": 6,
+      "peer_alternatives": "A:159687 亚太精选ETF南方 | A:513730 东南亚科技ETF华泰柏瑞 | HK:09064 GlobalX MSCI亚太-U",
+      "pct_change": 0.0,
+      "amount": 66048720.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 亚太精选",
+        "成交额 6604.9万，流动性相对靠前",
+        "同组 6 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159687 亚太精选ETF南方",
+        "A:513730 东南亚科技ETF华泰柏瑞",
+        "HK:09064 GlobalX MSCI亚太-U"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589720",
+      "name": "科创创新药ETF国泰",
+      "etf_category": "主题ETF",
+      "etf_cluster": "医药医疗",
+      "etf_track": "医药医疗",
+      "etf_score": 82.9,
+      "etf_recommendation": "优先观察",
+      "peer_count": 105,
+      "peer_alternatives": "A:589120 科创创新药ETF汇添富 | HK:03186 易方达生物医药ETF | A:161035 医药增强LOF",
+      "pct_change": -0.65,
+      "amount": 151917419.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 医药医疗",
+        "成交额 1.52亿，流动性相对靠前",
+        "同组 105 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:589120 科创创新药ETF汇添富",
+        "HK:03186 易方达生物医药ETF",
+        "A:161035 医药增强LOF"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "07500",
+      "name": "南方两倍做空恒指",
+      "etf_category": "其他ETF",
+      "etf_cluster": "港股核心宽基",
+      "etf_track": "恒生指数",
+      "etf_score": 82.1,
+      "etf_recommendation": "优先观察",
+      "peer_count": 28,
+      "peer_alternatives": "HK:02828 恒生中国企业 | HK:02800 盈富基金 | HK:07200 南方两倍做多恒指",
+      "pct_change": 2.156640181611813,
+      "amount": 247871192.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 港股核心宽基",
+        "成交额 2.48亿，流动性相对靠前",
+        "同组 28 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:02828 恒生中国企业",
+        "HK:02800 盈富基金",
+        "HK:07200 南方两倍做多恒指"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03431",
+      "name": "南方港韩科技",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 81.8,
+      "etf_recommendation": "优先观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -4.459691252144083,
+      "amount": 149995017.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 1.50亿，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589900",
+      "name": "科创综指ETF博时",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 81.4,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.16,
+      "amount": 22359087.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 2235.9万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589770",
+      "name": "科创综指ETF招商",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 80.9,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.45,
+      "amount": 22343523.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 2234.4万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589860",
+      "name": "科创综指ETF天弘",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 80.6,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.24,
+      "amount": 28931391.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 2893.1万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589220",
+      "name": "科创200ETF国泰",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 80.3,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -0.8,
+      "amount": 43457089.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 4345.7万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589080",
+      "name": "科创综指ETF汇添富",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 79.6,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.25,
+      "amount": 35649029.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 3564.9万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02823",
+      "name": "安硕A50",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "a50",
+      "etf_track": "a50",
+      "etf_score": 79.3,
+      "etf_recommendation": "观察",
+      "peer_count": 31,
+      "peer_alternatives": "HK:02822 南方A50 | HK:82823 安硕A50-R | HK:03111 易方达A50 ETF",
+      "pct_change": -2.198421645997728,
+      "amount": 67561020.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 a50",
+        "成交额 6756.1万，流动性相对靠前",
+        "同组 31 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:02822 南方A50",
+        "HK:82823 安硕A50-R",
+        "HK:03111 易方达A50 ETF"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "07552",
+      "name": "南方两倍做空恒科",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 78.2,
+      "etf_recommendation": "优先观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": 3.652392947103267,
+      "amount": 602932225.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 6.03亿，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589630",
+      "name": "科创综指ETF国泰",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 78.0,
+      "etf_recommendation": "观察",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": -2.39,
+      "amount": 20427513.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "成交额 2042.8万，流动性相对靠前",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "07747",
+      "name": "南方两倍做多三星电子",
+      "etf_category": "行业ETF",
+      "etf_cluster": "电子",
+      "etf_track": "电子",
+      "etf_score": 77.9,
+      "etf_recommendation": "优先观察",
+      "peer_count": 11,
+      "peer_alternatives": "HK:07347 南方两倍做空三星电子 | HK:09747 南方两倍做多三星电子(美元) | A:150232 电子B",
+      "pct_change": -13.454376163873372,
+      "amount": 5317106915.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 电子",
+        "成交额 53.17亿，流动性相对靠前",
+        "同组 11 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:07347 南方两倍做空三星电子",
+        "HK:09747 南方两倍做多三星电子(美元)",
+        "A:150232 电子B"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    }
+  ],
+  "candidate_changes": [
+    {
+      "change": "新增",
+      "bucket": "AI算力硬件",
+      "market": "HK",
+      "symbol": "06869",
+      "name": "长飞光纤光缆",
+      "latest_score": 64.48706490889332,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "新增",
+      "bucket": "AI算力硬件",
+      "market": "HK",
+      "symbol": "01810",
+      "name": "小米集团-W",
+      "latest_score": 60.03269013761927,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "新增",
+      "bucket": "半导体国产替代",
+      "market": "HK",
+      "symbol": "00981",
+      "name": "中芯国际",
+      "latest_score": 59.226631330106926,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "新增",
+      "bucket": "半导体国产替代",
+      "market": "HK",
+      "symbol": "01347",
+      "name": "华虹半导体",
+      "latest_score": 57.35541421773642,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "新增",
+      "bucket": "电力储能与能源转型",
+      "market": "A",
+      "symbol": "600023",
+      "name": "浙能电力",
+      "latest_score": 58.07413969769998,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "新增",
+      "bucket": "资源涨价与安全资产",
+      "market": "HK",
+      "symbol": "02600",
+      "name": "中国铝业",
+      "latest_score": 58.30617269809581,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "AI算力硬件",
+      "market": "A",
+      "symbol": "000988",
+      "name": "华工科技",
+      "latest_score": null,
+      "previous_score": 67.63345045365469,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "AI算力硬件",
+      "market": "A",
+      "symbol": "688256",
+      "name": "寒武纪",
+      "latest_score": null,
+      "previous_score": 79.45731837853128,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "半导体国产替代",
+      "market": "A",
+      "symbol": "002371",
+      "name": "北方华创",
+      "latest_score": null,
+      "previous_score": 68.94570811176632,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "半导体国产替代",
+      "market": "A",
+      "symbol": "603005",
+      "name": "晶方科技",
+      "latest_score": null,
+      "previous_score": 73.09265301524876,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "半导体国产替代",
+      "market": "A",
+      "symbol": "688498",
+      "name": "源杰科技",
+      "latest_score": null,
+      "previous_score": 79.22005581221572,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "汽车智能化与出海",
+      "market": "A",
+      "symbol": "600105",
+      "name": "永鼎股份",
+      "latest_score": null,
+      "previous_score": 65.33100771485478,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "汽车智能化与出海",
+      "market": "A",
+      "symbol": "601689",
+      "name": "拓普集团",
+      "latest_score": null,
+      "previous_score": 63.119795669132046,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "电力储能与能源转型",
+      "market": "A",
+      "symbol": "000100",
+      "name": "TCL科技",
+      "latest_score": null,
+      "previous_score": 66.80468628723507,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "资源涨价与安全资产",
+      "market": "A",
+      "symbol": "002645",
+      "name": "华宏科技",
+      "latest_score": null,
+      "previous_score": 67.67465768513867,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "资源涨价与安全资产",
+      "market": "A",
+      "symbol": "601899",
+      "name": "紫金矿业",
+      "latest_score": null,
+      "previous_score": 63.5504280687598,
+      "score_delta": null
+    },
+    {
+      "change": "保留",
+      "bucket": "AI算力硬件",
+      "market": "HK",
+      "symbol": "09999",
+      "name": "网易-S",
+      "latest_score": 79.21393571417995,
+      "previous_score": 79.21396749849366,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "创新药与医疗科技",
+      "market": "HK",
+      "symbol": "02359",
+      "name": "药明康德",
+      "latest_score": 73.96670982244781,
+      "previous_score": 73.96675804692379,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "创新药与医疗科技",
+      "market": "HK",
+      "symbol": "02269",
+      "name": "药明生物",
+      "latest_score": 61.021329307918485,
+      "previous_score": 61.02147014530855,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "创新药与医疗科技",
+      "market": "HK",
+      "symbol": "01801",
+      "name": "信达生物",
+      "latest_score": 58.48204110160628,
+      "previous_score": 58.482186323039606,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "未匹配主题",
+      "market": "HK",
+      "symbol": "03750",
+      "name": "宁德时代",
+      "latest_score": 79.96134853250418,
+      "previous_score": 81.75647965726378,
+      "score_delta": -1.8
+    },
+    {
+      "change": "保留",
+      "bucket": "未匹配主题",
+      "market": "HK",
+      "symbol": "02018",
+      "name": "瑞声科技",
+      "latest_score": 79.33817246962046,
+      "previous_score": 79.33832827471852,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "未匹配主题",
+      "market": "HK",
+      "symbol": "02382",
+      "name": "舜宇光学科技",
+      "latest_score": 78.45088648097989,
+      "previous_score": 78.45110239511094,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "汽车智能化与出海",
+      "market": "HK",
+      "symbol": "00175",
+      "name": "吉利汽车",
+      "latest_score": 64.72354856798685,
+      "previous_score": 64.72364063289554,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "港股AI互联网平台",
+      "market": "HK",
+      "symbol": "00992",
+      "name": "联想集团",
+      "latest_score": 61.80665407437276,
+      "previous_score": 61.80671380696232,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "电力储能与能源转型",
+      "market": "HK",
+      "symbol": "00836",
+      "name": "华润电力",
+      "latest_score": 79.31198397535586,
+      "previous_score": 79.31216426913535,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "电力储能与能源转型",
+      "market": "HK",
+      "symbol": "00902",
+      "name": "华能国际电力股份",
+      "latest_score": 74.69672867148543,
+      "previous_score": 74.69690512922706,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "资源涨价与安全资产",
+      "market": "HK",
+      "symbol": "02259",
+      "name": "紫金黄金国际",
+      "latest_score": 66.85466195694579,
+      "previous_score": 66.85472004551912,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息央国企防御",
+      "market": "HK",
+      "symbol": "03988",
+      "name": "中国银行",
+      "latest_score": 75.83869753804478,
+      "previous_score": 75.83870740214213,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息央国企防御",
+      "market": "HK",
+      "symbol": "00941",
+      "name": "中国移动",
+      "latest_score": 71.24946979315969,
+      "previous_score": 71.24908708050286,
+      "score_delta": 0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息央国企防御",
+      "market": "HK",
+      "symbol": "00939",
+      "name": "建设银行",
+      "latest_score": 69.56888872137762,
+      "previous_score": 69.56889310542088,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息资源防御",
+      "market": "HK",
+      "symbol": "01088",
+      "name": "中国神华",
+      "latest_score": 73.09343456205447,
+      "previous_score": 73.09345264623296,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息资源防御",
+      "market": "HK",
+      "symbol": "00883",
+      "name": "中国海洋石油",
+      "latest_score": 68.4211662739922,
+      "previous_score": 68.42118052213283,
+      "score_delta": -0.0
+    },
+    {
+      "change": "保留",
+      "bucket": "高股息资源防御",
+      "market": "HK",
+      "symbol": "00857",
+      "name": "中国石油股份",
+      "latest_score": 60.91624059761624,
+      "previous_score": 60.91624881769737,
+      "score_delta": -0.0
+    }
+  ]
+}

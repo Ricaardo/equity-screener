@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -15,6 +16,13 @@ from ah_screener.scoring import _liquidity_score, _risk_penalty, _valuation_scor
 
 
 STRATEGY_NAME = "china_masters_fundamental_theme_technical_v2"
+
+
+def _profile_dict(key: str, default: dict[str, float]) -> dict[str, float]:
+    """按 env AH_PROFILE 选权重表；未设/未知 profile → 默认（默认路径不变）。"""
+    name = os.environ.get("AH_PROFILE", "").strip().lower()
+    prof = weights.PROFILES.get(name) if name else None
+    return prof.get(key, default) if prof else default
 
 
 @dataclass(frozen=True)
@@ -851,7 +859,7 @@ def run_expert_model(
         oneil_momentum = (
             technical_score * mp["oneil"]["technical"] + liquidity * mp["oneil"]["liquidity"]
         )
-        mc = weights.MASTER_COMPOSITE
+        mc = _profile_dict("master_composite", weights.MASTER_COMPOSITE)
         master_score = (
             graham_value * mc["graham"]
             + buffett_quality_proxy * mc["buffett"]
@@ -867,7 +875,7 @@ def run_expert_model(
             fundamental_score=fundamental_score,
             matches=matches,
         )
-        ec = weights.EXPERT_COMPOSITE
+        ec = _profile_dict("composite", weights.EXPERT_COMPOSITE)
         expert_score = (
             master_score * ec["master_score"]
             + china_master_score * ec["china_master_score"]

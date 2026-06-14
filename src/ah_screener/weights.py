@@ -63,6 +63,59 @@ MASTER_COMPOSITE: dict[str, float] = {
 }
 
 
+# =============================================================================
+# OPT-IN profile: "value_ratehike" — 长期价值 + 加息预期姿态（加法、默认不变）
+# 选择方式：环境变量 AH_PROFILE=value_ratehike（不设则用上面的默认）。
+#
+# ⚠ UNVALIDATED PRIOR —— 与默认权重同性质，纯框架直觉手设，未经前瞻收益校准。
+# 设计意图：温和倾向 基本面 + 价值/质量大师(graham/buffett/lynch)，压低
+# 技术/动量(technical/oneil)。加息环境久期短、现金流强、低杠杆更稳；
+# fundamental_score 已内含 债务率/ROE/经营现金流 质量，故温和版只 reweight，
+# 不另加债务 overlay（中/激进档才加）。
+# 用前必须 `ah-screener expert-validate` 样本外验证，否则只当先验、不当 edge。
+# 默认 composition 由 tests/test_scoring_weights.py 锁定；本 profile 是独立常量，
+# 不改默认路径，故不破坏锁定测试。
+# =============================================================================
+VALUE_RATEHIKE_COMPOSITE: dict[str, float] = {
+    "master_score": 0.22,
+    "china_master_score": 0.28,
+    "fundamental_score": 0.26,  # ↑ from 0.18 —— 价值核心
+    "industry_fit_score": 0.08,
+    "technical_score": 0.08,  # ↓ from 0.14 —— 仅择时，非驱动
+    "liquidity_score": 0.04,
+    "peer_score": 0.04,
+}  # sums to 1.0
+
+VALUE_RATEHIKE_MASTER_COMPOSITE: dict[str, float] = {
+    "graham": 0.26,  # ↑ 深度价值
+    "buffett": 0.28,  # ↑ 质量/护城河
+    "fisher": 0.18,
+    "lynch": 0.20,  # ↑ GARP
+    "oneil": 0.08,  # ↓ 动量压制（加息不追高久期成长）
+}  # sums to 1.0
+
+# US 线同款价值·抗加息倾斜：抬 fundamental/valuation/macro，压 technical/heat 动量。
+# macro ↑(0.10→0.14)：加息环境利率传导更重要。forward 仍按项目设计留报告注释
+# (批量 forward 数据不免费，见 scoring_us.py:485)，不入分。
+US_VALUE_RATEHIKE_COMPOSITE: dict[str, float] = {
+    "fundamental": 0.32,  # ↑ from 0.24
+    "technical": 0.10,  # ↓ from 0.20
+    "valuation": 0.22,  # ↑ from 0.14 —— 价值
+    "liquidity": 0.14,
+    "heat": 0.08,  # ↓ from 0.18 —— 动量压制
+    "macro": 0.14,  # ↑ from 0.10 —— 利率传导
+}  # sums to 1.0
+
+# profile 名 → 常量映射（expert_model / scoring_us 据 env AH_PROFILE 选择；未知名回退默认）
+PROFILES: dict[str, dict[str, dict[str, float]]] = {
+    "value_ratehike": {
+        "composite": VALUE_RATEHIKE_COMPOSITE,
+        "master_composite": VALUE_RATEHIKE_MASTER_COMPOSITE,
+        "us_composite": US_VALUE_RATEHIKE_COMPOSITE,
+    },
+}
+
+
 # --- China-master proxies (same 0-100 base-score blend idea) ---
 CHINA_MASTER_PROXY: dict[str, dict[str, float]] = {
     "zhang_lei_long_term": {"fundamental": 0.52, "liquidity": 0.15, "risk_inverse": 0.33},

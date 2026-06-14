@@ -1,9 +1,9 @@
 {
   "schema_version": "0.1",
   "report_type": "us-premarket",
-  "report_date": "2026-06-13",
-  "generated_at": "2026-06-14T20:40:59",
-  "database": "/Users/x/nimbus-stack/equity-screener/data/us_screener.duckdb",
+  "report_date": "2026-06-12",
+  "generated_at": "2026-06-12T20:41:06",
+  "database": "/Users/x/ah-stock-screener/data/us_screener.duckdb",
   "disclaimer": "US screener output is for research and candidate review only, not investment advice.",
   "macro_context": {
     "status": "ok",
@@ -69,12 +69,12 @@
       "status": "ok",
       "fred_score": 85.0,
       "regime": "risk_on",
-      "as_of": "2026-06-11",
+      "as_of": "2026-06-10",
       "metrics": {
         "BAMLH0A0HYM2": {
           "label": "HY OAS",
-          "value": 2.78,
-          "change_20d": -0.02
+          "value": 2.8,
+          "change_20d": 0.04
         }
       },
       "components": {
@@ -94,125 +94,47 @@
   },
   "counts": {
     "universe": 6979,
-    "candidates": 3099,
-    "recommendable": 1292,
-    "filtered": 3880,
+    "candidates": 3111,
+    "recommendable": 1286,
+    "filtered": 3868,
     "core_candidates": 20
   },
   "filtered_summary": {
-    "low_amount": 3400,
-    "low_market_cap": 2508,
-    "us_penny": 841,
-    "amount_missing": 265,
+    "low_amount": 3283,
+    "low_market_cap": 2506,
+    "us_penny": 834,
+    "amount_missing": 349,
     "china_concept": 39,
     "price_missing": 10
   },
   "recommendation_filtered_summary": {
-    "low_market_cap": 5031,
-    "low_amount": 4650,
-    "us_low_price": 2076,
+    "low_market_cap": 5032,
+    "low_amount": 4492,
+    "us_low_price": 2068,
     "us_shell_structure": 831,
-    "market_cap_missing": 518,
-    "amount_missing": 265,
+    "market_cap_missing": 517,
+    "amount_missing": 349,
     "price_missing": 10
   },
   "top_candidates": [
     {
       "market": "US",
-      "symbol": "KLAC",
-      "name": "KLA Corporation  - Common Stock",
-      "last_price": 254.54,
-      "amount": 2520165864.0,
-      "expert_score": 87.29,
-      "decision": "core_candidate",
-      "fundamental_score_final": 76.4,
-      "technical_score": 100.0,
-      "valuation_score": 87.04,
-      "market_cap": 33249930722.0,
-      "pe_ttm": 7.17,
-      "pb": null,
-      "peg": 0.152,
-      "liquidity_score": 99.39,
-      "heat_score": 78.62,
-      "rs_score": 83.79,
-      "short_ratio": 0.5584,
-      "macro_score": 87.0,
-      "concept_boards": [
-        "AI算力"
-      ],
-      "filter_reasons": [],
-      "is_recommendable": true,
-      "recommendation_filter_reasons": [],
-      "score_components": {
-        "fundamental": 76.4,
-        "technical": 100.0,
-        "valuation": 87.04,
-        "liquidity": 99.39,
-        "heat": 78.62,
-        "macro": 87.0
-      },
-      "heat_components": {
-        "rvol": 1.0907063731802904,
-        "return_20d": 0.09840888965064121,
-        "above_ma20": true,
-        "above_ma50": true,
-        "proximity_52w_high": 0.9332647275833948,
-        "amount": 2520165864.0,
-        "scores": {
-          "rvol": 45.58,
-          "return_20d": 77.67,
-          "above_ma20": 100.0,
-          "above_ma50": 100.0,
-          "proximity_52w_high": 78.77,
-          "liquidity": 98.69
-        }
-      },
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [
-          "AI算力"
-        ],
-        "adjustments": [
-          {
-            "driver": "growth",
-            "delta": 12.0
-          },
-          {
-            "driver": "policy_hawkish",
-            "delta": -6.0
-          }
-        ]
-      },
-      "reasons_list": [
-        "主题板块: AI算力",
-        "heat=78.6",
-        "macro=87.0",
-        "technical=100.0",
-        "fundamental=76.4"
-      ],
-      "hot_themes": [
-        "AI算力"
-      ]
-    },
-    {
-      "market": "US",
       "symbol": "AVGO",
       "name": "Broadcom Inc. - Common Stock",
-      "last_price": 382.07,
-      "amount": 10538725821.0,
-      "expert_score": 84.92,
+      "last_price": 385.57,
+      "amount": 13454768892.551,
+      "expert_score": 84.91,
       "decision": "core_candidate",
       "fundamental_score_final": 82.5,
       "technical_score": 100.0,
-      "valuation_score": 46.65,
-      "market_cap": 1817728666249.0,
-      "pe_ttm": 61.72,
+      "valuation_score": 46.51,
+      "market_cap": 1834380196942.0,
+      "pe_ttm": 62.29,
       "pb": null,
-      "peg": 0.211,
-      "liquidity_score": 99.84,
-      "heat_score": 88.37,
-      "rs_score": 81.59,
+      "peg": 0.213,
+      "liquidity_score": 99.88,
+      "heat_score": 88.43,
+      "rs_score": 81.68,
       "short_ratio": 0.3224,
       "macro_score": 87.0,
       "concept_boards": [
@@ -224,9 +146,9 @@
       "score_components": {
         "fundamental": 82.5,
         "technical": 100.0,
-        "valuation": 46.65,
-        "liquidity": 99.84,
-        "heat": 88.37,
+        "valuation": 46.51,
+        "liquidity": 99.88,
+        "heat": 88.43,
         "macro": 87.0
       },
       "heat_components": {
@@ -235,14 +157,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9952550679438628,
-        "amount": 10538725821.0,
+        "amount": 13454768892.551,
         "scores": {
-          "rvol": 92.42,
-          "return_20d": 72.42,
+          "rvol": 92.43,
+          "return_20d": 72.53,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 99.05,
-          "liquidity": 99.65
+          "proximity_52w_high": 99.09,
+          "liquidity": 99.75
         }
       },
       "macro_components": {
@@ -277,20 +199,20 @@
       "market": "US",
       "symbol": "DAL",
       "name": "Delta Air Lines, Inc. Common Stock",
-      "last_price": 83.06,
-      "amount": 567791445.0,
-      "expert_score": 84.46,
+      "last_price": 81.83,
+      "amount": 637001937.8869,
+      "expert_score": 84.6,
       "decision": "core_candidate",
       "fundamental_score_final": 82.9,
       "technical_score": 84.5,
-      "valuation_score": 81.16,
-      "market_cap": 54569933849.0,
-      "pe_ttm": 12.04,
+      "valuation_score": 81.93,
+      "market_cap": 53761831049.0,
+      "pe_ttm": 11.86,
       "pb": null,
-      "peg": 0.269,
-      "liquidity_score": 97.1,
-      "heat_score": 81.16,
-      "rs_score": 84.73,
+      "peg": 0.265,
+      "liquidity_score": 97.13,
+      "heat_score": 81.29,
+      "rs_score": 84.9,
       "short_ratio": 0.6051,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -300,9 +222,9 @@
       "score_components": {
         "fundamental": 82.9,
         "technical": 84.5,
-        "valuation": 81.16,
-        "liquidity": 97.1,
-        "heat": 81.16,
+        "valuation": 81.93,
+        "liquidity": 97.13,
+        "heat": 81.29,
         "macro": 81.0
       },
       "heat_components": {
@@ -311,14 +233,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9841345580341166,
-        "amount": 567791445.0,
+        "amount": 637001937.8869,
         "scores": {
-          "rvol": 43.87,
-          "return_20d": 88.59,
+          "rvol": 43.99,
+          "return_20d": 88.78,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 95.23,
-          "liquidity": 93.77
+          "proximity_52w_high": 95.32,
+          "liquidity": 94.02
         }
       },
       "macro_components": {
@@ -328,7 +250,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=81.2",
+        "heat=81.3",
         "macro=81.0",
         "technical=84.5",
         "fundamental=82.9"
@@ -338,20 +260,20 @@
       "market": "US",
       "symbol": "MU",
       "name": "Micron Technology, Inc. - Common Stock",
-      "last_price": 981.61,
-      "amount": 40549989029.0,
-      "expert_score": 83.77,
+      "last_price": 995.87,
+      "amount": 56181837793.2728,
+      "expert_score": 83.78,
       "decision": "core_candidate",
       "fundamental_score_final": 83.51,
       "technical_score": 82.9,
-      "valuation_score": 60.17,
-      "market_cap": 1106995021802.0,
-      "pe_ttm": 45.78,
+      "valuation_score": 60.26,
+      "market_cap": 1123076509369.0,
+      "pe_ttm": 46.45,
       "pb": null,
-      "peg": 0.046,
-      "liquidity_score": 99.99,
-      "heat_score": 89.03,
-      "rs_score": 99.35,
+      "peg": 0.047,
+      "liquidity_score": 100.0,
+      "heat_score": 89.04,
+      "rs_score": 99.32,
       "short_ratio": 0.4044,
       "macro_score": 87.0,
       "concept_boards": [
@@ -363,9 +285,9 @@
       "score_components": {
         "fundamental": 83.51,
         "technical": 82.9,
-        "valuation": 60.17,
-        "liquidity": 99.99,
-        "heat": 89.03,
+        "valuation": 60.26,
+        "liquidity": 100.0,
+        "heat": 89.04,
         "macro": 87.0
       },
       "heat_components": {
@@ -374,14 +296,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9903771661569826,
-        "amount": 40549989029.0,
+        "amount": 56181837793.2728,
         "scores": {
-          "rvol": 46.62,
-          "return_20d": 99.25,
+          "rvol": 46.68,
+          "return_20d": 99.26,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 97.58,
-          "liquidity": 99.97
+          "proximity_52w_high": 97.63,
+          "liquidity": 100.0
         }
       },
       "macro_components": {
@@ -410,7 +332,7 @@
       ],
       "earnings_date": "2026-06-24",
       "earnings_when": "time-after-hours",
-      "earnings_in_days": 10,
+      "earnings_in_days": 12,
       "hot_themes": [
         "AI算力"
       ]
@@ -419,20 +341,20 @@
       "market": "US",
       "symbol": "EXEL",
       "name": "Exelixis, Inc. - Common Stock",
-      "last_price": 53.13,
-      "amount": 84403686.0,
-      "expert_score": 83.58,
+      "last_price": 53.5,
+      "amount": 97511201.8782,
+      "expert_score": 83.53,
       "decision": "core_candidate",
       "fundamental_score_final": 91.99,
       "technical_score": 100.0,
-      "valuation_score": 62.37,
-      "market_cap": 13354495294.0,
-      "pe_ttm": 16.97,
+      "valuation_score": 61.79,
+      "market_cap": 13447496673.0,
+      "pe_ttm": 17.09,
       "pb": null,
-      "peg": 0.339,
-      "liquidity_score": 83.94,
-      "heat_score": 71.76,
-      "rs_score": 73.71,
+      "peg": 0.341,
+      "liquidity_score": 83.95,
+      "heat_score": 71.92,
+      "rs_score": 73.81,
       "short_ratio": 0.4185,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -442,9 +364,9 @@
       "score_components": {
         "fundamental": 91.99,
         "technical": 100.0,
-        "valuation": 62.37,
-        "liquidity": 83.94,
-        "heat": 71.76,
+        "valuation": 61.79,
+        "liquidity": 83.95,
+        "heat": 71.92,
         "macro": 81.0
       },
       "heat_components": {
@@ -453,14 +375,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9533610271903323,
-        "amount": 84403686.0,
+        "amount": 97511201.8782,
         "scores": {
-          "rvol": 38.88,
-          "return_20d": 82.4,
+          "rvol": 38.95,
+          "return_20d": 82.53,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 84.45,
-          "liquidity": 66.01
+          "proximity_52w_high": 84.73,
+          "liquidity": 66.65
         }
       },
       "macro_components": {
@@ -470,7 +392,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=71.8",
+        "heat=71.9",
         "macro=81.0",
         "technical=100.0",
         "fundamental=92.0"
@@ -480,20 +402,20 @@
       "market": "US",
       "symbol": "CRUS",
       "name": "Cirrus Logic, Inc. - Common Stock",
-      "last_price": 164.09,
-      "amount": 68986208.0,
-      "expert_score": 83.42,
+      "last_price": 162.93,
+      "amount": 74524356.6135,
+      "expert_score": 83.46,
       "decision": "core_candidate",
       "fundamental_score_final": 95.09,
       "technical_score": 95.5,
-      "valuation_score": 59.22,
-      "market_cap": 8278786660.0,
-      "pe_ttm": 20.26,
+      "valuation_score": 59.8,
+      "market_cap": 8220261506.0,
+      "pe_ttm": 20.11,
       "pb": null,
-      "peg": 0.81,
-      "liquidity_score": 81.78,
-      "heat_score": 72.55,
-      "rs_score": 79.71,
+      "peg": 0.804,
+      "liquidity_score": 81.45,
+      "heat_score": 72.59,
+      "rs_score": 79.77,
       "short_ratio": 0.6024,
       "macro_score": 87.0,
       "concept_boards": [
@@ -505,9 +427,9 @@
       "score_components": {
         "fundamental": 95.09,
         "technical": 95.5,
-        "valuation": 59.22,
-        "liquidity": 81.78,
-        "heat": 72.55,
+        "valuation": 59.8,
+        "liquidity": 81.45,
+        "heat": 72.59,
         "macro": 87.0
       },
       "heat_components": {
@@ -516,14 +438,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9419687396075823,
-        "amount": 68986208.0,
+        "amount": 74524356.6135,
         "scores": {
-          "rvol": 47.94,
-          "return_20d": 64.45,
+          "rvol": 48.03,
+          "return_20d": 64.35,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 81.42,
-          "liquidity": 61.44
+          "proximity_52w_high": 81.64,
+          "liquidity": 61.39
         }
       },
       "macro_components": {
@@ -556,22 +478,83 @@
     },
     {
       "market": "US",
+      "symbol": "CPAY",
+      "name": "Corpay, Inc. Common Stock",
+      "last_price": 350.85,
+      "amount": 174273441.8788,
+      "expert_score": 83.2,
+      "decision": "core_candidate",
+      "fundamental_score_final": 98.62,
+      "technical_score": 89.0,
+      "valuation_score": 46.56,
+      "market_cap": 22932227176.0,
+      "pe_ttm": 20.72,
+      "pb": null,
+      "peg": 3.047,
+      "liquidity_score": 89.26,
+      "heat_score": 81.22,
+      "rs_score": 76.84,
+      "short_ratio": 0.7456,
+      "macro_score": 81.0,
+      "concept_boards": [],
+      "filter_reasons": [],
+      "is_recommendable": true,
+      "recommendation_filter_reasons": [],
+      "score_components": {
+        "fundamental": 98.62,
+        "technical": 89.0,
+        "valuation": 46.56,
+        "liquidity": 89.26,
+        "heat": 81.22,
+        "macro": 81.0
+      },
+      "heat_components": {
+        "rvol": 1.3640502268384926,
+        "return_20d": 0.18119228635755524,
+        "above_ma20": true,
+        "above_ma50": true,
+        "proximity_52w_high": 0.9938502086536349,
+        "amount": 174273441.8788,
+        "scores": {
+          "rvol": 66.21,
+          "return_20d": 86.49,
+          "above_ma20": 100.0,
+          "above_ma50": 100.0,
+          "proximity_52w_high": 98.54,
+          "liquidity": 77.56
+        }
+      },
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [],
+        "adjustments": []
+      },
+      "reasons_list": [
+        "heat=81.2",
+        "macro=81.0",
+        "technical=89.0",
+        "fundamental=98.6"
+      ]
+    },
+    {
+      "market": "US",
       "symbol": "AMAT",
       "name": "Applied Materials, Inc. - Common Stock",
-      "last_price": 567.25,
-      "amount": 4532763127.0,
-      "expert_score": 83.1,
+      "last_price": 552.64,
+      "amount": 6729820392.2332,
+      "expert_score": 83.15,
       "decision": "core_candidate",
       "fundamental_score_final": 85.19,
       "technical_score": 100.0,
-      "valuation_score": 36.62,
-      "market_cap": 450373486100.0,
-      "pe_ttm": 52.96,
+      "valuation_score": 36.75,
+      "market_cap": 438773738842.0,
+      "pe_ttm": 51.6,
       "pb": null,
       "peg": null,
-      "liquidity_score": 99.66,
-      "heat_score": 82.64,
-      "rs_score": 87.88,
+      "liquidity_score": 99.76,
+      "heat_score": 82.76,
+      "rs_score": 88.03,
       "short_ratio": 0.5169,
       "macro_score": 87.0,
       "concept_boards": [
@@ -583,9 +566,9 @@
       "score_components": {
         "fundamental": 85.19,
         "technical": 100.0,
-        "valuation": 36.62,
-        "liquidity": 99.66,
-        "heat": 82.64,
+        "valuation": 36.75,
+        "liquidity": 99.76,
+        "heat": 82.76,
         "macro": 87.0
       },
       "heat_components": {
@@ -594,14 +577,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.974113321799308,
-        "amount": 4532763127.0,
+        "amount": 6729820392.2332,
         "scores": {
-          "rvol": 48.55,
-          "return_20d": 83.28,
+          "rvol": 48.64,
+          "return_20d": 83.4,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 91.38,
-          "liquidity": 99.27
+          "proximity_52w_high": 91.58,
+          "liquidity": 99.49
         }
       },
       "macro_components": {
@@ -623,7 +606,7 @@
       },
       "reasons_list": [
         "主题板块: AI算力",
-        "heat=82.6",
+        "heat=82.8",
         "macro=87.0",
         "technical=100.0",
         "fundamental=85.2"
@@ -634,83 +617,22 @@
     },
     {
       "market": "US",
-      "symbol": "CPAY",
-      "name": "Corpay, Inc. Common Stock",
-      "last_price": 356.11,
-      "amount": 145616766.0,
-      "expert_score": 82.98,
-      "decision": "core_candidate",
-      "fundamental_score_final": 98.62,
-      "technical_score": 89.0,
-      "valuation_score": 45.56,
-      "market_cap": 23276030838.0,
-      "pe_ttm": 21.03,
-      "pb": null,
-      "peg": 3.093,
-      "liquidity_score": 88.84,
-      "heat_score": 81.06,
-      "rs_score": 76.82,
-      "short_ratio": 0.7456,
-      "macro_score": 81.0,
-      "concept_boards": [],
-      "filter_reasons": [],
-      "is_recommendable": true,
-      "recommendation_filter_reasons": [],
-      "score_components": {
-        "fundamental": 98.62,
-        "technical": 89.0,
-        "valuation": 45.56,
-        "liquidity": 88.84,
-        "heat": 81.06,
-        "macro": 81.0
-      },
-      "heat_components": {
-        "rvol": 1.3640502268384926,
-        "return_20d": 0.18119228635755524,
-        "above_ma20": true,
-        "above_ma50": true,
-        "proximity_52w_high": 0.9938502086536349,
-        "amount": 145616766.0,
-        "scores": {
-          "rvol": 66.15,
-          "return_20d": 86.39,
-          "above_ma20": 100.0,
-          "above_ma50": 100.0,
-          "proximity_52w_high": 98.5,
-          "liquidity": 76.36
-        }
-      },
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [],
-        "adjustments": []
-      },
-      "reasons_list": [
-        "heat=81.1",
-        "macro=81.0",
-        "technical=89.0",
-        "fundamental=98.6"
-      ]
-    },
-    {
-      "market": "US",
       "symbol": "NXPI",
       "name": "NXP Semiconductors N.V. - Common Stock",
-      "last_price": 304.86,
-      "amount": 647919355.0,
-      "expert_score": 82.98,
+      "last_price": 302.55,
+      "amount": 1537183472.0882,
+      "expert_score": 83.14,
       "decision": "core_candidate",
       "fundamental_score_final": 91.47,
       "technical_score": 93.25,
-      "valuation_score": 43.04,
-      "market_cap": 76968329180.0,
-      "pe_ttm": 29.01,
+      "valuation_score": 42.41,
+      "market_cap": 76385121018.0,
+      "pe_ttm": 28.79,
       "pb": null,
       "peg": null,
-      "liquidity_score": 97.54,
-      "heat_score": 77.75,
-      "rs_score": 88.43,
+      "liquidity_score": 98.82,
+      "heat_score": 78.12,
+      "rs_score": 88.55,
       "short_ratio": 0.5772,
       "macro_score": 87.0,
       "concept_boards": [
@@ -722,9 +644,9 @@
       "score_components": {
         "fundamental": 91.47,
         "technical": 93.25,
-        "valuation": 43.04,
-        "liquidity": 97.54,
-        "heat": 77.75,
+        "valuation": 42.41,
+        "liquidity": 98.82,
+        "heat": 78.12,
         "macro": 87.0
       },
       "heat_components": {
@@ -733,14 +655,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9454919841153111,
-        "amount": 647919355.0,
+        "amount": 1537183472.0882,
         "scores": {
-          "rvol": 33.3,
-          "return_20d": 77.03,
+          "rvol": 33.44,
+          "return_20d": 77.05,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 82.63,
-          "liquidity": 94.73
+          "proximity_52w_high": 82.87,
+          "liquidity": 97.52
         }
       },
       "macro_components": {
@@ -762,7 +684,7 @@
       },
       "reasons_list": [
         "主题板块: AI算力",
-        "heat=77.8",
+        "heat=78.1",
         "macro=87.0",
         "technical=93.2",
         "fundamental=91.5"
@@ -775,20 +697,20 @@
       "market": "US",
       "symbol": "MRVL",
       "name": "Marvell Technology, Inc. - Common Stock",
-      "last_price": 279.7,
-      "amount": 11849307890.0,
-      "expert_score": 82.59,
+      "last_price": 280.71,
+      "amount": 15492141844.0991,
+      "expert_score": 82.67,
       "decision": "core_candidate",
       "fundamental_score_final": 86.95,
       "technical_score": 88.75,
-      "valuation_score": 38.82,
-      "market_cap": 244681560000.0,
-      "pe_ttm": 94.81,
+      "valuation_score": 39.29,
+      "market_cap": 245565107999.0,
+      "pe_ttm": 95.16,
       "pb": null,
-      "peg": 0.236,
-      "liquidity_score": 99.87,
-      "heat_score": 88.06,
-      "rs_score": 97.54,
+      "peg": 0.237,
+      "liquidity_score": 99.91,
+      "heat_score": 88.13,
+      "rs_score": 97.55,
       "short_ratio": 0.2842,
       "macro_score": 87.0,
       "concept_boards": [
@@ -800,9 +722,9 @@
       "score_components": {
         "fundamental": 86.95,
         "technical": 88.75,
-        "valuation": 38.82,
-        "liquidity": 99.87,
-        "heat": 88.06,
+        "valuation": 39.29,
+        "liquidity": 99.91,
+        "heat": 88.13,
         "macro": 87.0
       },
       "heat_components": {
@@ -811,14 +733,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9394304679879355,
-        "amount": 11849307890.0,
+        "amount": 15492141844.0991,
         "scores": {
-          "rvol": 59.12,
-          "return_20d": 90.76,
+          "rvol": 59.22,
+          "return_20d": 90.91,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 80.73,
-          "liquidity": 99.71
+          "proximity_52w_high": 80.96,
+          "liquidity": 99.81
         }
       },
       "macro_components": {
@@ -853,20 +775,20 @@
       "market": "US",
       "symbol": "WDC",
       "name": "Western Digital Corporation - Common Stock",
-      "last_price": 562.925,
-      "amount": 3527565869.0,
-      "expert_score": 82.29,
+      "last_price": 529.29,
+      "amount": 3273569714.7366,
+      "expert_score": 82.67,
       "decision": "core_candidate",
       "fundamental_score_final": 76.42,
       "technical_score": 93.25,
-      "valuation_score": 56.34,
-      "market_cap": 194030188593.0,
-      "pe_ttm": 30.17,
+      "valuation_score": 59.01,
+      "market_cap": 182436805116.0,
+      "pe_ttm": 28.36,
       "pb": null,
       "peg": null,
       "liquidity_score": 99.58,
-      "heat_score": 85.36,
-      "rs_score": 97.37,
+      "heat_score": 85.43,
+      "rs_score": 97.39,
       "short_ratio": 0.4782,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -876,9 +798,9 @@
       "score_components": {
         "fundamental": 76.42,
         "technical": 93.25,
-        "valuation": 56.34,
+        "valuation": 59.01,
         "liquidity": 99.58,
-        "heat": 85.36,
+        "heat": 85.43,
         "macro": 81.0
       },
       "heat_components": {
@@ -887,13 +809,13 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9595663956639566,
-        "amount": 3527565869.0,
+        "amount": 3273569714.7366,
         "scores": {
-          "rvol": 43.97,
-          "return_20d": 89.4,
+          "rvol": 44.08,
+          "return_20d": 89.56,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 86.38,
+          "proximity_52w_high": 86.58,
           "liquidity": 99.11
         }
       },
@@ -912,83 +834,22 @@
     },
     {
       "market": "US",
-      "symbol": "AA",
-      "name": "Alcoa Corporation Common Stock ",
-      "last_price": 68.77,
-      "amount": 270697976.0,
-      "expert_score": 81.69,
-      "decision": "core_candidate",
-      "fundamental_score_final": 67.91,
-      "technical_score": 90.0,
-      "valuation_score": 80.63,
-      "market_cap": 18147707116.0,
-      "pe_ttm": 17.19,
-      "pb": null,
-      "peg": 0.004,
-      "liquidity_score": 93.31,
-      "heat_score": 83.02,
-      "rs_score": 90.89,
-      "short_ratio": 0.5367,
-      "macro_score": 81.0,
-      "concept_boards": [],
-      "filter_reasons": [],
-      "is_recommendable": true,
-      "recommendation_filter_reasons": [],
-      "score_components": {
-        "fundamental": 67.91,
-        "technical": 90.0,
-        "valuation": 80.63,
-        "liquidity": 93.31,
-        "heat": 83.02,
-        "macro": 81.0
-      },
-      "heat_components": {
-        "rvol": 1.0726249279404423,
-        "return_20d": 0.21711867063803103,
-        "above_ma20": true,
-        "above_ma50": true,
-        "proximity_52w_high": 0.9989719492691062,
-        "amount": 270697976.0,
-        "scores": {
-          "rvol": 43.91,
-          "return_20d": 88.95,
-          "above_ma20": 100.0,
-          "above_ma50": 100.0,
-          "proximity_52w_high": 99.67,
-          "liquidity": 85.78
-        }
-      },
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [],
-        "adjustments": []
-      },
-      "reasons_list": [
-        "heat=83.0",
-        "macro=81.0",
-        "technical=90.0",
-        "fundamental=67.9"
-      ]
-    },
-    {
-      "market": "US",
       "symbol": "CDNS",
       "name": "Cadence Design Systems, Inc. - Common Stock",
-      "last_price": 384.96,
-      "amount": 525279454.0,
-      "expert_score": 81.64,
+      "last_price": 383.74,
+      "amount": 816505460.2398,
+      "expert_score": 81.82,
       "decision": "core_candidate",
       "fundamental_score_final": 95.94,
       "technical_score": 100.0,
-      "valuation_score": 12.71,
-      "market_cap": 106178127360.0,
-      "pe_ttm": 89.11,
+      "valuation_score": 12.75,
+      "market_cap": 105841631840.0,
+      "pe_ttm": 88.83,
       "pb": null,
-      "peg": 17.611,
-      "liquidity_score": 96.78,
-      "heat_score": 84.35,
-      "rs_score": 79.58,
+      "peg": 17.555,
+      "liquidity_score": 97.72,
+      "heat_score": 84.62,
+      "rs_score": 79.65,
       "short_ratio": 0.4335,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -998,9 +859,9 @@
       "score_components": {
         "fundamental": 95.94,
         "technical": 100.0,
-        "valuation": 12.71,
-        "liquidity": 96.78,
-        "heat": 84.35,
+        "valuation": 12.75,
+        "liquidity": 97.72,
+        "heat": 84.62,
         "macro": 81.0
       },
       "heat_components": {
@@ -1009,14 +870,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9768890046899427,
-        "amount": 525279454.0,
+        "amount": 816505460.2398,
         "scores": {
-          "rvol": 75.08,
-          "return_20d": 82.73,
+          "rvol": 75.09,
+          "return_20d": 82.85,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 92.55,
-          "liquidity": 93.1
+          "proximity_52w_high": 92.75,
+          "liquidity": 95.19
         }
       },
       "macro_components": {
@@ -1026,7 +887,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=84.4",
+        "heat=84.6",
         "macro=81.0",
         "technical=100.0",
         "fundamental=95.9"
@@ -1034,83 +895,22 @@
     },
     {
       "market": "US",
-      "symbol": "MATX",
-      "name": "Matson, Inc. Common Stock",
-      "last_price": 201.94,
-      "amount": 45841743.0,
-      "expert_score": 81.59,
-      "decision": "core_candidate",
-      "fundamental_score_final": 83.45,
-      "technical_score": 95.5,
-      "valuation_score": 82.76,
-      "market_cap": 6111366965.0,
-      "pe_ttm": 14.71,
-      "pb": null,
-      "peg": null,
-      "liquidity_score": 77.75,
-      "heat_score": 66.07,
-      "rs_score": 78.93,
-      "short_ratio": 0.6498,
-      "macro_score": 81.0,
-      "concept_boards": [],
-      "filter_reasons": [],
-      "is_recommendable": true,
-      "recommendation_filter_reasons": [],
-      "score_components": {
-        "fundamental": 83.45,
-        "technical": 95.5,
-        "valuation": 82.76,
-        "liquidity": 77.75,
-        "heat": 66.07,
-        "macro": 81.0
-      },
-      "heat_components": {
-        "rvol": 0.8030211329120058,
-        "return_20d": 0.04099065527718859,
-        "above_ma20": true,
-        "above_ma50": true,
-        "proximity_52w_high": 0.9556842105263158,
-        "amount": 45841743.0,
-        "scores": {
-          "rvol": 18.73,
-          "return_20d": 64.13,
-          "above_ma20": 100.0,
-          "above_ma50": 100.0,
-          "proximity_52w_high": 85.14,
-          "liquidity": 52.88
-        }
-      },
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [],
-        "adjustments": []
-      },
-      "reasons_list": [
-        "heat=66.1",
-        "macro=81.0",
-        "technical=95.5",
-        "fundamental=83.5"
-      ]
-    },
-    {
-      "market": "US",
       "symbol": "QCOM",
       "name": "QUALCOMM Incorporated - Common Stock",
-      "last_price": 211.72,
-      "amount": 2979373033.0,
-      "expert_score": 81.5,
+      "last_price": 202.96,
+      "amount": 3784726561.4805,
+      "expert_score": 81.81,
       "decision": "core_candidate",
       "fundamental_score_final": 72.44,
       "technical_score": 87.4,
-      "valuation_score": 64.79,
-      "market_cap": 223152880000.0,
-      "pe_ttm": 22.84,
+      "valuation_score": 66.78,
+      "market_cap": 213919840000.0,
+      "pe_ttm": 21.89,
       "pb": null,
       "peg": null,
-      "liquidity_score": 99.54,
-      "heat_score": 82.96,
-      "rs_score": 95.24,
+      "liquidity_score": 99.64,
+      "heat_score": 83.06,
+      "rs_score": 95.23,
       "short_ratio": 0.3842,
       "macro_score": 87.0,
       "concept_boards": [
@@ -1122,9 +922,9 @@
       "score_components": {
         "fundamental": 72.44,
         "technical": 87.4,
-        "valuation": 64.79,
-        "liquidity": 99.54,
-        "heat": 82.96,
+        "valuation": 66.78,
+        "liquidity": 99.64,
+        "heat": 83.06,
         "macro": 87.0
       },
       "heat_components": {
@@ -1133,14 +933,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9657586949830717,
-        "amount": 2979373033.0,
+        "amount": 3784726561.4805,
         "scores": {
-          "rvol": 30.59,
-          "return_20d": 95.3,
+          "rvol": 30.88,
+          "return_20d": 95.39,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 88.37,
-          "liquidity": 99.01
+          "proximity_52w_high": 88.5,
+          "liquidity": 99.24
         }
       },
       "macro_components": {
@@ -1162,7 +962,7 @@
       },
       "reasons_list": [
         "主题板块: AI算力",
-        "heat=83.0",
+        "heat=83.1",
         "macro=87.0",
         "technical=87.4",
         "fundamental=72.4"
@@ -1173,22 +973,144 @@
     },
     {
       "market": "US",
+      "symbol": "AA",
+      "name": "Alcoa Corporation Common Stock ",
+      "last_price": 68.98,
+      "amount": 315096424.3478,
+      "expert_score": 81.75,
+      "decision": "core_candidate",
+      "fundamental_score_final": 67.91,
+      "technical_score": 90.0,
+      "valuation_score": 80.63,
+      "market_cap": 18203123991.0,
+      "pe_ttm": 17.25,
+      "pb": null,
+      "peg": 0.004,
+      "liquidity_score": 93.51,
+      "heat_score": 83.16,
+      "rs_score": 90.97,
+      "short_ratio": 0.5367,
+      "macro_score": 81.0,
+      "concept_boards": [],
+      "filter_reasons": [],
+      "is_recommendable": true,
+      "recommendation_filter_reasons": [],
+      "score_components": {
+        "fundamental": 67.91,
+        "technical": 90.0,
+        "valuation": 80.63,
+        "liquidity": 93.51,
+        "heat": 83.16,
+        "macro": 81.0
+      },
+      "heat_components": {
+        "rvol": 1.0726249279404423,
+        "return_20d": 0.21711867063803103,
+        "above_ma20": true,
+        "above_ma50": true,
+        "proximity_52w_high": 0.9989719492691062,
+        "amount": 315096424.3478,
+        "scores": {
+          "rvol": 44.02,
+          "return_20d": 89.14,
+          "above_ma20": 100.0,
+          "above_ma50": 100.0,
+          "proximity_52w_high": 99.71,
+          "liquidity": 86.47
+        }
+      },
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [],
+        "adjustments": []
+      },
+      "reasons_list": [
+        "heat=83.2",
+        "macro=81.0",
+        "technical=90.0",
+        "fundamental=67.9"
+      ]
+    },
+    {
+      "market": "US",
+      "symbol": "MATX",
+      "name": "Matson, Inc. Common Stock",
+      "last_price": 198.98,
+      "amount": 53397716.7431,
+      "expert_score": 81.75,
+      "decision": "core_candidate",
+      "fundamental_score_final": 83.45,
+      "technical_score": 95.5,
+      "valuation_score": 83.33,
+      "market_cap": 6021787653.0,
+      "pe_ttm": 14.49,
+      "pb": null,
+      "peg": null,
+      "liquidity_score": 78.02,
+      "heat_score": 66.26,
+      "rs_score": 78.97,
+      "short_ratio": 0.6498,
+      "macro_score": 81.0,
+      "concept_boards": [],
+      "filter_reasons": [],
+      "is_recommendable": true,
+      "recommendation_filter_reasons": [],
+      "score_components": {
+        "fundamental": 83.45,
+        "technical": 95.5,
+        "valuation": 83.33,
+        "liquidity": 78.02,
+        "heat": 66.26,
+        "macro": 81.0
+      },
+      "heat_components": {
+        "rvol": 0.8030211329120058,
+        "return_20d": 0.04099065527718859,
+        "above_ma20": true,
+        "above_ma50": true,
+        "proximity_52w_high": 0.9556842105263158,
+        "amount": 53397716.7431,
+        "scores": {
+          "rvol": 18.95,
+          "return_20d": 63.99,
+          "above_ma20": 100.0,
+          "above_ma50": 100.0,
+          "proximity_52w_high": 85.34,
+          "liquidity": 54.26
+        }
+      },
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [],
+        "adjustments": []
+      },
+      "reasons_list": [
+        "heat=66.3",
+        "macro=81.0",
+        "technical=95.5",
+        "fundamental=83.5"
+      ]
+    },
+    {
+      "market": "US",
       "symbol": "UAL",
       "name": "United Airlines Holdings, Inc. - Common Stock",
-      "last_price": 115.52,
-      "amount": 616414049.0,
-      "expert_score": 81.41,
+      "last_price": 112.61,
+      "amount": 737128219.9923,
+      "expert_score": 81.52,
       "decision": "core_candidate",
       "fundamental_score_final": 80.68,
       "technical_score": 78.65,
-      "valuation_score": 71.17,
-      "market_cap": 37494294863.0,
-      "pe_ttm": 10.21,
+      "valuation_score": 71.78,
+      "market_cap": 36549796957.0,
+      "pe_ttm": 9.96,
       "pb": null,
-      "peg": 1.576,
-      "liquidity_score": 97.41,
-      "heat_score": 81.19,
-      "rs_score": 79.48,
+      "peg": 1.537,
+      "liquidity_score": 97.47,
+      "heat_score": 81.3,
+      "rs_score": 79.55,
       "short_ratio": 0.3377,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1198,9 +1120,9 @@
       "score_components": {
         "fundamental": 80.68,
         "technical": 78.65,
-        "valuation": 71.17,
-        "liquidity": 97.41,
-        "heat": 81.19,
+        "valuation": 71.78,
+        "liquidity": 97.47,
+        "heat": 81.3,
         "macro": 81.0
       },
       "heat_components": {
@@ -1209,14 +1131,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9629225736095967,
-        "amount": 616414049.0,
+        "amount": 737128219.9923,
         "scores": {
-          "rvol": 54.61,
-          "return_20d": 92.26,
+          "rvol": 54.7,
+          "return_20d": 92.46,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 87.39,
-          "liquidity": 94.44
+          "proximity_52w_high": 87.59,
+          "liquidity": 94.68
         }
       },
       "macro_components": {
@@ -1226,7 +1148,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=81.2",
+        "heat=81.3",
         "macro=81.0",
         "technical=78.7",
         "fundamental=80.7"
@@ -1236,20 +1158,20 @@
       "market": "US",
       "symbol": "VICR",
       "name": "Vicor Corporation - Common Stock",
-      "last_price": 303.77,
-      "amount": 144437517.0,
-      "expert_score": 81.38,
+      "last_price": 298.06,
+      "amount": 157792506.7995,
+      "expert_score": 81.4,
       "decision": "core_candidate",
       "fundamental_score_final": 94.08,
       "technical_score": 93.25,
-      "valuation_score": 43.95,
-      "market_cap": 13846263396.0,
-      "pe_ttm": 100.25,
+      "valuation_score": 44.63,
+      "market_cap": 13585993574.0,
+      "pe_ttm": 98.37,
       "pb": null,
-      "peg": 0.055,
-      "liquidity_score": 88.8,
-      "heat_score": 74.84,
-      "rs_score": 97.41,
+      "peg": 0.054,
+      "liquidity_score": 88.19,
+      "heat_score": 74.85,
+      "rs_score": 97.42,
       "short_ratio": 0.6172,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1259,9 +1181,9 @@
       "score_components": {
         "fundamental": 94.08,
         "technical": 93.25,
-        "valuation": 43.95,
-        "liquidity": 88.8,
-        "heat": 74.84,
+        "valuation": 44.63,
+        "liquidity": 88.19,
+        "heat": 74.85,
         "macro": 81.0
       },
       "heat_components": {
@@ -1270,14 +1192,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.9260548785542568,
-        "amount": 144437517.0,
+        "amount": 157792506.7995,
         "scores": {
-          "rvol": 5.38,
-          "return_20d": 90.93,
+          "rvol": 5.67,
+          "return_20d": 91.07,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 76.29,
-          "liquidity": 76.26
+          "proximity_52w_high": 76.57,
+          "liquidity": 75.3
         }
       },
       "macro_components": {
@@ -1287,7 +1209,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=74.8",
+        "heat=74.9",
         "macro=81.0",
         "technical=93.2",
         "fundamental=94.1"
@@ -1295,22 +1217,161 @@
     },
     {
       "market": "US",
+      "symbol": "KRYS",
+      "name": "Krystal Biotech, Inc. - Common Stock",
+      "last_price": 321.545,
+      "amount": 153612848.6221,
+      "expert_score": 81.33,
+      "decision": "core_candidate",
+      "fundamental_score_final": 94.47,
+      "technical_score": 100.0,
+      "valuation_score": 38.5,
+      "market_cap": 9479068143.0,
+      "pe_ttm": 41.54,
+      "pb": null,
+      "peg": 0.32,
+      "liquidity_score": 87.95,
+      "heat_score": 71.4,
+      "rs_score": 81.35,
+      "short_ratio": 0.7764,
+      "macro_score": 81.0,
+      "concept_boards": [],
+      "filter_reasons": [],
+      "is_recommendable": true,
+      "recommendation_filter_reasons": [],
+      "score_components": {
+        "fundamental": 94.47,
+        "technical": 100.0,
+        "valuation": 38.5,
+        "liquidity": 87.95,
+        "heat": 71.4,
+        "macro": 81.0
+      },
+      "heat_components": {
+        "rvol": 0.7374863873097381,
+        "return_20d": 0.17999694959200796,
+        "above_ma20": true,
+        "above_ma50": true,
+        "proximity_52w_high": 0.9686553148866909,
+        "amount": 153612848.6221,
+        "scores": {
+          "rvol": 13.79,
+          "return_20d": 86.4,
+          "above_ma20": 100.0,
+          "above_ma50": 100.0,
+          "proximity_52w_high": 89.37,
+          "liquidity": 74.79
+        }
+      },
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [],
+        "adjustments": []
+      },
+      "reasons_list": [
+        "heat=71.4",
+        "macro=81.0",
+        "technical=100.0",
+        "fundamental=94.5"
+      ]
+    },
+    {
+      "market": "US",
+      "symbol": "QRVO",
+      "name": "Qorvo, Inc. - Common Stock",
+      "last_price": 97.66,
+      "amount": 122687000.8618,
+      "expert_score": 81.2,
+      "decision": "core_candidate",
+      "fundamental_score_final": 67.06,
+      "technical_score": 100.0,
+      "valuation_score": 71.25,
+      "market_cap": 8595415012.0,
+      "pe_ttm": 26.68,
+      "pb": null,
+      "peg": 0.052,
+      "liquidity_score": 86.0,
+      "heat_score": 79.93,
+      "rs_score": 81.77,
+      "short_ratio": 0.5316,
+      "macro_score": 87.0,
+      "concept_boards": [
+        "AI算力"
+      ],
+      "filter_reasons": [],
+      "is_recommendable": true,
+      "recommendation_filter_reasons": [],
+      "score_components": {
+        "fundamental": 67.06,
+        "technical": 100.0,
+        "valuation": 71.25,
+        "liquidity": 86.0,
+        "heat": 79.93,
+        "macro": 87.0
+      },
+      "heat_components": {
+        "rvol": 1.3951656835161916,
+        "return_20d": 0.09721927403948194,
+        "above_ma20": true,
+        "above_ma50": true,
+        "proximity_52w_high": 0.9441966793284129,
+        "amount": 122687000.8618,
+        "scores": {
+          "rvol": 68.19,
+          "return_20d": 77.47,
+          "above_ma20": 100.0,
+          "above_ma50": 100.0,
+          "proximity_52w_high": 82.42,
+          "liquidity": 70.81
+        }
+      },
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [
+          "AI算力"
+        ],
+        "adjustments": [
+          {
+            "driver": "growth",
+            "delta": 12.0
+          },
+          {
+            "driver": "policy_hawkish",
+            "delta": -6.0
+          }
+        ]
+      },
+      "reasons_list": [
+        "主题板块: AI算力",
+        "heat=79.9",
+        "macro=87.0",
+        "technical=100.0",
+        "fundamental=67.1"
+      ],
+      "hot_themes": [
+        "AI算力"
+      ]
+    },
+    {
+      "market": "US",
       "symbol": "LRCX",
       "name": "Lam Research Corporation - Common Stock",
-      "last_price": 366.81,
-      "amount": 3397218808.0,
-      "expert_score": 81.03,
+      "last_price": 362.52,
+      "amount": 5299052272.6781,
+      "expert_score": 81.08,
       "decision": "core_candidate",
       "fundamental_score_final": 82.07,
       "technical_score": 100.0,
-      "valuation_score": 23.47,
-      "market_cap": 458721899724.0,
-      "pe_ttm": 68.95,
+      "valuation_score": 23.52,
+      "market_cap": 453356950704.0,
+      "pe_ttm": 68.14,
       "pb": null,
-      "peg": 1.725,
-      "liquidity_score": 99.57,
-      "heat_score": 85.59,
-      "rs_score": 92.71,
+      "peg": 1.704,
+      "liquidity_score": 99.71,
+      "heat_score": 85.7,
+      "rs_score": 92.77,
       "short_ratio": 0.5454,
       "macro_score": 87.0,
       "concept_boards": [
@@ -1322,9 +1383,9 @@
       "score_components": {
         "fundamental": 82.07,
         "technical": 100.0,
-        "valuation": 23.47,
-        "liquidity": 99.57,
-        "heat": 85.59,
+        "valuation": 23.52,
+        "liquidity": 99.71,
+        "heat": 85.7,
         "macro": 87.0
       },
       "heat_components": {
@@ -1333,14 +1394,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.954549545495455,
-        "amount": 3397218808.0,
+        "amount": 5299052272.6781,
         "scores": {
-          "rvol": 53.77,
-          "return_20d": 90.21,
+          "rvol": 53.86,
+          "return_20d": 90.36,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 84.78,
-          "liquidity": 99.07
+          "proximity_52w_high": 85.05,
+          "liquidity": 99.4
         }
       },
       "macro_components": {
@@ -1362,7 +1423,7 @@
       },
       "reasons_list": [
         "主题板块: AI算力",
-        "heat=85.6",
+        "heat=85.7",
         "macro=87.0",
         "technical=100.0",
         "fundamental=82.1"
@@ -1373,50 +1434,50 @@
     },
     {
       "market": "US",
-      "symbol": "KRYS",
-      "name": "Krystal Biotech, Inc. - Common Stock",
-      "last_price": 317.97,
-      "amount": 100892224.0,
-      "expert_score": 80.89,
+      "symbol": "LYV",
+      "name": "Live Nation Entertainment, Inc. Common Stock",
+      "last_price": 172.33,
+      "amount": 544139216.1401,
+      "expert_score": 80.86,
       "decision": "core_candidate",
-      "fundamental_score_final": 94.47,
+      "fundamental_score_final": 76.97,
       "technical_score": 100.0,
-      "valuation_score": 38.56,
-      "market_cap": 9373678015.0,
-      "pe_ttm": 41.08,
+      "valuation_score": 50.0,
+      "market_cap": 40452958750.0,
+      "pe_ttm": null,
       "pb": null,
-      "peg": 0.317,
-      "liquidity_score": 85.57,
-      "heat_score": 70.78,
-      "rs_score": 81.26,
-      "short_ratio": 0.7764,
+      "peg": null,
+      "liquidity_score": 96.49,
+      "heat_score": 76.57,
+      "rs_score": 70.16,
+      "short_ratio": 0.4861,
       "macro_score": 81.0,
       "concept_boards": [],
       "filter_reasons": [],
       "is_recommendable": true,
       "recommendation_filter_reasons": [],
       "score_components": {
-        "fundamental": 94.47,
+        "fundamental": 76.97,
         "technical": 100.0,
-        "valuation": 38.56,
-        "liquidity": 85.57,
-        "heat": 70.78,
+        "valuation": 50.0,
+        "liquidity": 96.49,
+        "heat": 76.57,
         "macro": 81.0
       },
       "heat_components": {
-        "rvol": 0.7374863873097381,
-        "return_20d": 0.17999694959200796,
+        "rvol": 1.3030648978291124,
+        "return_20d": 0.06743066987463608,
         "above_ma20": true,
         "above_ma50": true,
-        "proximity_52w_high": 0.9686553148866909,
-        "amount": 100892224.0,
+        "proximity_52w_high": 0.9619971469329529,
+        "amount": 544139216.1401,
         "scores": {
-          "rvol": 13.54,
-          "return_20d": 86.29,
+          "rvol": 62.36,
+          "return_20d": 71.57,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 89.29,
-          "liquidity": 69.46
+          "proximity_52w_high": 87.36,
+          "liquidity": 92.65
         }
       },
       "macro_components": {
@@ -1426,84 +1487,10 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=70.8",
+        "heat=76.6",
         "macro=81.0",
         "technical=100.0",
-        "fundamental=94.5"
-      ]
-    },
-    {
-      "market": "US",
-      "symbol": "LLY",
-      "name": "Eli Lilly and Company Common Stock",
-      "last_price": 1133.0,
-      "amount": 2786904021.0,
-      "expert_score": 80.7,
-      "decision": "core_candidate",
-      "fundamental_score_final": 100.0,
-      "technical_score": 72.25,
-      "valuation_score": 37.28,
-      "market_cap": 1066993012998.0,
-      "pe_ttm": 40.73,
-      "pb": null,
-      "peg": 0.429,
-      "liquidity_score": 99.48,
-      "heat_score": 80.85,
-      "rs_score": 74.72,
-      "short_ratio": 0.3796,
-      "macro_score": 85.5,
-      "concept_boards": [
-        "减肥药GLP1"
-      ],
-      "filter_reasons": [],
-      "is_recommendable": true,
-      "recommendation_filter_reasons": [],
-      "score_components": {
-        "fundamental": 100.0,
-        "technical": 72.25,
-        "valuation": 37.28,
-        "liquidity": 99.48,
-        "heat": 80.85,
-        "macro": 85.5
-      },
-      "heat_components": {
-        "rvol": 1.314556140959807,
-        "return_20d": 0.18232398887224477,
-        "above_ma20": true,
-        "above_ma50": true,
-        "proximity_52w_high": 0.9616221390653555,
-        "amount": 2786904021.0,
-        "scores": {
-          "rvol": 63.25,
-          "return_20d": 86.49,
-          "above_ma20": 100.0,
-          "above_ma50": 100.0,
-          "proximity_52w_high": 87.0,
-          "liquidity": 98.88
-        }
-      },
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [
-          "减肥药GLP1"
-        ],
-        "adjustments": [
-          {
-            "driver": "defensive_rates",
-            "delta": 4.5
-          }
-        ]
-      },
-      "reasons_list": [
-        "主题板块: 减肥药GLP1",
-        "heat=80.8",
-        "macro=85.5",
-        "technical=72.2",
-        "fundamental=100.0"
-      ],
-      "hot_themes": [
-        "减肥药GLP1"
+        "fundamental=77.0"
       ]
     }
   ],
@@ -1512,20 +1499,20 @@
       "market": "US",
       "symbol": "QFIN",
       "name": "Qfin Holdings, Inc.  - American Depositary Shares",
-      "last_price": 15.4,
-      "amount": 44422014.0,
+      "last_price": 15.0,
+      "amount": 22153792.671,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 60.75,
-      "valuation_score": 93.79,
-      "market_cap": 1874979167.0,
-      "pe_ttm": 2.8,
+      "valuation_score": 93.57,
+      "market_cap": 1826278410.0,
+      "pe_ttm": 2.73,
       "pb": null,
       "peg": null,
-      "liquidity_score": 77.41,
-      "heat_score": 69.14,
-      "rs_score": 71.25,
+      "liquidity_score": 68.93,
+      "heat_score": 67.61,
+      "rs_score": 71.39,
       "short_ratio": 0.4928,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1539,9 +1526,9 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 60.75,
-        "valuation": 93.79,
-        "liquidity": 77.41,
-        "heat": 69.14,
+        "valuation": 93.57,
+        "liquidity": 68.93,
+        "heat": 67.61,
         "macro": 81.0
       },
       "heat_components": {
@@ -1550,14 +1537,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.3486357730619316,
-        "amount": 44422014.0,
+        "amount": 22153792.671,
         "scores": {
-          "rvol": 72.6,
-          "return_20d": 90.02,
+          "rvol": 72.62,
+          "return_20d": 90.17,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 2.68,
-          "liquidity": 52.14
+          "proximity_52w_high": 2.6,
+          "liquidity": 35.74
         }
       },
       "macro_components": {
@@ -1567,7 +1554,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=69.1",
+        "heat=67.6",
         "macro=81.0",
         "technical=60.8",
         "fundamental=50.0",
@@ -1579,20 +1566,20 @@
       "market": "US",
       "symbol": "VNET",
       "name": "VNET Group, Inc. - American Depositary Shares",
-      "last_price": 8.87,
-      "amount": 21128954.0,
+      "last_price": 8.95,
+      "amount": 59341629.7089,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 31.95,
       "technical_score": 47.75,
       "valuation_score": 50.0,
-      "market_cap": 2525214820.0,
+      "market_cap": 2547990151.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 69.94,
-      "heat_score": 59.23,
-      "rs_score": 66.61,
+      "liquidity_score": 79.2,
+      "heat_score": 61.31,
+      "rs_score": 66.74,
       "short_ratio": 0.4808,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1607,8 +1594,8 @@
         "fundamental": 31.95,
         "technical": 47.75,
         "valuation": 50.0,
-        "liquidity": 69.94,
-        "heat": 59.23,
+        "liquidity": 79.2,
+        "heat": 61.31,
         "macro": 81.0
       },
       "heat_components": {
@@ -1617,14 +1604,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.6961325966850829,
-        "amount": 21128954.0,
+        "amount": 59341629.7089,
         "scores": {
-          "rvol": 26.92,
-          "return_20d": 88.53,
+          "rvol": 27.19,
+          "return_20d": 88.72,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 26.55,
-          "liquidity": 36.65
+          "proximity_52w_high": 26.62,
+          "liquidity": 56.68
         }
       },
       "macro_components": {
@@ -1634,7 +1621,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=59.2",
+        "heat=61.3",
         "macro=81.0",
         "technical=47.8",
         "fundamental=31.9",
@@ -1646,20 +1633,20 @@
       "market": "US",
       "symbol": "BIDU",
       "name": "Baidu, Inc. - American Depositary Shares, each representing 8 ordinary share",
-      "last_price": 115.77,
-      "amount": 183567000.0,
+      "last_price": 116.11,
+      "amount": 272401177.3659,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 28.1,
       "technical_score": 56.25,
-      "valuation_score": 1.27,
-      "market_cap": 39391050332.0,
-      "pe_ttm": 681.0,
+      "valuation_score": 1.17,
+      "market_cap": 39506736236.0,
+      "pe_ttm": 683.0,
       "pb": null,
       "peg": null,
-      "liquidity_score": 90.74,
-      "heat_score": 58.76,
-      "rs_score": 68.82,
+      "liquidity_score": 92.59,
+      "heat_score": 59.27,
+      "rs_score": 68.97,
       "short_ratio": 0.5674,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1671,9 +1658,9 @@
       "score_components": {
         "fundamental": 28.1,
         "technical": 56.25,
-        "valuation": 1.27,
-        "liquidity": 90.74,
-        "heat": 58.76,
+        "valuation": 1.17,
+        "liquidity": 92.59,
+        "heat": 59.27,
         "macro": 81.0
       },
       "heat_components": {
@@ -1682,14 +1669,14 @@
         "above_ma20": false,
         "above_ma50": true,
         "proximity_52w_high": 0.8185722928009679,
-        "amount": 183567000.0,
+        "amount": 272401177.3659,
         "scores": {
-          "rvol": 32.59,
-          "return_20d": 72.13,
+          "rvol": 32.73,
+          "return_20d": 72.24,
           "above_ma20": 50.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 47.26,
-          "liquidity": 80.38
+          "proximity_52w_high": 47.32,
+          "liquidity": 84.53
         }
       },
       "macro_components": {
@@ -1699,7 +1686,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=58.8",
+        "heat=59.3",
         "macro=81.0",
         "technical=56.2",
         "fundamental=28.1",
@@ -1710,20 +1697,20 @@
       "market": "US",
       "symbol": "YMM",
       "name": "Full Truck Alliance Co. Ltd. American Depositary Shares (each representing 20 Class A Ordinary Shares)",
-      "last_price": 8.44,
-      "amount": 35844084.0,
+      "last_price": 8.47,
+      "amount": 81914961.0925,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 85.31,
       "technical_score": 41.900000000000006,
-      "valuation_score": 54.84,
-      "market_cap": 8756874136.0,
-      "pe_ttm": 15.07,
+      "valuation_score": 54.43,
+      "market_cap": 8788000466.0,
+      "pe_ttm": 15.13,
       "pb": null,
-      "peg": 0.307,
-      "liquidity_score": 75.34,
-      "heat_score": 57.32,
-      "rs_score": 30.5,
+      "peg": 0.309,
+      "liquidity_score": 82.41,
+      "heat_score": 58.94,
+      "rs_score": 30.68,
       "short_ratio": 0.3151,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1735,9 +1722,9 @@
       "score_components": {
         "fundamental": 85.31,
         "technical": 41.9,
-        "valuation": 54.84,
-        "liquidity": 75.34,
-        "heat": 57.32,
+        "valuation": 54.43,
+        "liquidity": 82.41,
+        "heat": 58.94,
         "macro": 81.0
       },
       "heat_components": {
@@ -1746,14 +1733,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.6289978678038379,
-        "amount": 35844084.0,
+        "amount": 81914961.0925,
         "scores": {
-          "rvol": 99.84,
-          "return_20d": 58.75,
+          "rvol": 99.94,
+          "return_20d": 58.7,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 19.37,
-          "liquidity": 47.7
+          "proximity_52w_high": 19.43,
+          "liquidity": 63.4
         }
       },
       "macro_components": {
@@ -1763,7 +1750,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=57.3",
+        "heat=58.9",
         "macro=81.0",
         "technical=41.9",
         "fundamental=85.3",
@@ -1774,20 +1761,20 @@
       "market": "US",
       "symbol": "NTES",
       "name": "NetEase, Inc. - American Depositary Shares, each representing 5 ordinary shares",
-      "last_price": 125.82,
-      "amount": 65692004.0,
+      "last_price": 125.61,
+      "amount": 159008769.7641,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 65.0,
-      "valuation_score": 59.49,
-      "market_cap": 80614816912.0,
-      "pe_ttm": 16.69,
+      "valuation_score": 58.88,
+      "market_cap": 80480266669.0,
+      "pe_ttm": 16.66,
       "pb": null,
       "peg": null,
-      "liquidity_score": 81.34,
-      "heat_score": 50.58,
-      "rs_score": 50.96,
+      "liquidity_score": 88.36,
+      "heat_score": 52.11,
+      "rs_score": 50.97,
       "short_ratio": 0.5576,
       "macro_score": 81.0,
       "concept_boards": [],
@@ -1799,9 +1786,9 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 65.0,
-        "valuation": 59.49,
-        "liquidity": 81.34,
-        "heat": 50.58,
+        "valuation": 58.88,
+        "liquidity": 88.36,
+        "heat": 52.11,
         "macro": 81.0
       },
       "heat_components": {
@@ -1810,14 +1797,14 @@
         "above_ma20": true,
         "above_ma50": true,
         "proximity_52w_high": 0.7697900344719523,
-        "amount": 65692004.0,
+        "amount": 159008769.7641,
         "scores": {
-          "rvol": 8.83,
-          "return_20d": 65.33,
+          "rvol": 9.11,
+          "return_20d": 65.22,
           "above_ma20": 100.0,
           "above_ma50": 100.0,
-          "proximity_52w_high": 37.26,
-          "liquidity": 60.51
+          "proximity_52w_high": 37.34,
+          "liquidity": 75.65
         }
       },
       "macro_components": {
@@ -1827,7 +1814,7 @@
         "adjustments": []
       },
       "reasons_list": [
-        "heat=50.6",
+        "heat=52.1",
         "macro=81.0",
         "technical=65.0",
         "fundamental=50.0",
@@ -1951,17 +1938,17 @@
       "symbol": "AACB",
       "name": "Artius II Acquisition Inc. - Class A Ordinary Shares",
       "last_price": 10.5,
-      "amount": 177910.0,
+      "amount": 3019.13,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 70.65,
-      "valuation_score": 27.16,
+      "valuation_score": 26.93,
       "market_cap": 290587500.0,
       "pe_ttm": 52.5,
       "pb": null,
       "peg": null,
-      "liquidity_score": 24.32,
+      "liquidity_score": 5.81,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.5215,
@@ -1979,8 +1966,8 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 70.65,
-        "valuation": 27.16,
-        "liquidity": 24.32,
+        "valuation": 26.93,
+        "liquidity": 5.81,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2004,8 +1991,8 @@
       "market": "US",
       "symbol": "AACBR",
       "name": "Artius II Acquisition Inc. - Rights",
-      "last_price": 0.1951,
-      "amount": 46.0,
+      "last_price": 0.1745,
+      "amount": 252.5556,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
@@ -2015,7 +2002,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 1.51,
+      "liquidity_score": 3.08,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.1495,
@@ -2036,7 +2023,7 @@
         "fundamental": 50.0,
         "technical": 11.0,
         "valuation": 50.0,
-        "liquidity": 1.51,
+        "liquidity": 3.08,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2061,17 +2048,17 @@
       "symbol": "AACBU",
       "name": "Artius II Acquisition Inc. - Units",
       "last_price": 10.61,
-      "amount": 109.0,
+      "amount": 42.44,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 93.87,
       "technical_score": 42.0,
-      "valuation_score": 39.12,
+      "valuation_score": 36.9,
       "market_cap": null,
       "pe_ttm": 53.05,
       "pb": null,
       "peg": 0.204,
-      "liquidity_score": 2.2,
+      "liquidity_score": 1.58,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.5333,
@@ -2089,8 +2076,8 @@
       "score_components": {
         "fundamental": 93.87,
         "technical": 42.0,
-        "valuation": 39.12,
-        "liquidity": 2.2,
+        "valuation": 36.9,
+        "liquidity": 1.58,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2114,18 +2101,18 @@
       "market": "US",
       "symbol": "AACG",
       "name": "ATA Creativity Global - American Depositary Shares, each representing two common shares",
-      "last_price": 0.9801,
-      "amount": 12386.0,
+      "last_price": 0.95,
+      "amount": 12059.3666,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 7.33,
       "technical_score": 67.0,
       "valuation_score": 50.0,
-      "market_cap": 42348573.0,
+      "market_cap": 41047999.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 9.09,
+      "liquidity_score": 8.51,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.4143,
@@ -2146,7 +2133,7 @@
         "fundamental": 7.33,
         "technical": 67.0,
         "valuation": 50.0,
-        "liquidity": 9.09,
+        "liquidity": 8.51,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2171,36 +2158,36 @@
       "symbol": "AACI",
       "name": "Armada Acquisition Corp. III - Class A Ordinary Share",
       "last_price": 9.96,
-      "amount": 676.0,
+      "amount": null,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 42.0,
-      "valuation_score": 3.77,
+      "valuation_score": 50.0,
       "market_cap": 338936997.0,
-      "pe_ttm": 332.0,
+      "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 4.16,
+      "liquidity_score": 50.0,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.8644,
       "macro_score": 81.0,
       "concept_boards": [],
       "filter_reasons": [
-        "low_amount"
+        "amount_missing"
       ],
       "is_recommendable": false,
       "recommendation_filter_reasons": [
-        "low_amount",
+        "amount_missing",
         "low_market_cap",
         "us_shell_structure"
       ],
       "score_components": {
         "fundamental": 50.0,
         "technical": 42.0,
-        "valuation": 3.77,
-        "liquidity": 4.16,
+        "valuation": 50.0,
+        "liquidity": 50.0,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2216,8 +2203,8 @@
         "macro=81.0",
         "technical=42.0",
         "fundamental=50.0",
-        "filtered: low_amount",
-        "recommendation_filtered: low_amount, low_market_cap, us_shell_structure"
+        "filtered: amount_missing",
+        "recommendation_filtered: amount_missing, low_market_cap, us_shell_structure"
       ]
     },
     {
@@ -2225,36 +2212,36 @@
       "symbol": "AACIU",
       "name": "Armada Acquisition Corp. III - Units",
       "last_price": 10.3,
-      "amount": 283.0,
+      "amount": null,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 42.0,
-      "valuation_score": 0.55,
+      "valuation_score": 50.0,
       "market_cap": null,
-      "pe_ttm": 1030.0,
+      "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 3.14,
+      "liquidity_score": 50.0,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.5954,
       "macro_score": 81.0,
       "concept_boards": [],
       "filter_reasons": [
-        "low_amount"
+        "amount_missing"
       ],
       "is_recommendable": false,
       "recommendation_filter_reasons": [
-        "low_amount",
+        "amount_missing",
         "market_cap_missing",
         "us_shell_structure"
       ],
       "score_components": {
         "fundamental": 50.0,
         "technical": 42.0,
-        "valuation": 0.55,
-        "liquidity": 3.14,
+        "valuation": 50.0,
+        "liquidity": 50.0,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2270,8 +2257,8 @@
         "macro=81.0",
         "technical=42.0",
         "fundamental=50.0",
-        "filtered: low_amount",
-        "recommendation_filtered: low_amount, market_cap_missing, us_shell_structure"
+        "filtered: amount_missing",
+        "recommendation_filtered: amount_missing, market_cap_missing, us_shell_structure"
       ]
     },
     {
@@ -2335,17 +2322,17 @@
       "symbol": "AACO",
       "name": "Abony Acquisition Corp. I - Class A Ordinary Share",
       "last_price": 9.89,
-      "amount": 69.0,
+      "amount": 9.98,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 42.0,
-      "valuation_score": 2.82,
+      "valuation_score": 2.86,
       "market_cap": 310167005.0,
       "pe_ttm": 494.5,
       "pb": null,
       "peg": null,
-      "liquidity_score": 1.9,
+      "liquidity_score": 0.58,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 1.0,
@@ -2363,8 +2350,8 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 42.0,
-        "valuation": 2.82,
-        "liquidity": 1.9,
+        "valuation": 2.86,
+        "liquidity": 0.58,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2389,17 +2376,17 @@
       "symbol": "AACOU",
       "name": "Abony Acquisition Corp. I - Units",
       "last_price": 10.1,
-      "amount": 41.0,
+      "amount": 29320.64,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 42.0,
-      "valuation_score": 1.84,
+      "valuation_score": 1.87,
       "market_cap": 316752846.0,
       "pe_ttm": 505.0,
       "pb": null,
       "peg": null,
-      "liquidity_score": 1.45,
+      "liquidity_score": 11.67,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.1764,
@@ -2417,8 +2404,8 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 42.0,
-        "valuation": 1.84,
-        "liquidity": 1.45,
+        "valuation": 1.87,
+        "liquidity": 11.67,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2443,7 +2430,7 @@
       "symbol": "AACOW",
       "name": "Abony Acquisition Corp. I - Warrants",
       "last_price": 0.39,
-      "amount": 0.78,
+      "amount": null,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 0.0,
@@ -2453,7 +2440,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 0.15,
+      "liquidity_score": 50.0,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.6294,
@@ -2461,12 +2448,12 @@
       "concept_boards": [],
       "filter_reasons": [
         "us_penny",
-        "low_amount"
+        "amount_missing"
       ],
       "is_recommendable": false,
       "recommendation_filter_reasons": [
         "us_low_price",
-        "low_amount",
+        "amount_missing",
         "market_cap_missing",
         "us_shell_structure"
       ],
@@ -2474,7 +2461,7 @@
         "fundamental": 0.0,
         "technical": 42.0,
         "valuation": 50.0,
-        "liquidity": 0.15,
+        "liquidity": 50.0,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2490,33 +2477,32 @@
         "macro=81.0",
         "technical=42.0",
         "fundamental=0.0",
-        "filtered: us_penny, low_amount",
-        "recommendation_filtered: us_low_price, low_amount, market_cap_missing, us_shell_structure"
+        "filtered: us_penny, amount_missing",
+        "recommendation_filtered: us_low_price, amount_missing, market_cap_missing, us_shell_structure"
       ]
     },
     {
       "market": "US",
       "symbol": "AACP",
       "name": "Apogee Acquisition Corp - Class A Ordinary Shares",
-      "last_price": 9.99,
-      "amount": 531442.0,
+      "last_price": 9.96,
+      "amount": 3389725.7,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 42.0,
       "valuation_score": 50.0,
-      "market_cap": 234465280.0,
+      "market_cap": 233761180.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 34.38,
+      "liquidity_score": 50.53,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.8266,
       "macro_score": 81.0,
       "concept_boards": [],
       "filter_reasons": [
-        "low_amount",
         "low_market_cap"
       ],
       "is_recommendable": false,
@@ -2529,7 +2515,7 @@
         "fundamental": 50.0,
         "technical": 42.0,
         "valuation": 50.0,
-        "liquidity": 34.38,
+        "liquidity": 50.53,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2545,7 +2531,7 @@
         "macro=81.0",
         "technical=42.0",
         "fundamental=50.0",
-        "filtered: low_amount, low_market_cap",
+        "filtered: low_market_cap",
         "recommendation_filtered: low_amount, low_market_cap, us_shell_structure"
       ]
     },
@@ -2554,7 +2540,7 @@
       "symbol": "AACPR",
       "name": "Apogee Acquisition Corp - Rights",
       "last_price": 0.19,
-      "amount": 3.0,
+      "amount": null,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
@@ -2564,7 +2550,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 0.41,
+      "liquidity_score": 50.0,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.2531,
@@ -2572,12 +2558,12 @@
       "concept_boards": [],
       "filter_reasons": [
         "us_penny",
-        "low_amount"
+        "amount_missing"
       ],
       "is_recommendable": false,
       "recommendation_filter_reasons": [
         "us_low_price",
-        "low_amount",
+        "amount_missing",
         "market_cap_missing",
         "us_shell_structure"
       ],
@@ -2585,7 +2571,7 @@
         "fundamental": 50.0,
         "technical": 42.0,
         "valuation": 50.0,
-        "liquidity": 0.41,
+        "liquidity": 50.0,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2601,8 +2587,8 @@
         "macro=81.0",
         "technical=42.0",
         "fundamental=50.0",
-        "filtered: us_penny, low_amount",
-        "recommendation_filtered: us_low_price, low_amount, market_cap_missing, us_shell_structure"
+        "filtered: us_penny, amount_missing",
+        "recommendation_filtered: us_low_price, amount_missing, market_cap_missing, us_shell_structure"
       ]
     },
     {
@@ -2610,7 +2596,7 @@
       "symbol": "AACPU",
       "name": "Apogee Acquisition Corp - Units",
       "last_price": 10.22,
-      "amount": 1524.0,
+      "amount": 13597.38,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
@@ -2620,7 +2606,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 5.41,
+      "liquidity_score": 8.88,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.1603,
@@ -2639,7 +2625,7 @@
         "fundamental": 50.0,
         "technical": 42.0,
         "valuation": 50.0,
-        "liquidity": 5.41,
+        "liquidity": 8.88,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2663,8 +2649,8 @@
       "market": "US",
       "symbol": "AACPW",
       "name": "Apogee Acquisition Corp - Warrant",
-      "last_price": 0.11,
-      "amount": 1322.0,
+      "last_price": 0.1099,
+      "amount": 6583.339,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
@@ -2674,7 +2660,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 5.27,
+      "liquidity_score": 7.19,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.1007,
@@ -2695,7 +2681,7 @@
         "fundamental": 50.0,
         "technical": 42.0,
         "valuation": 50.0,
-        "liquidity": 5.27,
+        "liquidity": 7.19,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2719,18 +2705,18 @@
       "market": "US",
       "symbol": "AAME",
       "name": "Atlantic American Corporation - Common Stock",
-      "last_price": 1.71,
-      "amount": 22139.0,
+      "last_price": 1.78,
+      "amount": 73670.9359,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 36.69,
       "technical_score": 0.0,
-      "valuation_score": 91.3,
-      "market_cap": 34879259.0,
-      "pe_ttm": 7.43,
+      "valuation_score": 90.33,
+      "market_cap": 36307065.0,
+      "pe_ttm": 7.74,
       "pb": null,
       "peg": null,
-      "liquidity_score": 11.05,
+      "liquidity_score": 16.97,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.2536,
@@ -2749,8 +2735,8 @@
       "score_components": {
         "fundamental": 36.69,
         "technical": 0.0,
-        "valuation": 91.3,
-        "liquidity": 11.05,
+        "valuation": 90.33,
+        "liquidity": 16.97,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2774,18 +2760,18 @@
       "market": "US",
       "symbol": "AAPG",
       "name": "Ascentage Pharma Group International - American Depository Shares",
-      "last_price": 17.6,
-      "amount": 209356.0,
+      "last_price": 17.11,
+      "amount": 28559.6848,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 0.0,
       "valuation_score": 50.0,
-      "market_cap": 1642735248.0,
+      "market_cap": 1597000005.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 25.89,
+      "liquidity_score": 11.54,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.211,
@@ -2803,7 +2789,7 @@
         "fundamental": 50.0,
         "technical": 0.0,
         "valuation": 50.0,
-        "liquidity": 25.89,
+        "liquidity": 11.54,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2827,18 +2813,18 @@
       "market": "US",
       "symbol": "AARD",
       "name": "Aardvark Therapeutics, Inc. - Common Stock",
-      "last_price": 3.9,
-      "amount": 495920.0,
+      "last_price": 3.64,
+      "amount": 327945.5343,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 45.5,
       "technical_score": 11.0,
       "valuation_score": 50.0,
-      "market_cap": 85083882.0,
+      "market_cap": 79411623.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 33.75,
+      "liquidity_score": 28.67,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.4659,
@@ -2858,7 +2844,7 @@
         "fundamental": 45.5,
         "technical": 11.0,
         "valuation": 50.0,
-        "liquidity": 33.75,
+        "liquidity": 28.67,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2936,20 +2922,74 @@
     },
     {
       "market": "US",
+      "symbol": "ABAT",
+      "name": "American Battery Technology Company - Common Stock",
+      "last_price": 3.42,
+      "amount": null,
+      "expert_score": 0.0,
+      "decision": "reject",
+      "fundamental_score_final": 27.86,
+      "technical_score": 65.0,
+      "valuation_score": 50.0,
+      "market_cap": 466537278.0,
+      "pe_ttm": null,
+      "pb": null,
+      "peg": null,
+      "liquidity_score": 50.0,
+      "heat_score": 50.0,
+      "rs_score": 50.0,
+      "short_ratio": 0.3709,
+      "macro_score": 81.0,
+      "concept_boards": [],
+      "filter_reasons": [
+        "amount_missing"
+      ],
+      "is_recommendable": false,
+      "recommendation_filter_reasons": [
+        "us_low_price",
+        "amount_missing",
+        "low_market_cap"
+      ],
+      "score_components": {
+        "fundamental": 27.86,
+        "technical": 65.0,
+        "valuation": 50.0,
+        "liquidity": 50.0,
+        "heat": 50.0,
+        "macro": 81.0
+      },
+      "heat_components": null,
+      "macro_components": {
+        "base_market_score": 81.0,
+        "regime": "bullish",
+        "boards": [],
+        "adjustments": []
+      },
+      "reasons_list": [
+        "heat=50.0",
+        "macro=81.0",
+        "technical=65.0",
+        "fundamental=27.9",
+        "filtered: amount_missing",
+        "recommendation_filtered: us_low_price, amount_missing, low_market_cap"
+      ]
+    },
+    {
+      "market": "US",
       "symbol": "ABLV",
       "name": "Able View Global Inc. - Class B Ordinary Shares",
       "last_price": 1.1,
-      "amount": 75032.0,
+      "amount": 102267.2162,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.0,
       "technical_score": 49.150000000000006,
-      "valuation_score": 80.78,
+      "valuation_score": 80.14,
       "market_cap": 54328914.0,
       "pe_ttm": 8.46,
       "pb": null,
       "peg": null,
-      "liquidity_score": 17.58,
+      "liquidity_score": 19.31,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.2562,
@@ -2968,8 +3008,8 @@
       "score_components": {
         "fundamental": 50.0,
         "technical": 49.15,
-        "valuation": 80.78,
-        "liquidity": 17.58,
+        "valuation": 80.14,
+        "liquidity": 19.31,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -2993,8 +3033,8 @@
       "market": "US",
       "symbol": "ABLVW",
       "name": "Able View Global Inc. - Warrant",
-      "last_price": 0.0169,
-      "amount": 17.0,
+      "last_price": 0.0184,
+      "amount": 17.0393,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 50.14,
@@ -3004,7 +3044,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 1.04,
+      "liquidity_score": 0.92,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.3434,
@@ -3025,7 +3065,7 @@
         "fundamental": 50.14,
         "technical": 0.0,
         "valuation": 50.0,
-        "liquidity": 1.04,
+        "liquidity": 0.92,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -3050,7 +3090,7 @@
       "symbol": "ABOS",
       "name": "Acumen Pharmaceuticals, Inc. - Common Stock",
       "last_price": 2.37,
-      "amount": 1002530.0,
+      "amount": 585156.6827,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 28.67,
@@ -3060,7 +3100,7 @@
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 40.85,
+      "liquidity_score": 34.59,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.3662,
@@ -3080,7 +3120,7 @@
         "fundamental": 28.67,
         "technical": 47.75,
         "valuation": 50.0,
-        "liquidity": 40.85,
+        "liquidity": 34.59,
         "heat": 50.0,
         "macro": 81.0
       },
@@ -3104,18 +3144,18 @@
       "market": "US",
       "symbol": "ABTC",
       "name": "American Bitcoin Corp. - Class A Common Stock",
-      "last_price": 0.8574,
-      "amount": 9161817.0,
+      "last_price": 0.8335,
+      "amount": 8405055.0268,
       "expert_score": 0.0,
       "decision": "reject",
       "fundamental_score_final": 17.8,
       "technical_score": 11.0,
       "valuation_score": 50.0,
-      "market_cap": 911427101.0,
+      "market_cap": 886021097.0,
       "pe_ttm": null,
       "pb": null,
       "peg": null,
-      "liquidity_score": 61.19,
+      "liquidity_score": 59.1,
       "heat_score": 50.0,
       "rs_score": 50.0,
       "short_ratio": 0.3523,
@@ -3136,7 +3176,7 @@
         "fundamental": 17.8,
         "technical": 11.0,
         "valuation": 50.0,
-        "liquidity": 61.19,
+        "liquidity": 59.1,
         "heat": 50.0,
         "macro": 89.0
       },
@@ -3167,61 +3207,6 @@
         "filtered: us_penny",
         "recommendation_filtered: us_low_price, low_amount, low_market_cap"
       ]
-    },
-    {
-      "market": "US",
-      "symbol": "ABTS",
-      "name": "Abits Group Inc - Ordinary Shares",
-      "last_price": 1.36,
-      "amount": 78478.0,
-      "expert_score": 0.0,
-      "decision": "reject",
-      "fundamental_score_final": 23.76,
-      "technical_score": 11.0,
-      "valuation_score": 57.32,
-      "market_cap": 3223193.2,
-      "pe_ttm": null,
-      "pb": 0.4142511326962328,
-      "peg": null,
-      "liquidity_score": 17.83,
-      "heat_score": 50.0,
-      "rs_score": 50.0,
-      "short_ratio": 0.4107,
-      "macro_score": 81.0,
-      "concept_boards": [],
-      "filter_reasons": [
-        "low_amount",
-        "low_market_cap"
-      ],
-      "is_recommendable": false,
-      "recommendation_filter_reasons": [
-        "us_low_price",
-        "low_amount",
-        "low_market_cap"
-      ],
-      "score_components": {
-        "fundamental": 23.76,
-        "technical": 11.0,
-        "valuation": 57.32,
-        "liquidity": 17.83,
-        "heat": 50.0,
-        "macro": 81.0
-      },
-      "heat_components": null,
-      "macro_components": {
-        "base_market_score": 81.0,
-        "regime": "bullish",
-        "boards": [],
-        "adjustments": []
-      },
-      "reasons_list": [
-        "heat=50.0",
-        "macro=81.0",
-        "technical=11.0",
-        "fundamental=23.8",
-        "filtered: low_amount, low_market_cap",
-        "recommendation_filtered: us_low_price, low_amount, low_market_cap"
-      ]
     }
   ],
   "earnings_soon": [],
@@ -3229,57 +3214,57 @@
     {
       "symbol": "KRYS",
       "short_ratio": 0.776,
-      "rs_score": 81.26
+      "rs_score": 81.35
     },
     {
       "symbol": "CPAY",
       "short_ratio": 0.746,
-      "rs_score": 76.82
+      "rs_score": 76.84
     },
     {
       "symbol": "MATX",
       "short_ratio": 0.65,
-      "rs_score": 78.93
+      "rs_score": 78.97
     },
     {
       "symbol": "VICR",
       "short_ratio": 0.617,
-      "rs_score": 97.41
+      "rs_score": 97.42
     },
     {
       "symbol": "DAL",
       "short_ratio": 0.605,
-      "rs_score": 84.73
+      "rs_score": 84.9
     },
     {
       "symbol": "CRUS",
       "short_ratio": 0.602,
-      "rs_score": 79.71
+      "rs_score": 79.77
     },
     {
       "symbol": "NXPI",
       "short_ratio": 0.577,
-      "rs_score": 88.43
-    },
-    {
-      "symbol": "KLAC",
-      "short_ratio": 0.558,
-      "rs_score": 83.79
+      "rs_score": 88.55
     },
     {
       "symbol": "LRCX",
       "short_ratio": 0.545,
-      "rs_score": 92.71
+      "rs_score": 92.77
     },
     {
       "symbol": "AA",
       "short_ratio": 0.537,
-      "rs_score": 90.89
+      "rs_score": 90.97
+    },
+    {
+      "symbol": "QRVO",
+      "short_ratio": 0.532,
+      "rs_score": 81.77
     },
     {
       "symbol": "AMAT",
       "short_ratio": 0.517,
-      "rs_score": 87.88
+      "rs_score": 88.03
     }
   ],
   "forward_pe_coverage": 0,
@@ -3292,37 +3277,37 @@
     },
     {
       "board": "AI算力",
-      "momentum_score": 91.65,
-      "members": 58,
-      "leaders_pct": 94.8
+      "momentum_score": 91.75,
+      "members": 57,
+      "leaders_pct": 94.7
     },
     {
       "board": "网络安全",
-      "momentum_score": 76.71,
+      "momentum_score": 76.72,
       "members": 5,
       "leaders_pct": 80.0
     },
     {
       "board": "稳定币加密",
-      "momentum_score": 72.85,
+      "momentum_score": 72.9,
       "members": 6,
       "leaders_pct": 66.7
     },
     {
       "board": "减肥药GLP1",
-      "momentum_score": 60.13,
+      "momentum_score": 60.21,
       "members": 3,
       "leaders_pct": 66.7
     },
     {
       "board": "太空",
-      "momentum_score": 51.74,
-      "members": 31,
-      "leaders_pct": 35.5
+      "momentum_score": 52.36,
+      "members": 30,
+      "leaders_pct": 36.7
     },
     {
       "board": "核电",
-      "momentum_score": 24.8,
+      "momentum_score": 24.9,
       "members": 5,
       "leaders_pct": 0.0
     }

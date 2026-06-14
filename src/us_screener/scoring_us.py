@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import re
 from datetime import datetime
 from typing import Any
@@ -46,6 +47,13 @@ DEFAULT_FUNDAMENTAL_SCORE = getattr(weights, "DEFAULT_FUNDAMENTAL_SCORE", 50.0)
 # Model parameters live in ah_screener.weights (single source of truth, with
 # provenance) — see US_* entries. Aliased here for terse use in the blend below.
 _SCORE_WEIGHTS = weights.US_EXPERT_COMPOSITE
+
+
+def _us_score_weights() -> dict[str, float]:
+    """按 env AH_PROFILE 选 US 评分权重；未设/未知 → 默认（默认路径不变）。"""
+    name = os.environ.get("AH_PROFILE", "").strip().lower()
+    prof = weights.PROFILES.get(name) if name else None
+    return prof.get("us_composite", _SCORE_WEIGHTS) if prof else _SCORE_WEIGHTS
 _SHELL_STRUCTURE_RE = re.compile(
     r"\b(blank check|special purpose acquisition|acquisition corp|spac|warrant|rights?|units?)\b",
     re.IGNORECASE,
@@ -544,13 +552,14 @@ def run_us_screen(store=None, *, persist: bool = True, macro_context: dict[str, 
     ).astype(bool)
     frame["risk_score"] = frame["filter_reasons"].map(_risk_score)
 
+    sw = _us_score_weights()
     frame["expert_score"] = (
-        frame["fundamental_score_final"] * _SCORE_WEIGHTS["fundamental"]
-        + frame["technical_score"] * _SCORE_WEIGHTS["technical"]
-        + frame["valuation_score"] * _SCORE_WEIGHTS["valuation"]
-        + frame["liquidity_score"] * _SCORE_WEIGHTS["liquidity"]
-        + frame["heat_score"] * _SCORE_WEIGHTS["heat"]
-        + frame["macro_score"] * _SCORE_WEIGHTS["macro"]
+        frame["fundamental_score_final"] * sw["fundamental"]
+        + frame["technical_score"] * sw["technical"]
+        + frame["valuation_score"] * sw["valuation"]
+        + frame["liquidity_score"] * sw["liquidity"]
+        + frame["heat_score"] * sw["heat"]
+        + frame["macro_score"] * sw["macro"]
     ).clip(0, 100)
     frame.loc[frame["is_filtered"], "expert_score"] = 0.0
     frame["reasons_list"] = _build_reasons(frame)

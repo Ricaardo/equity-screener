@@ -1,0 +1,1707 @@
+{
+  "schema_version": "1.2",
+  "report_type": "ah-screening",
+  "generated_at": "2026-06-11T09:34:27",
+  "report_date": "2026-06-11",
+  "strategy": "china_masters_fundamental_theme_technical_v2",
+  "database": "/Users/x/ah-stock-screener/data/ah_screener.duckdb",
+  "disclaimer": "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。",
+  "markdown_report": "ah-screening-report-2026-06-11.md",
+  "appendix_report": "ah-screening-appendix-2026-06-11.md",
+  "conclusion": [
+    "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
+    "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。"
+  ],
+  "bias_notes": [
+    "回测默认只使用定时/手动自然生成的候选快照；历史回放快照必须显式传 `--include-replay`，只作诊断，不作 edge 证明。",
+    "`potential-sweep` 是同一历史样本内的阈值扫描；RS 阈值证据必须以 `potential-walk-forward` 的样本外结果为准。",
+    "当前 active universe 已按日期留痕；退市/摘牌生命周期已入库（A 350, HK 717）。US 历史摘牌依赖 `AH_SCREENER_ALPHA_VANTAGE_KEY`；自然快照样本积累前，早期历史验证仍保留幸存者偏差。"
+  ],
+  "external_context": [
+    {
+      "name": "国务院“人工智能+”行动意见",
+      "url": "https://www.cac.gov.cn/2025-08/27/c_1758018277755538.htm",
+      "note": "政策层面强调 AI 与产业、科技、消费、治理等重点领域融合。"
+    },
+    {
+      "name": "国家发展改革委、国家能源局“人工智能+能源”实施意见",
+      "url": "https://www.nda.gov.cn/sjj/zwgk/zcfb/0908/20250908201317566927066_pc.html",
+      "note": "算力与电力协同、智能电网、储能和新能源是政策明确支持方向。"
+    },
+    {
+      "name": "中国证券报：港股结构性机会",
+      "url": "https://www.cs.com.cn/gppd/ggzx/2026/05/06/detail_2026050610009410.html",
+      "note": "港股更适合聚焦科技 AI、高股息和创新医药等结构性机会。"
+    },
+    {
+      "name": "财联社转载中信证券科技策略",
+      "url": "https://www.cls.cn/detail/2365601",
+      "note": "科技硬件端景气度领先，关注 AI 算力、光通信、半导体设备和上游涨价链。"
+    }
+  ],
+  "data_freshness": [
+    {
+      "market": "A",
+      "latest_date": "2026-06-11"
+    },
+    {
+      "market": "HK",
+      "latest_date": "2026-06-11"
+    },
+    {
+      "market": "US",
+      "latest_date": "2026-06-11"
+    }
+  ],
+  "data_freshness_warning": null,
+  "investability_summary": {
+    "amount_missing": 9012,
+    "low_market_cap": 5436,
+    "hk_non_connect_illiquid": 3716,
+    "market_cap_missing": 1320,
+    "hk_penny": 1115,
+    "price_missing": 935,
+    "a_excluded_board": 399,
+    "a_st_or_delisting_name": 262,
+    "low_amount": 230,
+    "distress_name": 11
+  },
+  "coverage_counts": {
+    "证券快照": 12876,
+    "技术指标": 2259,
+    "标准化基本面": 209,
+    "专家评分": 9419,
+    "提炼候选": 1,
+    "退市生命周期": 1135
+  },
+  "decision_distribution": [
+    {
+      "decision": "reject",
+      "count": 9416
+    },
+    {
+      "decision": "reserve",
+      "count": 2
+    },
+    {
+      "decision": "core_candidate",
+      "count": 1
+    }
+  ],
+  "counts": {
+    "refined_candidates": 1,
+    "core_candidates": 1,
+    "potential_candidates": 1,
+    "etf_leaders": 20,
+    "refined_by_market": {
+      "HK": 1
+    }
+  },
+  "daily_brief": {
+    "headline": "当前模型倾向采用“科技成长进攻 + 红利资源防御 + 医药质量观察”的结构，而不是押注单一主题。",
+    "focus": "AI 算力、半导体、港股 AI 互联网、创新药、高股息资源和电力储能仍是本轮筛选中最值得持续跟踪的方向。",
+    "priority_candidates": [
+      {
+        "bucket": "AI算力硬件",
+        "rank_in_bucket": 1,
+        "style_bucket": "科技成长",
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "09999",
+        "name": "网易-S",
+        "last_price": null,
+        "amount": null,
+        "market_cap": null,
+        "is_investable": true,
+        "investability_reasons": [],
+        "expert_score": 76.63891866632441,
+        "fundamental_score": 83.59864676709307,
+        "technical_score": 61.75,
+        "detailed_industry": "AI平台与云软件",
+        "industry_peer_group": "AI平台与云软件",
+        "peer_score": 86.55555555555554,
+        "industry_fit_score": 86.60257216514331,
+        "valuation_percentile": 48.888888888888886,
+        "theme_matches": [
+          "AI算力硬件",
+          "港股AI互联网平台"
+        ],
+        "reasons": [
+          "大师框架分=68.6",
+          "中国大师框架分=80.8",
+          "基本面分=83.6",
+          "行业适配=86.6",
+          "同类分位=86.6",
+          "同类组=AI平台与云软件",
+          "细分行业=AI平台与云软件",
+          "估值同类分位=48.9",
+          "主题参考分=71.8（不计入综合分）",
+          "技术信号=constructive",
+          "行业化阈值=科技硬件/平台:86.6",
+          "研发费用率=15.7%",
+          "资本开支/经营现金流=0.04",
+          "现金流/利润=1.50",
+          "匹配主题=AI算力硬件、港股AI互联网平台"
+        ],
+        "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=网易；风格=科技成长；同类组=AI平台与云软件；同类分位=86.6；行业适配=86.6；估值同类分位=48.9",
+        "why_selected": [
+          "专家分 76.6，进入当前提炼池",
+          "基本面 83.6，质量/成长支撑较强",
+          "同类分位 86.6，在可比组内靠前",
+          "行业适配 86.6，财务特征符合行业阈值"
+        ],
+        "key_risks": [
+          "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+        ],
+        "verify_before_action": [
+          "复核最近一期财报和业绩会是否支持模型分数",
+          "检查最新公告、减持、再融资、监管和审计风险",
+          "与同主题备选比较，避免重复持有高度相关标的"
+        ],
+        "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+      }
+    ],
+    "potential_setups": [
+      {
+        "market": "HK",
+        "trading_system": "T+0",
+        "symbol": "09999",
+        "name": "网易-S",
+        "potential_score": 69.78758986747303,
+        "technical_setup_score": 81.76718009478674,
+        "relative_strength_score": 76.81992337164752,
+        "fundamental_turn_score": 64.20981998450057,
+        "theme_early_score": 50.0,
+        "pivot_price": 198.1,
+        "target_price": 223.666,
+        "stop_price": 168.8,
+        "rr_ratio": 1.146053352108268,
+        "time_stop_days": 60,
+        "hist_win_rate": 56.92883895131086,
+        "bias_note": "validated signal=rs_quiet; RS threshold is in-sample operating parameter; price-only; survivorship bias; fundamentals/themes neutral in v1",
+        "setup_note": "筑底 81.8，RS 76.8，RR 1.1，触发 198.10",
+        "scenario": {
+          "trigger": "突破或站稳 198.10",
+          "target": "223.67",
+          "stop": "168.80",
+          "time_stop_days": 60
+        },
+        "invalid_if": "跌破止损价、RS 转弱或 8-12 周内无法完成突破。"
+      }
+    ],
+    "etf_use_cases": [
+      {
+        "key": "core_allocation",
+        "title": "核心配置",
+        "description": "用于表达主要市场或风格暴露，避免同类重复持有。",
+        "leaders": [
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589800",
+            "name": "科创综指ETF易方达",
+            "etf_category": "其他ETF",
+            "etf_cluster": "其他ETF",
+            "etf_track": "其他ETF",
+            "etf_score": 54.2,
+            "etf_recommendation": "工具型跟踪",
+            "peer_count": 1,
+            "peer_alternatives": "",
+            "pct_change": null,
+            "amount": null,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 其他ETF",
+              "同组 1 只，可用备选追溯"
+            ],
+            "alternatives": [],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589850",
+            "name": "科创50ETF东财",
+            "etf_category": "宽基指数ETF",
+            "etf_cluster": "成长科创宽基",
+            "etf_track": "科创50",
+            "etf_score": 54.1,
+            "etf_recommendation": "工具型跟踪",
+            "peer_count": 106,
+            "peer_alternatives": "A:588050 科创50ETF工银 | A:159682 创业板50ETF景顺 | A:159952 创业板ETF广发",
+            "pct_change": null,
+            "amount": null,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 成长科创宽基",
+              "同组 106 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:588050 科创50ETF工银",
+              "A:159682 创业板50ETF景顺",
+              "A:159952 创业板ETF广发"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589680",
+            "name": "科创综指ETF鹏华",
+            "etf_category": "其他ETF",
+            "etf_cluster": "其他ETF",
+            "etf_track": "其他ETF",
+            "etf_score": 53.1,
+            "etf_recommendation": "工具型跟踪",
+            "peer_count": 1,
+            "peer_alternatives": "",
+            "pct_change": null,
+            "amount": null,
+            "use_case": "core_allocation",
+            "why_selected": [
+              "双层去重后保留，代表 其他ETF",
+              "同组 1 只，可用备选追溯"
+            ],
+            "alternatives": [],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 9
+      },
+      {
+        "key": "tactical_growth",
+        "title": "主题进攻",
+        "description": "用于表达科技、制造、新能源等高弹性方向。",
+        "leaders": [
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589130",
+            "name": "科创芯片ETF易方达",
+            "etf_category": "行业ETF",
+            "etf_cluster": "半导体芯片",
+            "etf_track": "半导体芯片",
+            "etf_score": 54.7,
+            "etf_recommendation": "工具型跟踪",
+            "peer_count": 50,
+            "peer_alternatives": "A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝 | A:589020 科创半导体设备ETF鹏华",
+            "pct_change": null,
+            "amount": null,
+            "use_case": "tactical_growth",
+            "why_selected": [
+              "双层去重后保留，代表 半导体芯片",
+              "同组 50 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:589100 科创芯片ETF国泰",
+              "A:589190 科创芯片ETF华宝",
+              "A:589020 科创半导体设备ETF鹏华"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "589010",
+            "name": "科创人工智能ETF华夏",
+            "etf_category": "主题ETF",
+            "etf_cluster": "人工智能",
+            "etf_track": "人工智能",
+            "etf_score": 50.9,
+            "etf_recommendation": "工具型跟踪",
+            "peer_count": 56,
+            "peer_alternatives": "A:588790 科创AIETF博时 | A:589110 科创人工智能ETF国泰 | A:560630 机器人ETF万家",
+            "pct_change": null,
+            "amount": null,
+            "use_case": "tactical_growth",
+            "why_selected": [
+              "双层去重后保留，代表 人工智能",
+              "同组 56 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:588790 科创AIETF博时",
+              "A:589110 科创人工智能ETF国泰",
+              "A:560630 机器人ETF万家"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "159796",
+            "name": "电池ETF汇添富",
+            "etf_category": "行业ETF",
+            "etf_cluster": "新能源",
+            "etf_track": "新能源",
+            "etf_score": 48.5,
+            "etf_recommendation": "流动性谨慎",
+            "peer_count": 69,
+            "peer_alternatives": "A:515790 光伏ETF华泰柏瑞 | A:159566 储能电池ETF易方达 | HK:03405 富邦亚洲电池储能",
+            "pct_change": 0.0,
+            "amount": 0.0,
+            "use_case": "tactical_growth",
+            "why_selected": [
+              "双层去重后保留，代表 新能源",
+              "成交额 0，流动性相对靠前",
+              "同组 69 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:515790 光伏ETF华泰柏瑞",
+              "A:159566 储能电池ETF易方达",
+              "HK:03405 富邦亚洲电池储能"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 5
+      },
+      {
+        "key": "cross_border_t0",
+        "title": "跨境与T+0",
+        "description": "用于海外市场、港股或可日内回转的配置工具。",
+        "leaders": [
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "02828",
+            "name": "恒生中国企业",
+            "etf_category": "跨境ETF",
+            "etf_cluster": "港股核心宽基",
+            "etf_track": "恒生中国企业",
+            "etf_score": 60.0,
+            "etf_recommendation": "流动性谨慎",
+            "peer_count": 28,
+            "peer_alternatives": "HK:07500 南方两倍做空恒指 | HK:07300 南方一倍做空恒指 | HK:83115 安硕恒生指数-R",
+            "pct_change": 0.0,
+            "amount": 7882.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 港股核心宽基",
+              "成交额 7882，流动性相对靠前",
+              "同组 28 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "HK:07500 南方两倍做空恒指",
+              "HK:07300 南方一倍做空恒指",
+              "HK:83115 安硕恒生指数-R"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "02839",
+            "name": "华夏A50",
+            "etf_category": "宽基指数ETF",
+            "etf_cluster": "a50",
+            "etf_track": "a50",
+            "etf_score": 50.5,
+            "etf_recommendation": "流动性谨慎",
+            "peer_count": 31,
+            "peer_alternatives": "HK:83111 易方达A50 ETF-R | HK:09839 华夏A50-U | HK:03003 南方明晟A50",
+            "pct_change": 0.0,
+            "amount": 0.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 a50",
+              "成交额 0，流动性相对靠前",
+              "同组 31 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "HK:83111 易方达A50 ETF-R",
+              "HK:09839 华夏A50-U",
+              "HK:03003 南方明晟A50"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          },
+          {
+            "market": "HK",
+            "trading_system": "T+0",
+            "symbol": "09455",
+            "name": "景顺QQQ-U",
+            "etf_category": "宽基指数ETF",
+            "etf_cluster": "美股大盘",
+            "etf_track": "纳斯达克100",
+            "etf_score": 48.2,
+            "etf_recommendation": "流动性谨慎",
+            "peer_count": 37,
+            "peer_alternatives": "A:159632 纳斯达克ETF华安 | A:159659 纳斯达克100ETF招商 | A:159941 纳指ETF广发",
+            "pct_change": 0.0,
+            "amount": 0.0,
+            "use_case": "cross_border_t0",
+            "why_selected": [
+              "双层去重后保留，代表 美股大盘",
+              "成交额 0，流动性相对靠前",
+              "同组 37 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:159632 纳斯达克ETF华安",
+              "A:159659 纳斯达克100ETF招商",
+              "A:159941 纳指ETF广发"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 5
+      },
+      {
+        "key": "commodity_resource",
+        "title": "商品资源",
+        "description": "用于黄金、有色、能源等实物或资源价格暴露。",
+        "leaders": [
+          {
+            "market": "A",
+            "trading_system": "T+1",
+            "symbol": "515220",
+            "name": "煤炭ETF国泰",
+            "etf_category": "行业ETF",
+            "etf_cluster": "煤炭",
+            "etf_track": "煤炭",
+            "etf_score": 48.5,
+            "etf_recommendation": "流动性谨慎",
+            "peer_count": 8,
+            "peer_alternatives": "A:161032 煤炭龙头LOF | A:150252 煤炭B | A:150321 煤炭A基",
+            "pct_change": 0.0,
+            "amount": 0.0,
+            "use_case": "commodity_resource",
+            "why_selected": [
+              "双层去重后保留，代表 煤炭",
+              "成交额 0，流动性相对靠前",
+              "同组 8 只，可用备选追溯"
+            ],
+            "alternatives": [
+              "A:161032 煤炭龙头LOF",
+              "A:150252 煤炭B",
+              "A:150321 煤炭A基"
+            ],
+            "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+          }
+        ],
+        "count": 1
+      }
+    ],
+    "top_changes": [
+      {
+        "change": "新增",
+        "bucket": "AI算力硬件",
+        "market": "HK",
+        "symbol": "09999",
+        "name": "网易-S",
+        "latest_score": 76.63891866632441,
+        "previous_score": null,
+        "score_delta": null
+      },
+      {
+        "change": "移出",
+        "bucket": "高股息央国企防御",
+        "market": "HK",
+        "symbol": "03968",
+        "name": "招商银行",
+        "latest_score": null,
+        "previous_score": 62.646079337157,
+        "score_delta": null
+      }
+    ],
+    "data_health": {
+      "coverage_counts": {
+        "证券快照": 12876,
+        "技术指标": 2259,
+        "标准化基本面": 209,
+        "专家评分": 9419,
+        "提炼候选": 1,
+        "退市生命周期": 1135
+      },
+      "freshness": [
+        {
+          "market": "A",
+          "latest_date": "2026-06-11"
+        },
+        {
+          "market": "HK",
+          "latest_date": "2026-06-11"
+        },
+        {
+          "market": "US",
+          "latest_date": "2026-06-11"
+        }
+      ],
+      "warning": null,
+      "investability_summary": {
+        "amount_missing": 9012,
+        "low_market_cap": 5436,
+        "hk_non_connect_illiquid": 3716,
+        "market_cap_missing": 1320,
+        "hk_penny": 1115,
+        "price_missing": 935,
+        "a_excluded_board": 399,
+        "a_st_or_delisting_name": 262,
+        "low_amount": 230,
+        "distress_name": 11
+      }
+    },
+    "portfolio_notes": [
+      "组合上不建议把所有候选集中在单一景气方向，科技成长、红利防御、资源周期和医药成长需要分桶跟踪。",
+      "买入前应逐只复核最新公告、业绩会、估值分位、股东结构、减持和再融资风险。"
+    ],
+    "reader_contract": "默认只读短摘要；完整覆盖率、长表和证据口径进入附录。"
+  },
+  "top_actions": [
+    {
+      "type": "candidate_change",
+      "label": "新增",
+      "market": "HK",
+      "symbol": "09999",
+      "name": "网易-S",
+      "score": 76.63891866632441,
+      "delta": null,
+      "action": "新增 HK 09999 网易-S"
+    }
+  ],
+  "etf_use_cases": [
+    {
+      "key": "core_allocation",
+      "title": "核心配置",
+      "description": "用于表达主要市场或风格暴露，避免同类重复持有。",
+      "leaders": [
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589800",
+          "name": "科创综指ETF易方达",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 54.2,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589850",
+          "name": "科创50ETF东财",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "成长科创宽基",
+          "etf_track": "科创50",
+          "etf_score": 54.1,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 106,
+          "peer_alternatives": "A:588050 科创50ETF工银 | A:159682 创业板50ETF景顺 | A:159952 创业板ETF广发",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 成长科创宽基",
+            "同组 106 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:588050 科创50ETF工银",
+            "A:159682 创业板50ETF景顺",
+            "A:159952 创业板ETF广发"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589680",
+          "name": "科创综指ETF鹏华",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 53.1,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589880",
+          "name": "科创综指ETF建信",
+          "etf_category": "其他ETF",
+          "etf_cluster": "其他ETF",
+          "etf_track": "其他ETF",
+          "etf_score": 51.5,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 1,
+          "peer_alternatives": "",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 其他ETF",
+            "同组 1 只，可用备选追溯"
+          ],
+          "alternatives": [],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "159629",
+          "name": "中证1000ETF富国",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "中小盘宽基",
+          "etf_track": "中证1000",
+          "etf_score": 50.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 71,
+          "peer_alternatives": "A:159922 中证500ETF嘉实 | A:510580 中证500ETF易方达 | A:563300 中证2000ETF华泰柏瑞",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "core_allocation",
+          "why_selected": [
+            "双层去重后保留，代表 中小盘宽基",
+            "成交额 0，流动性相对靠前",
+            "同组 71 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:159922 中证500ETF嘉实",
+            "A:510580 中证500ETF易方达",
+            "A:563300 中证2000ETF华泰柏瑞"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 9
+    },
+    {
+      "key": "tactical_growth",
+      "title": "主题进攻",
+      "description": "用于表达科技、制造、新能源等高弹性方向。",
+      "leaders": [
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589130",
+          "name": "科创芯片ETF易方达",
+          "etf_category": "行业ETF",
+          "etf_cluster": "半导体芯片",
+          "etf_track": "半导体芯片",
+          "etf_score": 54.7,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 50,
+          "peer_alternatives": "A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝 | A:589020 科创半导体设备ETF鹏华",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 半导体芯片",
+            "同组 50 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:589100 科创芯片ETF国泰",
+            "A:589190 科创芯片ETF华宝",
+            "A:589020 科创半导体设备ETF鹏华"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "589010",
+          "name": "科创人工智能ETF华夏",
+          "etf_category": "主题ETF",
+          "etf_cluster": "人工智能",
+          "etf_track": "人工智能",
+          "etf_score": 50.9,
+          "etf_recommendation": "工具型跟踪",
+          "peer_count": 56,
+          "peer_alternatives": "A:588790 科创AIETF博时 | A:589110 科创人工智能ETF国泰 | A:560630 机器人ETF万家",
+          "pct_change": null,
+          "amount": null,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 人工智能",
+            "同组 56 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:588790 科创AIETF博时",
+            "A:589110 科创人工智能ETF国泰",
+            "A:560630 机器人ETF万家"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "159796",
+          "name": "电池ETF汇添富",
+          "etf_category": "行业ETF",
+          "etf_cluster": "新能源",
+          "etf_track": "新能源",
+          "etf_score": 48.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 69,
+          "peer_alternatives": "A:515790 光伏ETF华泰柏瑞 | A:159566 储能电池ETF易方达 | HK:03405 富邦亚洲电池储能",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 新能源",
+            "成交额 0，流动性相对靠前",
+            "同组 69 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:515790 光伏ETF华泰柏瑞",
+            "A:159566 储能电池ETF易方达",
+            "HK:03405 富邦亚洲电池储能"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "159732",
+          "name": "消费电子ETF华夏",
+          "etf_category": "行业ETF",
+          "etf_cluster": "消费",
+          "etf_track": "消费",
+          "etf_score": 48.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 82,
+          "peer_alternatives": "A:562950 消费电子ETF易方达 | A:159779 消费电子ETF招商 | A:515920 智能消费ETF博时",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 消费",
+            "成交额 0，流动性相对靠前",
+            "同组 82 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:562950 消费电子ETF易方达",
+            "A:159779 消费电子ETF招商",
+            "A:515920 智能消费ETF博时"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "159511",
+          "name": "通信ETF南方",
+          "etf_category": "行业ETF",
+          "etf_cluster": "通信",
+          "etf_track": "通信",
+          "etf_score": 48.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 7,
+          "peer_alternatives": "A:159583 通信ETF富国 | A:159994 通信ETF银华 | A:515880 通信ETF国泰",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "tactical_growth",
+          "why_selected": [
+            "双层去重后保留，代表 通信",
+            "成交额 0，流动性相对靠前",
+            "同组 7 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:159583 通信ETF富国",
+            "A:159994 通信ETF银华",
+            "A:515880 通信ETF国泰"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 5
+    },
+    {
+      "key": "defensive_cash",
+      "title": "防御与现金",
+      "description": "用于现金管理、债券、红利或低波动防御。",
+      "leaders": [],
+      "count": 0
+    },
+    {
+      "key": "cross_border_t0",
+      "title": "跨境与T+0",
+      "description": "用于海外市场、港股或可日内回转的配置工具。",
+      "leaders": [
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "02828",
+          "name": "恒生中国企业",
+          "etf_category": "跨境ETF",
+          "etf_cluster": "港股核心宽基",
+          "etf_track": "恒生中国企业",
+          "etf_score": 60.0,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 28,
+          "peer_alternatives": "HK:07500 南方两倍做空恒指 | HK:07300 南方一倍做空恒指 | HK:83115 安硕恒生指数-R",
+          "pct_change": 0.0,
+          "amount": 7882.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 港股核心宽基",
+            "成交额 7882，流动性相对靠前",
+            "同组 28 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:07500 南方两倍做空恒指",
+            "HK:07300 南方一倍做空恒指",
+            "HK:83115 安硕恒生指数-R"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "02839",
+          "name": "华夏A50",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "a50",
+          "etf_track": "a50",
+          "etf_score": 50.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 31,
+          "peer_alternatives": "HK:83111 易方达A50 ETF-R | HK:09839 华夏A50-U | HK:03003 南方明晟A50",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 a50",
+            "成交额 0，流动性相对靠前",
+            "同组 31 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:83111 易方达A50 ETF-R",
+            "HK:09839 华夏A50-U",
+            "HK:03003 南方明晟A50"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "09455",
+          "name": "景顺QQQ-U",
+          "etf_category": "宽基指数ETF",
+          "etf_cluster": "美股大盘",
+          "etf_track": "纳斯达克100",
+          "etf_score": 48.2,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 37,
+          "peer_alternatives": "A:159632 纳斯达克ETF华安 | A:159659 纳斯达克100ETF招商 | A:159941 纳指ETF广发",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 美股大盘",
+            "成交额 0，流动性相对靠前",
+            "同组 37 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:159632 纳斯达克ETF华安",
+            "A:159659 纳斯达克100ETF招商",
+            "A:159941 纳指ETF广发"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "03195",
+          "name": "恒生标普五百",
+          "etf_category": "跨境ETF",
+          "etf_cluster": "中国互联网科技",
+          "etf_track": "恒生",
+          "etf_score": 47.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 76,
+          "peer_alternatives": "HK:03410 恒生日本东证一百 | HK:09195 恒生标普五百-U | HK:02837 GlobalX 恒生科技",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 中国互联网科技",
+            "成交额 0，流动性相对靠前",
+            "同组 76 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "HK:03410 恒生日本东证一百",
+            "HK:09195 恒生标普五百-U",
+            "HK:02837 GlobalX 恒生科技"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        },
+        {
+          "market": "HK",
+          "trading_system": "T+0",
+          "symbol": "03064",
+          "name": "GlobalX MSCI 亚太",
+          "etf_category": "跨境ETF",
+          "etf_cluster": "亚太精选",
+          "etf_track": "亚太精选",
+          "etf_score": 47.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 6,
+          "peer_alternatives": "A:159687 亚太精选ETF南方 | HK:03172 A三星亚太元宇宙 | HK:09064 GlobalX MSCI亚太-U",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "cross_border_t0",
+          "why_selected": [
+            "双层去重后保留，代表 亚太精选",
+            "成交额 0，流动性相对靠前",
+            "同组 6 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:159687 亚太精选ETF南方",
+            "HK:03172 A三星亚太元宇宙",
+            "HK:09064 GlobalX MSCI亚太-U"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 5
+    },
+    {
+      "key": "commodity_resource",
+      "title": "商品资源",
+      "description": "用于黄金、有色、能源等实物或资源价格暴露。",
+      "leaders": [
+        {
+          "market": "A",
+          "trading_system": "T+1",
+          "symbol": "515220",
+          "name": "煤炭ETF国泰",
+          "etf_category": "行业ETF",
+          "etf_cluster": "煤炭",
+          "etf_track": "煤炭",
+          "etf_score": 48.5,
+          "etf_recommendation": "流动性谨慎",
+          "peer_count": 8,
+          "peer_alternatives": "A:161032 煤炭龙头LOF | A:150252 煤炭B | A:150321 煤炭A基",
+          "pct_change": 0.0,
+          "amount": 0.0,
+          "use_case": "commodity_resource",
+          "why_selected": [
+            "双层去重后保留，代表 煤炭",
+            "成交额 0，流动性相对靠前",
+            "同组 8 只，可用备选追溯"
+          ],
+          "alternatives": [
+            "A:161032 煤炭龙头LOF",
+            "A:150252 煤炭B",
+            "A:150321 煤炭A基"
+          ],
+          "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+        }
+      ],
+      "count": 1
+    },
+    {
+      "key": "other_tools",
+      "title": "其他工具",
+      "description": "未归入上述用途，但双层去重后仍保留。",
+      "leaders": [],
+      "count": 0
+    }
+  ],
+  "refined_candidates": [
+    {
+      "bucket": "AI算力硬件",
+      "rank_in_bucket": 1,
+      "style_bucket": "科技成长",
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09999",
+      "name": "网易-S",
+      "last_price": null,
+      "amount": null,
+      "market_cap": null,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 76.63891866632441,
+      "fundamental_score": 83.59864676709307,
+      "technical_score": 61.75,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 86.55555555555554,
+      "industry_fit_score": 86.60257216514331,
+      "valuation_percentile": 48.888888888888886,
+      "theme_matches": [
+        "AI算力硬件",
+        "港股AI互联网平台"
+      ],
+      "reasons": [
+        "大师框架分=68.6",
+        "中国大师框架分=80.8",
+        "基本面分=83.6",
+        "行业适配=86.6",
+        "同类分位=86.6",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=48.9",
+        "主题参考分=71.8（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=科技硬件/平台:86.6",
+        "研发费用率=15.7%",
+        "资本开支/经营现金流=0.04",
+        "现金流/利润=1.50",
+        "匹配主题=AI算力硬件、港股AI互联网平台"
+      ],
+      "selection_note": "同主题最多3只；同风格优先最多2只；A/H或同名主体只留最高分；主体=网易；风格=科技成长；同类组=AI平台与云软件；同类分位=86.6；行业适配=86.6；估值同类分位=48.9",
+      "why_selected": [
+        "专家分 76.6，进入当前提炼池",
+        "基本面 83.6，质量/成长支撑较强",
+        "同类分位 86.6，在可比组内靠前",
+        "行业适配 86.6，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "科技成长方向拥挤度高，需防估值和业绩预期同时修正"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    }
+  ],
+  "core_candidates": [
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09999",
+      "name": "网易-S",
+      "last_price": 220.0,
+      "amount": 100116897.0,
+      "market_cap": 701940915720.0,
+      "is_investable": true,
+      "investability_reasons": [],
+      "expert_score": 76.63891866632441,
+      "master_score": 68.61672977668695,
+      "china_master_score": 80.7763678257852,
+      "fundamental_score": 83.59864676709307,
+      "technical_score": 61.75,
+      "detailed_industry": "AI平台与云软件",
+      "industry_peer_group": "AI平台与云软件",
+      "peer_score": 86.55555555555554,
+      "industry_fit_score": 86.60257216514331,
+      "valuation_percentile": 48.888888888888886,
+      "decision": "core_candidate",
+      "theme_matches": [
+        "AI算力硬件",
+        "港股AI互联网平台"
+      ],
+      "reasons": [
+        "大师框架分=68.6",
+        "中国大师框架分=80.8",
+        "基本面分=83.6",
+        "行业适配=86.6",
+        "同类分位=86.6",
+        "同类组=AI平台与云软件",
+        "细分行业=AI平台与云软件",
+        "估值同类分位=48.9",
+        "主题参考分=71.8（不计入综合分）",
+        "技术信号=constructive",
+        "行业化阈值=科技硬件/平台:86.6",
+        "研发费用率=15.7%",
+        "资本开支/经营现金流=0.04",
+        "现金流/利润=1.50",
+        "匹配主题=AI算力硬件、港股AI互联网平台"
+      ],
+      "why_selected": [
+        "专家分 76.6，进入当前提炼池",
+        "基本面 83.6，质量/成长支撑较强",
+        "同类分位 86.6，在可比组内靠前",
+        "行业适配 86.6，财务特征符合行业阈值"
+      ],
+      "key_risks": [
+        "仍需复核最新公告、业绩会和股东变化"
+      ],
+      "verify_before_action": [
+        "复核最近一期财报和业绩会是否支持模型分数",
+        "检查最新公告、减持、再融资、监管和审计风险",
+        "与同主题备选比较，避免重复持有高度相关标的"
+      ],
+      "invalid_if": "技术面转弱；基本面分继续下滑；核心主题证据被公告或业绩证伪。"
+    }
+  ],
+  "potential_candidates": [
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09999",
+      "name": "网易-S",
+      "potential_score": 69.78758986747303,
+      "technical_setup_score": 81.76718009478674,
+      "relative_strength_score": 76.81992337164752,
+      "fundamental_turn_score": 64.20981998450057,
+      "theme_early_score": 50.0,
+      "pivot_price": 198.1,
+      "target_price": 223.666,
+      "stop_price": 168.8,
+      "rr_ratio": 1.146053352108268,
+      "time_stop_days": 60,
+      "hist_win_rate": 56.92883895131086,
+      "bias_note": "validated signal=rs_quiet; RS threshold is in-sample operating parameter; price-only; survivorship bias; fundamentals/themes neutral in v1",
+      "setup_note": "筑底 81.8，RS 76.8，RR 1.1，触发 198.10",
+      "scenario": {
+        "trigger": "突破或站稳 198.10",
+        "target": "223.67",
+        "stop": "168.80",
+        "time_stop_days": 60
+      },
+      "invalid_if": "跌破止损价、RS 转弱或 8-12 周内无法完成突破。"
+    }
+  ],
+  "etf_leaders": [
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02828",
+      "name": "恒生中国企业",
+      "etf_category": "跨境ETF",
+      "etf_cluster": "港股核心宽基",
+      "etf_track": "恒生中国企业",
+      "etf_score": 60.0,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 28,
+      "peer_alternatives": "HK:07500 南方两倍做空恒指 | HK:07300 南方一倍做空恒指 | HK:83115 安硕恒生指数-R",
+      "pct_change": 0.0,
+      "amount": 7882.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 港股核心宽基",
+        "成交额 7882，流动性相对靠前",
+        "同组 28 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:07500 南方两倍做空恒指",
+        "HK:07300 南方一倍做空恒指",
+        "HK:83115 安硕恒生指数-R"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589130",
+      "name": "科创芯片ETF易方达",
+      "etf_category": "行业ETF",
+      "etf_cluster": "半导体芯片",
+      "etf_track": "半导体芯片",
+      "etf_score": 54.7,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 50,
+      "peer_alternatives": "A:589100 科创芯片ETF国泰 | A:589190 科创芯片ETF华宝 | A:589020 科创半导体设备ETF鹏华",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 半导体芯片",
+        "同组 50 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:589100 科创芯片ETF国泰",
+        "A:589190 科创芯片ETF华宝",
+        "A:589020 科创半导体设备ETF鹏华"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589800",
+      "name": "科创综指ETF易方达",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 54.2,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589850",
+      "name": "科创50ETF东财",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "成长科创宽基",
+      "etf_track": "科创50",
+      "etf_score": 54.1,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 106,
+      "peer_alternatives": "A:588050 科创50ETF工银 | A:159682 创业板50ETF景顺 | A:159952 创业板ETF广发",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 成长科创宽基",
+        "同组 106 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:588050 科创50ETF工银",
+        "A:159682 创业板50ETF景顺",
+        "A:159952 创业板ETF广发"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589680",
+      "name": "科创综指ETF鹏华",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 53.1,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589880",
+      "name": "科创综指ETF建信",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 51.5,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589010",
+      "name": "科创人工智能ETF华夏",
+      "etf_category": "主题ETF",
+      "etf_cluster": "人工智能",
+      "etf_track": "人工智能",
+      "etf_score": 50.9,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 56,
+      "peer_alternatives": "A:588790 科创AIETF博时 | A:589110 科创人工智能ETF国泰 | A:560630 机器人ETF万家",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 人工智能",
+        "同组 56 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:588790 科创AIETF博时",
+        "A:589110 科创人工智能ETF国泰",
+        "A:560630 机器人ETF万家"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "02839",
+      "name": "华夏A50",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "a50",
+      "etf_track": "a50",
+      "etf_score": 50.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 31,
+      "peer_alternatives": "HK:83111 易方达A50 ETF-R | HK:09839 华夏A50-U | HK:03003 南方明晟A50",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 a50",
+        "成交额 0，流动性相对靠前",
+        "同组 31 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:83111 易方达A50 ETF-R",
+        "HK:09839 华夏A50-U",
+        "HK:03003 南方明晟A50"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159629",
+      "name": "中证1000ETF富国",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "中小盘宽基",
+      "etf_track": "中证1000",
+      "etf_score": 50.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 71,
+      "peer_alternatives": "A:159922 中证500ETF嘉实 | A:510580 中证500ETF易方达 | A:563300 中证2000ETF华泰柏瑞",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 中小盘宽基",
+        "成交额 0，流动性相对靠前",
+        "同组 71 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159922 中证500ETF嘉实",
+        "A:510580 中证500ETF易方达",
+        "A:563300 中证2000ETF华泰柏瑞"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159353",
+      "name": "中证A500ETF景顺",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "大盘宽基",
+      "etf_track": "中证A500",
+      "etf_score": 50.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 134,
+      "peer_alternatives": "A:159901 深证100ETF易方达 | A:159351 A500ETF嘉实 | A:159211 深证100ETF富国",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 大盘宽基",
+        "成交额 0，流动性相对靠前",
+        "同组 134 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159901 深证100ETF易方达",
+        "A:159351 A500ETF嘉实",
+        "A:159211 深证100ETF富国"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159259",
+      "name": "成长ETF易方达",
+      "etf_category": "红利/策略ETF",
+      "etf_cluster": "成长",
+      "etf_track": "成长",
+      "etf_score": 50.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 27,
+      "peer_alternatives": "A:588020 科创成长ETF易方达 | A:588070 科创成长ETF万家 | A:560500 500质量成长ETF鹏扬",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 成长",
+        "成交额 0，流动性相对靠前",
+        "同组 27 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:588020 科创成长ETF易方达",
+        "A:588070 科创成长ETF万家",
+        "A:560500 500质量成长ETF鹏扬"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589950",
+      "name": "科创100ETF富国",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 50.0,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "589660",
+      "name": "科创综指ETF南方",
+      "etf_category": "其他ETF",
+      "etf_cluster": "其他ETF",
+      "etf_track": "其他ETF",
+      "etf_score": 48.9,
+      "etf_recommendation": "工具型跟踪",
+      "peer_count": 1,
+      "peer_alternatives": "",
+      "pct_change": null,
+      "amount": null,
+      "use_case": "core_allocation",
+      "why_selected": [
+        "双层去重后保留，代表 其他ETF",
+        "同组 1 只，可用备选追溯"
+      ],
+      "alternatives": [],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159796",
+      "name": "电池ETF汇添富",
+      "etf_category": "行业ETF",
+      "etf_cluster": "新能源",
+      "etf_track": "新能源",
+      "etf_score": 48.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 69,
+      "peer_alternatives": "A:515790 光伏ETF华泰柏瑞 | A:159566 储能电池ETF易方达 | HK:03405 富邦亚洲电池储能",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 新能源",
+        "成交额 0，流动性相对靠前",
+        "同组 69 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:515790 光伏ETF华泰柏瑞",
+        "A:159566 储能电池ETF易方达",
+        "HK:03405 富邦亚洲电池储能"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159732",
+      "name": "消费电子ETF华夏",
+      "etf_category": "行业ETF",
+      "etf_cluster": "消费",
+      "etf_track": "消费",
+      "etf_score": 48.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 82,
+      "peer_alternatives": "A:562950 消费电子ETF易方达 | A:159779 消费电子ETF招商 | A:515920 智能消费ETF博时",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 消费",
+        "成交额 0，流动性相对靠前",
+        "同组 82 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:562950 消费电子ETF易方达",
+        "A:159779 消费电子ETF招商",
+        "A:515920 智能消费ETF博时"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "515220",
+      "name": "煤炭ETF国泰",
+      "etf_category": "行业ETF",
+      "etf_cluster": "煤炭",
+      "etf_track": "煤炭",
+      "etf_score": 48.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 8,
+      "peer_alternatives": "A:161032 煤炭龙头LOF | A:150252 煤炭B | A:150321 煤炭A基",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "commodity_resource",
+      "why_selected": [
+        "双层去重后保留，代表 煤炭",
+        "成交额 0，流动性相对靠前",
+        "同组 8 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:161032 煤炭龙头LOF",
+        "A:150252 煤炭B",
+        "A:150321 煤炭A基"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "A",
+      "trading_system": "T+1",
+      "symbol": "159511",
+      "name": "通信ETF南方",
+      "etf_category": "行业ETF",
+      "etf_cluster": "通信",
+      "etf_track": "通信",
+      "etf_score": 48.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 7,
+      "peer_alternatives": "A:159583 通信ETF富国 | A:159994 通信ETF银华 | A:515880 通信ETF国泰",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "tactical_growth",
+      "why_selected": [
+        "双层去重后保留，代表 通信",
+        "成交额 0，流动性相对靠前",
+        "同组 7 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159583 通信ETF富国",
+        "A:159994 通信ETF银华",
+        "A:515880 通信ETF国泰"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "09455",
+      "name": "景顺QQQ-U",
+      "etf_category": "宽基指数ETF",
+      "etf_cluster": "美股大盘",
+      "etf_track": "纳斯达克100",
+      "etf_score": 48.2,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 37,
+      "peer_alternatives": "A:159632 纳斯达克ETF华安 | A:159659 纳斯达克100ETF招商 | A:159941 纳指ETF广发",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 美股大盘",
+        "成交额 0，流动性相对靠前",
+        "同组 37 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159632 纳斯达克ETF华安",
+        "A:159659 纳斯达克100ETF招商",
+        "A:159941 纳指ETF广发"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03195",
+      "name": "恒生标普五百",
+      "etf_category": "跨境ETF",
+      "etf_cluster": "中国互联网科技",
+      "etf_track": "恒生",
+      "etf_score": 47.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 76,
+      "peer_alternatives": "HK:03410 恒生日本东证一百 | HK:09195 恒生标普五百-U | HK:02837 GlobalX 恒生科技",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 中国互联网科技",
+        "成交额 0，流动性相对靠前",
+        "同组 76 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "HK:03410 恒生日本东证一百",
+        "HK:09195 恒生标普五百-U",
+        "HK:02837 GlobalX 恒生科技"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    },
+    {
+      "market": "HK",
+      "trading_system": "T+0",
+      "symbol": "03064",
+      "name": "GlobalX MSCI 亚太",
+      "etf_category": "跨境ETF",
+      "etf_cluster": "亚太精选",
+      "etf_track": "亚太精选",
+      "etf_score": 47.5,
+      "etf_recommendation": "流动性谨慎",
+      "peer_count": 6,
+      "peer_alternatives": "A:159687 亚太精选ETF南方 | HK:03172 A三星亚太元宇宙 | HK:09064 GlobalX MSCI亚太-U",
+      "pct_change": 0.0,
+      "amount": 0.0,
+      "use_case": "cross_border_t0",
+      "why_selected": [
+        "双层去重后保留，代表 亚太精选",
+        "成交额 0，流动性相对靠前",
+        "同组 6 只，可用备选追溯"
+      ],
+      "alternatives": [
+        "A:159687 亚太精选ETF南方",
+        "HK:03172 A三星亚太元宇宙",
+        "HK:09064 GlobalX MSCI亚太-U"
+      ],
+      "caution": "同簇 ETF 高度相关，通常不需要同时持有多只。"
+    }
+  ],
+  "candidate_changes": [
+    {
+      "change": "新增",
+      "bucket": "AI算力硬件",
+      "market": "HK",
+      "symbol": "09999",
+      "name": "网易-S",
+      "latest_score": 76.63891866632441,
+      "previous_score": null,
+      "score_delta": null
+    },
+    {
+      "change": "移出",
+      "bucket": "高股息央国企防御",
+      "market": "HK",
+      "symbol": "03968",
+      "name": "招商银行",
+      "latest_score": null,
+      "previous_score": 62.646079337157,
+      "score_delta": null
+    }
+  ]
+}
