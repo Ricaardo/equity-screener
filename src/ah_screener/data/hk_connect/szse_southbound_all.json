@@ -1,0 +1,3183 @@
+{
+  "update_date": "2026-06-05",
+  "recordcount": 635,
+  "pagecount": 32,
+  "rows": [
+    {
+      "zqdm": "00001",
+      "zqjc": "长和",
+      "zqywjc": "CKH HOLDINGS"
+    },
+    {
+      "zqdm": "00002",
+      "zqjc": "中电控股",
+      "zqywjc": "CLP HOLDINGS"
+    },
+    {
+      "zqdm": "00003",
+      "zqjc": "香港中华煤气",
+      "zqywjc": "HK & CHINA GAS"
+    },
+    {
+      "zqdm": "00004",
+      "zqjc": "九龙仓集团",
+      "zqywjc": "WHARF HOLDINGS"
+    },
+    {
+      "zqdm": "00005",
+      "zqjc": "汇丰控股",
+      "zqywjc": "HSBC HOLDINGS"
+    },
+    {
+      "zqdm": "00006",
+      "zqjc": "电能实业",
+      "zqywjc": "POWER ASSETS"
+    },
+    {
+      "zqdm": "00008",
+      "zqjc": "电讯盈科",
+      "zqywjc": "PCCW"
+    },
+    {
+      "zqdm": "00010",
+      "zqjc": "恒隆集团",
+      "zqywjc": "HANG LUNG GROUP"
+    },
+    {
+      "zqdm": "00012",
+      "zqjc": "恒基地产",
+      "zqywjc": "HENDERSON LAND"
+    },
+    {
+      "zqdm": "00013",
+      "zqjc": "和黄医药",
+      "zqywjc": "HUTCHMED"
+    },
+    {
+      "zqdm": "00014",
+      "zqjc": "希慎兴业",
+      "zqywjc": "HYSAN DEV"
+    },
+    {
+      "zqdm": "00016",
+      "zqjc": "新鸿基地产",
+      "zqywjc": "SHK PPT"
+    },
+    {
+      "zqdm": "00017",
+      "zqjc": "新世界发展",
+      "zqywjc": "NEW WORLD DEV"
+    },
+    {
+      "zqdm": "00019",
+      "zqjc": "太古股份公司Ａ",
+      "zqywjc": "SWIRE PACIFIC A"
+    },
+    {
+      "zqdm": "00020",
+      "zqjc": "商汤－Ｗ",
+      "zqywjc": "SENSETIME-W"
+    },
+    {
+      "zqdm": "00023",
+      "zqjc": "东亚银行",
+      "zqywjc": "BANK OF E ASIA"
+    },
+    {
+      "zqdm": "00027",
+      "zqjc": "银河娱乐",
+      "zqywjc": "GALAXY ENT"
+    },
+    {
+      "zqdm": "00038",
+      "zqjc": "第一拖拉机股份",
+      "zqywjc": "FIRST TRACTOR"
+    },
+    {
+      "zqdm": "00041",
+      "zqjc": "鹰君",
+      "zqywjc": "GREAT EAGLE H"
+    },
+    {
+      "zqdm": "00066",
+      "zqjc": "港铁公司",
+      "zqywjc": "MTR CORPORATION"
+    },
+    {
+      "zqdm": "00081",
+      "zqjc": "中国海外宏洋集团",
+      "zqywjc": "CH OVS G OCEANS"
+    },
+    {
+      "zqdm": "00083",
+      "zqjc": "信和置业",
+      "zqywjc": "SINO LAND"
+    },
+    {
+      "zqdm": "00087",
+      "zqjc": "太古股份公司Ｂ",
+      "zqywjc": "SWIRE PACIFIC B"
+    },
+    {
+      "zqdm": "00101",
+      "zqjc": "恒隆地产",
+      "zqywjc": "HANG LUNG PPT"
+    },
+    {
+      "zqdm": "00107",
+      "zqjc": "四川成渝高速公路",
+      "zqywjc": "SICHUAN EXPRESS"
+    },
+    {
+      "zqdm": "00119",
+      "zqjc": "保利置业集团",
+      "zqywjc": "POLY PROPERTY"
+    },
+    {
+      "zqdm": "00123",
+      "zqjc": "越秀地产",
+      "zqywjc": "YUEXIU PROPERTY"
+    },
+    {
+      "zqdm": "00135",
+      "zqjc": "昆仑能源",
+      "zqywjc": "KUNLUN ENERGY"
+    },
+    {
+      "zqdm": "00136",
+      "zqjc": "中国儒意",
+      "zqywjc": "CHINA RUYI"
+    },
+    {
+      "zqdm": "00142",
+      "zqjc": "第一太平",
+      "zqywjc": "FIRST PACIFIC"
+    },
+    {
+      "zqdm": "00144",
+      "zqjc": "招商局港口",
+      "zqywjc": "CHINA MER PORT"
+    },
+    {
+      "zqdm": "00148",
+      "zqjc": "建滔集团",
+      "zqywjc": "KINGBOARD HLDG"
+    },
+    {
+      "zqdm": "00151",
+      "zqjc": "中国旺旺",
+      "zqywjc": "WANT WANT CHINA"
+    },
+    {
+      "zqdm": "00152",
+      "zqjc": "深圳国际",
+      "zqywjc": "SHENZHEN INT'L"
+    },
+    {
+      "zqdm": "00165",
+      "zqjc": "中国光大控股",
+      "zqywjc": "CHINA EB LTD"
+    },
+    {
+      "zqdm": "00168",
+      "zqjc": "青岛啤酒股份",
+      "zqywjc": "TSINGTAO BREW"
+    },
+    {
+      "zqdm": "00173",
+      "zqjc": "嘉华国际",
+      "zqywjc": "K. WAH INT'L"
+    },
+    {
+      "zqdm": "00175",
+      "zqjc": "吉利汽车",
+      "zqywjc": "GEELY AUTO"
+    },
+    {
+      "zqdm": "00177",
+      "zqjc": "江苏宁沪高速公路",
+      "zqywjc": "JIANGSU EXPRESS"
+    },
+    {
+      "zqdm": "00179",
+      "zqjc": "德昌电机控股",
+      "zqywjc": "JOHNSON ELEC H"
+    },
+    {
+      "zqdm": "00187",
+      "zqjc": "京城机电股份",
+      "zqywjc": "JINGCHENG MAC"
+    },
+    {
+      "zqdm": "00189",
+      "zqjc": "东岳集团",
+      "zqywjc": "DONGYUE GROUP"
+    },
+    {
+      "zqdm": "00200",
+      "zqjc": "新濠国际发展",
+      "zqywjc": "MELCO INT'L DEV"
+    },
+    {
+      "zqdm": "00220",
+      "zqjc": "统一企业中国",
+      "zqywjc": "U-PRESID CHINA"
+    },
+    {
+      "zqdm": "00241",
+      "zqjc": "阿里健康",
+      "zqywjc": "ALI HEALTH"
+    },
+    {
+      "zqdm": "00257",
+      "zqjc": "光大环境",
+      "zqywjc": "EB ENVIRONMENT"
+    },
+    {
+      "zqdm": "00267",
+      "zqjc": "中信股份",
+      "zqywjc": "CITIC"
+    },
+    {
+      "zqdm": "00268",
+      "zqjc": "金蝶国际",
+      "zqywjc": "KINGDEE INT'L"
+    },
+    {
+      "zqdm": "00270",
+      "zqjc": "粤海投资",
+      "zqywjc": "GUANGDONG INV"
+    },
+    {
+      "zqdm": "00285",
+      "zqjc": "比亚迪电子",
+      "zqywjc": "BYD ELECTRONIC"
+    },
+    {
+      "zqdm": "00288",
+      "zqjc": "万洲国际",
+      "zqywjc": "WH GROUP"
+    },
+    {
+      "zqdm": "00290",
+      "zqjc": "国富量子（五百）",
+      "zqywjc": "GOFINTECH-500"
+    },
+    {
+      "zqdm": "00291",
+      "zqjc": "华润啤酒",
+      "zqywjc": "CHINA RES BEER"
+    },
+    {
+      "zqdm": "00293",
+      "zqjc": "国泰航空",
+      "zqywjc": "CATHAY PAC AIR"
+    },
+    {
+      "zqdm": "00297",
+      "zqjc": "中化化肥",
+      "zqywjc": "SINOFERT"
+    },
+    {
+      "zqdm": "00300",
+      "zqjc": "美的集团",
+      "zqywjc": "MIDEA GROUP"
+    },
+    {
+      "zqdm": "00303",
+      "zqjc": "",
+      "zqywjc": "VTECH HOLDINGS"
+    },
+    {
+      "zqdm": "00308",
+      "zqjc": "香港中旅",
+      "zqywjc": "CHINA TRAVEL HK"
+    },
+    {
+      "zqdm": "00316",
+      "zqjc": "东方海外国际",
+      "zqywjc": "OOIL"
+    },
+    {
+      "zqdm": "00317",
+      "zqjc": "中船防务",
+      "zqywjc": "COMEC"
+    },
+    {
+      "zqdm": "00322",
+      "zqjc": "康师傅控股",
+      "zqywjc": "TINGYI"
+    },
+    {
+      "zqdm": "00323",
+      "zqjc": "马鞍山钢铁股份",
+      "zqywjc": "MAANSHAN IRON"
+    },
+    {
+      "zqdm": "00325",
+      "zqjc": "布鲁可",
+      "zqywjc": "BLOKS"
+    },
+    {
+      "zqdm": "00336",
+      "zqjc": "华宝国际",
+      "zqywjc": "HUABAO INTL"
+    },
+    {
+      "zqdm": "00338",
+      "zqjc": "上海石油化工股份",
+      "zqywjc": "SHANGHAI PECHEM"
+    },
+    {
+      "zqdm": "00345",
+      "zqjc": "",
+      "zqywjc": "VITASOY INT'L"
+    },
+    {
+      "zqdm": "00347",
+      "zqjc": "鞍钢股份",
+      "zqywjc": "ANGANG STEEL"
+    },
+    {
+      "zqdm": "00354",
+      "zqjc": "中国软件国际",
+      "zqywjc": "CHINASOFT INT'L"
+    },
+    {
+      "zqdm": "00358",
+      "zqjc": "江西铜业股份",
+      "zqywjc": "JIANGXI COPPER"
+    },
+    {
+      "zqdm": "00363",
+      "zqjc": "上海实业控股",
+      "zqywjc": "SHANGHAI IND H"
+    },
+    {
+      "zqdm": "00371",
+      "zqjc": "北控水务集团",
+      "zqywjc": "BJ ENT WATER"
+    },
+    {
+      "zqdm": "00384",
+      "zqjc": "中国燃气",
+      "zqywjc": "CHINA GAS HOLD"
+    },
+    {
+      "zqdm": "00386",
+      "zqjc": "中国石油化工股份",
+      "zqywjc": "SINOPEC CORP"
+    },
+    {
+      "zqdm": "00388",
+      "zqjc": "香港交易所",
+      "zqywjc": "HKEX"
+    },
+    {
+      "zqdm": "00390",
+      "zqjc": "中国中铁",
+      "zqywjc": "CHINA RAILWAY"
+    },
+    {
+      "zqdm": "00392",
+      "zqjc": "北京控股",
+      "zqywjc": "BEIJING ENT"
+    },
+    {
+      "zqdm": "00425",
+      "zqjc": "敏实集团",
+      "zqywjc": "MINTH GROUP"
+    },
+    {
+      "zqdm": "00440",
+      "zqjc": "大新金融",
+      "zqywjc": "DAH SING"
+    },
+    {
+      "zqdm": "00460",
+      "zqjc": "四环医药",
+      "zqywjc": "SIHUAN PHARM"
+    },
+    {
+      "zqdm": "00467",
+      "zqjc": "联合能源集团",
+      "zqywjc": "UNITEDENERGY GP"
+    },
+    {
+      "zqdm": "00470",
+      "zqjc": "先导智能",
+      "zqywjc": "WUXI LEAD"
+    },
+    {
+      "zqdm": "00501",
+      "zqjc": "豪威集团",
+      "zqywjc": "OMNIVISION"
+    },
+    {
+      "zqdm": "00506",
+      "zqjc": "中国食品",
+      "zqywjc": "CHINA FOODS"
+    },
+    {
+      "zqdm": "00512",
+      "zqjc": "远大医药",
+      "zqywjc": "GRAND PHARMA"
+    },
+    {
+      "zqdm": "00522",
+      "zqjc": "",
+      "zqywjc": "ASMPT"
+    },
+    {
+      "zqdm": "00525",
+      "zqjc": "广深铁路股份",
+      "zqywjc": "GUANGSHEN RAIL"
+    },
+    {
+      "zqdm": "00546",
+      "zqjc": "阜丰集团",
+      "zqywjc": "FUFENG GROUP"
+    },
+    {
+      "zqdm": "00548",
+      "zqjc": "深圳高速公路股份",
+      "zqywjc": "SHENZHENEXPRESS"
+    },
+    {
+      "zqdm": "00551",
+      "zqjc": "裕元集团",
+      "zqywjc": "YUE YUEN IND"
+    },
+    {
+      "zqdm": "00552",
+      "zqjc": "中国通信服务",
+      "zqywjc": "CHINACOMSERVICE"
+    },
+    {
+      "zqdm": "00553",
+      "zqjc": "南京熊猫电子股份",
+      "zqywjc": "NANJING PANDA"
+    },
+    {
+      "zqdm": "00564",
+      "zqjc": "中创智领",
+      "zqywjc": "ZCZL"
+    },
+    {
+      "zqdm": "00568",
+      "zqjc": "山东墨龙",
+      "zqywjc": "SHANDONG MOLONG"
+    },
+    {
+      "zqdm": "00570",
+      "zqjc": "中国中药",
+      "zqywjc": "TRAD CHI MED"
+    },
+    {
+      "zqdm": "00576",
+      "zqjc": "浙江沪杭甬",
+      "zqywjc": "ZHEJIANGEXPRESS"
+    },
+    {
+      "zqdm": "00586",
+      "zqjc": "海螺创业",
+      "zqywjc": "CONCH VENTURE"
+    },
+    {
+      "zqdm": "00588",
+      "zqjc": "北京北辰实业股份",
+      "zqywjc": "BEIJING N STAR"
+    },
+    {
+      "zqdm": "00590",
+      "zqjc": "六福集团",
+      "zqywjc": "LUK FOOK HOLD"
+    },
+    {
+      "zqdm": "00598",
+      "zqjc": "中国外运",
+      "zqywjc": "SINOTRANS"
+    },
+    {
+      "zqdm": "00604",
+      "zqjc": "深圳控股",
+      "zqywjc": "SHENZHEN INVEST"
+    },
+    {
+      "zqdm": "00631",
+      "zqjc": "三一国际",
+      "zqywjc": "SANY INT'L"
+    },
+    {
+      "zqdm": "00636",
+      "zqjc": "",
+      "zqywjc": "KLN"
+    },
+    {
+      "zqdm": "00638",
+      "zqjc": "广和通",
+      "zqywjc": "FIBOCOM"
+    },
+    {
+      "zqdm": "00639",
+      "zqjc": "首钢资源",
+      "zqywjc": "SHOUGANG RES"
+    },
+    {
+      "zqdm": "00656",
+      "zqjc": "复星国际",
+      "zqywjc": "FOSUN INTL"
+    },
+    {
+      "zqdm": "00659",
+      "zqjc": "周大福创建",
+      "zqywjc": "CTF SERVICES"
+    },
+    {
+      "zqdm": "00666",
+      "zqjc": "瑞浦兰钧",
+      "zqywjc": "REPT BATTERO"
+    },
+    {
+      "zqdm": "00667",
+      "zqjc": "中国东方教育",
+      "zqywjc": "CHINA EAST EDU"
+    },
+    {
+      "zqdm": "00669",
+      "zqjc": "创科实业",
+      "zqywjc": "TECHTRONIC IND"
+    },
+    {
+      "zqdm": "00670",
+      "zqjc": "中国东方航空股份",
+      "zqywjc": "CHINA EAST AIR"
+    },
+    {
+      "zqdm": "00683",
+      "zqjc": "嘉里建设",
+      "zqywjc": "KERRY PPT"
+    },
+    {
+      "zqdm": "00688",
+      "zqjc": "中国海外发展",
+      "zqywjc": "CHINA OVERSEAS"
+    },
+    {
+      "zqdm": "00696",
+      "zqjc": "中国民航信息网络",
+      "zqywjc": "TRAVELSKY TECH"
+    },
+    {
+      "zqdm": "00697",
+      "zqjc": "首程控股",
+      "zqywjc": "SHOUCHENG"
+    },
+    {
+      "zqdm": "00699",
+      "zqjc": "均胜电子",
+      "zqywjc": "JOYSON ELEC"
+    },
+    {
+      "zqdm": "00700",
+      "zqjc": "腾讯控股",
+      "zqywjc": "TENCENT"
+    },
+    {
+      "zqdm": "00719",
+      "zqjc": "山东新华制药股份",
+      "zqywjc": "SHANDONG XINHUA"
+    },
+    {
+      "zqdm": "00728",
+      "zqjc": "中国电信",
+      "zqywjc": "CHINA TELECOM"
+    },
+    {
+      "zqdm": "00751",
+      "zqjc": "创维集团",
+      "zqywjc": "SKYWORTH GROUP"
+    },
+    {
+      "zqdm": "00753",
+      "zqjc": "中国国航",
+      "zqywjc": "AIR CHINA"
+    },
+    {
+      "zqdm": "00754",
+      "zqjc": "合生创展集团",
+      "zqywjc": "HOPSON DEV HOLD"
+    },
+    {
+      "zqdm": "00762",
+      "zqjc": "中国联通",
+      "zqywjc": "CHINA UNICOM"
+    },
+    {
+      "zqdm": "00763",
+      "zqjc": "中兴通讯",
+      "zqywjc": "ZTE"
+    },
+    {
+      "zqdm": "00772",
+      "zqjc": "阅文集团",
+      "zqywjc": "CHINA LIT"
+    },
+    {
+      "zqdm": "00780",
+      "zqjc": "同程旅行",
+      "zqywjc": "TONGCHENGTRAVEL"
+    },
+    {
+      "zqdm": "00788",
+      "zqjc": "中国铁塔",
+      "zqywjc": "CHINA TOWER"
+    },
+    {
+      "zqdm": "00800",
+      "zqjc": "文远知行－Ｗ",
+      "zqywjc": "WERIDE-W"
+    },
+    {
+      "zqdm": "00811",
+      "zqjc": "新华文轩",
+      "zqywjc": "XINHUA WINSHARE"
+    },
+    {
+      "zqdm": "00817",
+      "zqjc": "中国金茂",
+      "zqywjc": "CHINA JINMAO"
+    },
+    {
+      "zqdm": "00819",
+      "zqjc": "天能动力",
+      "zqywjc": "TIANNENG POWER"
+    },
+    {
+      "zqdm": "00826",
+      "zqjc": "天工国际",
+      "zqywjc": "TIANGONG INT'L"
+    },
+    {
+      "zqdm": "00836",
+      "zqjc": "华润电力",
+      "zqywjc": "CHINA RES POWER"
+    },
+    {
+      "zqdm": "00839",
+      "zqjc": "中教控股",
+      "zqywjc": "CHINA EDU GROUP"
+    },
+    {
+      "zqdm": "00853",
+      "zqjc": "微创医疗",
+      "zqywjc": "MICROPORT"
+    },
+    {
+      "zqdm": "00855",
+      "zqjc": "中国水务",
+      "zqywjc": "CHINA WATER"
+    },
+    {
+      "zqdm": "00856",
+      "zqjc": "伟仕佳杰",
+      "zqywjc": "VSTECS"
+    },
+    {
+      "zqdm": "00857",
+      "zqjc": "中国石油股份",
+      "zqywjc": "PETROCHINA"
+    },
+    {
+      "zqdm": "00867",
+      "zqjc": "康哲药业",
+      "zqywjc": "CMS"
+    },
+    {
+      "zqdm": "00868",
+      "zqjc": "信义玻璃",
+      "zqywjc": "XINYI GLASS"
+    },
+    {
+      "zqdm": "00874",
+      "zqjc": "白云山",
+      "zqywjc": "BAIYUNSHAN PH"
+    },
+    {
+      "zqdm": "00880",
+      "zqjc": "澳博控股",
+      "zqywjc": "SJM HOLDINGS"
+    },
+    {
+      "zqdm": "00881",
+      "zqjc": "中升控股",
+      "zqywjc": "ZHONGSHENG HLDG"
+    },
+    {
+      "zqdm": "00883",
+      "zqjc": "中国海洋石油",
+      "zqywjc": "CNOOC"
+    },
+    {
+      "zqdm": "00895",
+      "zqjc": "东江环保",
+      "zqywjc": "DONGJIANG ENV"
+    },
+    {
+      "zqdm": "00902",
+      "zqjc": "华能国际电力股份",
+      "zqywjc": "HUANENG POWER"
+    },
+    {
+      "zqdm": "00909",
+      "zqjc": "明源云",
+      "zqywjc": "MING YUAN CLOUD"
+    },
+    {
+      "zqdm": "00914",
+      "zqjc": "海螺水泥",
+      "zqywjc": "CONCH CEMENT"
+    },
+    {
+      "zqdm": "00916",
+      "zqjc": "龙源电力",
+      "zqywjc": "CHINA LONGYUAN"
+    },
+    {
+      "zqdm": "00917",
+      "zqjc": "趣致集团",
+      "zqywjc": "QUNABOX GROUP"
+    },
+    {
+      "zqdm": "00921",
+      "zqjc": "海信家电",
+      "zqywjc": "HISENSE HA"
+    },
+    {
+      "zqdm": "00934",
+      "zqjc": "中石化冠德",
+      "zqywjc": "SINOPEC KANTONS"
+    },
+    {
+      "zqdm": "00939",
+      "zqjc": "建设银行",
+      "zqywjc": "CCB"
+    },
+    {
+      "zqdm": "00941",
+      "zqjc": "中国移动",
+      "zqywjc": "CHINA MOBILE"
+    },
+    {
+      "zqdm": "00956",
+      "zqjc": "新天绿色能源",
+      "zqywjc": "CHINA SUNTIEN"
+    },
+    {
+      "zqdm": "00960",
+      "zqjc": "龙湖集团",
+      "zqywjc": "LONGFOR GROUP"
+    },
+    {
+      "zqdm": "00966",
+      "zqjc": "中国太平",
+      "zqywjc": "CHINA TAIPING"
+    },
+    {
+      "zqdm": "00968",
+      "zqjc": "信义光能",
+      "zqywjc": "XINYI SOLAR"
+    },
+    {
+      "zqdm": "00975",
+      "zqjc": "",
+      "zqywjc": "MONGOL MINING"
+    },
+    {
+      "zqdm": "00981",
+      "zqjc": "中芯国际",
+      "zqywjc": "SMIC"
+    },
+    {
+      "zqdm": "00990",
+      "zqjc": "至源控股",
+      "zqywjc": "DEEP SOURCE"
+    },
+    {
+      "zqdm": "00991",
+      "zqjc": "大唐发电",
+      "zqywjc": "DATANG POWER"
+    },
+    {
+      "zqdm": "00992",
+      "zqjc": "联想集团",
+      "zqywjc": "LENOVO GROUP"
+    },
+    {
+      "zqdm": "00995",
+      "zqjc": "安徽皖通高速公路",
+      "zqywjc": "ANHUIEXPRESSWAY"
+    },
+    {
+      "zqdm": "00998",
+      "zqjc": "中信银行",
+      "zqywjc": "CITIC BANK"
+    },
+    {
+      "zqdm": "00999",
+      "zqjc": "小菜园",
+      "zqywjc": "XIAOCAIYUAN"
+    },
+    {
+      "zqdm": "01024",
+      "zqjc": "快手－Ｗ",
+      "zqywjc": "KUAISHOU-W"
+    },
+    {
+      "zqdm": "01030",
+      "zqjc": "新城发展",
+      "zqywjc": "SEAZEN"
+    },
+    {
+      "zqdm": "01033",
+      "zqjc": "中石化油服",
+      "zqywjc": "SINOPEC SSC"
+    },
+    {
+      "zqdm": "01038",
+      "zqjc": "长江基建集团",
+      "zqywjc": "CKI HOLDINGS"
+    },
+    {
+      "zqdm": "01044",
+      "zqjc": "恒安国际",
+      "zqywjc": "HENGAN INT'L"
+    },
+    {
+      "zqdm": "01052",
+      "zqjc": "越秀交通基建",
+      "zqywjc": "YUEXIUTRANSPORT"
+    },
+    {
+      "zqdm": "01053",
+      "zqjc": "重庆钢铁股份",
+      "zqywjc": "CHONGQING IRON"
+    },
+    {
+      "zqdm": "01055",
+      "zqjc": "中国南方航空股份",
+      "zqywjc": "CHINA SOUTH AIR"
+    },
+    {
+      "zqdm": "01057",
+      "zqjc": "浙江世宝",
+      "zqywjc": "ZHEJIANG SHIBAO"
+    },
+    {
+      "zqdm": "01060",
+      "zqjc": "大麦娱乐",
+      "zqywjc": "DAMAI ENT"
+    },
+    {
+      "zqdm": "01065",
+      "zqjc": "天津创业环保股份",
+      "zqywjc": "TIANJIN CAPITAL"
+    },
+    {
+      "zqdm": "01066",
+      "zqjc": "威高股份",
+      "zqywjc": "WEIGAO GROUP"
+    },
+    {
+      "zqdm": "01070",
+      "zqjc": "ＴＣＬ电子",
+      "zqywjc": "TCL ELECTRONICS"
+    },
+    {
+      "zqdm": "01071",
+      "zqjc": "华电国际电力股份",
+      "zqywjc": "HUADIAN POWER"
+    },
+    {
+      "zqdm": "01072",
+      "zqjc": "东方电气",
+      "zqywjc": "DONGFANG ELEC"
+    },
+    {
+      "zqdm": "01083",
+      "zqjc": "港华智慧能源",
+      "zqywjc": "TG SMART ENERGY"
+    },
+    {
+      "zqdm": "01088",
+      "zqjc": "中国神华",
+      "zqywjc": "CHINA SHENHUA"
+    },
+    {
+      "zqdm": "01093",
+      "zqjc": "石药集团",
+      "zqywjc": "CSPC PHARMA"
+    },
+    {
+      "zqdm": "01099",
+      "zqjc": "国药控股",
+      "zqywjc": "SINOPHARM"
+    },
+    {
+      "zqdm": "01108",
+      "zqjc": "凯盛新能",
+      "zqywjc": "TRIUMPH NEW EN"
+    },
+    {
+      "zqdm": "01109",
+      "zqjc": "华润置地",
+      "zqywjc": "CHINA RES LAND"
+    },
+    {
+      "zqdm": "01112",
+      "zqjc": "Ｈ＆Ｈ国际控股",
+      "zqywjc": "H&H INTL HLDG"
+    },
+    {
+      "zqdm": "01113",
+      "zqjc": "长实集团",
+      "zqywjc": "CK ASSET"
+    },
+    {
+      "zqdm": "01114",
+      "zqjc": "",
+      "zqywjc": "BRILLIANCE CHI"
+    },
+    {
+      "zqdm": "01117",
+      "zqjc": "现代牧业",
+      "zqywjc": "CH MODERN D"
+    },
+    {
+      "zqdm": "01128",
+      "zqjc": "永利澳门",
+      "zqywjc": "WYNN MACAU"
+    },
+    {
+      "zqdm": "01138",
+      "zqjc": "中远海能",
+      "zqywjc": "COSCO SHIP ENGY"
+    },
+    {
+      "zqdm": "01157",
+      "zqjc": "中联重科",
+      "zqywjc": "ZOOMLION"
+    },
+    {
+      "zqdm": "01164",
+      "zqjc": "中广核矿业",
+      "zqywjc": "CGN MINING"
+    },
+    {
+      "zqdm": "01171",
+      "zqjc": "兖矿能源",
+      "zqywjc": "YANKUANG ENERGY"
+    },
+    {
+      "zqdm": "01177",
+      "zqjc": "中国生物制药",
+      "zqywjc": "SBP GROUP"
+    },
+    {
+      "zqdm": "01186",
+      "zqjc": "中国铁建",
+      "zqywjc": "CHINA RAIL CONS"
+    },
+    {
+      "zqdm": "01187",
+      "zqjc": "可孚医疗",
+      "zqywjc": "COFOE MEDICAL"
+    },
+    {
+      "zqdm": "01193",
+      "zqjc": "华润燃气",
+      "zqywjc": "CHINA RES GAS"
+    },
+    {
+      "zqdm": "01196",
+      "zqjc": "伟禄集团",
+      "zqywjc": "REALORD GROUP"
+    },
+    {
+      "zqdm": "01199",
+      "zqjc": "中远海运港口",
+      "zqywjc": "COSCO SHIP PORT"
+    },
+    {
+      "zqdm": "01208",
+      "zqjc": "五矿资源",
+      "zqywjc": "MMG"
+    },
+    {
+      "zqdm": "01209",
+      "zqjc": "华润万象生活",
+      "zqywjc": "CHINA RES MIXC"
+    },
+    {
+      "zqdm": "01211",
+      "zqjc": "比亚迪股份",
+      "zqywjc": "BYD COMPANY"
+    },
+    {
+      "zqdm": "01258",
+      "zqjc": "中国有色矿业",
+      "zqywjc": "CHINFMINING"
+    },
+    {
+      "zqdm": "01276",
+      "zqjc": "恒瑞医药",
+      "zqywjc": "HENGRUI PHARMA"
+    },
+    {
+      "zqdm": "01277",
+      "zqjc": "力量发展",
+      "zqywjc": "KINETIC DEV"
+    },
+    {
+      "zqdm": "01288",
+      "zqjc": "农业银行",
+      "zqywjc": "ABC"
+    },
+    {
+      "zqdm": "01299",
+      "zqjc": "友邦保险",
+      "zqywjc": "AIA"
+    },
+    {
+      "zqdm": "01302",
+      "zqjc": "先健科技",
+      "zqywjc": "LIFETECH SCI"
+    },
+    {
+      "zqdm": "01304",
+      "zqjc": "",
+      "zqywjc": "FORTIOR"
+    },
+    {
+      "zqdm": "01308",
+      "zqjc": "海丰国际",
+      "zqywjc": "SITC"
+    },
+    {
+      "zqdm": "01310",
+      "zqjc": "香港宽频",
+      "zqywjc": "HKBN"
+    },
+    {
+      "zqdm": "01313",
+      "zqjc": "华润建材科技",
+      "zqywjc": "CR BLDG MAT TEC"
+    },
+    {
+      "zqdm": "01316",
+      "zqjc": "耐世特",
+      "zqywjc": "NEXTEER"
+    },
+    {
+      "zqdm": "01318",
+      "zqjc": "毛戈平",
+      "zqywjc": "MAO GEPING"
+    },
+    {
+      "zqdm": "01330",
+      "zqjc": "绿色动力环保",
+      "zqywjc": "DYNAGREEN ENV"
+    },
+    {
+      "zqdm": "01333",
+      "zqjc": "博雷顿",
+      "zqywjc": "BRETON"
+    },
+    {
+      "zqdm": "01336",
+      "zqjc": "新华保险",
+      "zqywjc": "NCI"
+    },
+    {
+      "zqdm": "01339",
+      "zqjc": "中国人民保险集团",
+      "zqywjc": "PICC GROUP"
+    },
+    {
+      "zqdm": "01347",
+      "zqjc": "华虹半导体",
+      "zqywjc": "HUA HONG SEMI"
+    },
+    {
+      "zqdm": "01349",
+      "zqjc": "复旦张江",
+      "zqywjc": "FUDANZHANGJIANG"
+    },
+    {
+      "zqdm": "01357",
+      "zqjc": "美图公司",
+      "zqywjc": "MEITU"
+    },
+    {
+      "zqdm": "01359",
+      "zqjc": "中国信达",
+      "zqywjc": "CHINA CINDA"
+    },
+    {
+      "zqdm": "01361",
+      "zqjc": "３６１度",
+      "zqywjc": "361 DEGREES"
+    },
+    {
+      "zqdm": "01364",
+      "zqjc": "古茗",
+      "zqywjc": "GUMING"
+    },
+    {
+      "zqdm": "01368",
+      "zqjc": "特步国际",
+      "zqywjc": "XTEP INT'L"
+    },
+    {
+      "zqdm": "01375",
+      "zqjc": "中州证券",
+      "zqywjc": "CC SECURITIES"
+    },
+    {
+      "zqdm": "01378",
+      "zqjc": "中国宏桥",
+      "zqywjc": "CHINAHONGQIAO"
+    },
+    {
+      "zqdm": "01384",
+      "zqjc": "滴普科技",
+      "zqywjc": "DEEPEXI TECH"
+    },
+    {
+      "zqdm": "01385",
+      "zqjc": "上海复旦",
+      "zqywjc": "SHANGHAI FUDAN"
+    },
+    {
+      "zqdm": "01398",
+      "zqjc": "工商银行",
+      "zqywjc": "ICBC"
+    },
+    {
+      "zqdm": "01405",
+      "zqjc": "达势股份",
+      "zqywjc": "DPC DASH"
+    },
+    {
+      "zqdm": "01415",
+      "zqjc": "高伟电子",
+      "zqywjc": "COWELL"
+    },
+    {
+      "zqdm": "01428",
+      "zqjc": "耀才证券金融",
+      "zqywjc": "BRIGHT SMART"
+    },
+    {
+      "zqdm": "01448",
+      "zqjc": "福寿园",
+      "zqywjc": "FU SHOU YUAN"
+    },
+    {
+      "zqdm": "01456",
+      "zqjc": "国联民生",
+      "zqywjc": "GLMS SEC"
+    },
+    {
+      "zqdm": "01475",
+      "zqjc": "日清食品",
+      "zqywjc": "NISSIN FOODS"
+    },
+    {
+      "zqdm": "01478",
+      "zqjc": "丘钛科技",
+      "zqywjc": "Q TECH"
+    },
+    {
+      "zqdm": "01513",
+      "zqjc": "丽珠医药",
+      "zqywjc": "LIVZON PHARMA"
+    },
+    {
+      "zqdm": "01519",
+      "zqjc": "极兔速递－Ｗ",
+      "zqywjc": "J&T EXPRESS-W"
+    },
+    {
+      "zqdm": "01528",
+      "zqjc": "红星美凯龙",
+      "zqywjc": "RS MACALLINE"
+    },
+    {
+      "zqdm": "01530",
+      "zqjc": "三生制药",
+      "zqywjc": "3SBIO"
+    },
+    {
+      "zqdm": "01548",
+      "zqjc": "金斯瑞生物科技",
+      "zqywjc": "GENSCRIPT BIO"
+    },
+    {
+      "zqdm": "01579",
+      "zqjc": "颐海国际",
+      "zqywjc": "YIHAI INTL"
+    },
+    {
+      "zqdm": "01585",
+      "zqjc": "雅迪控股",
+      "zqywjc": "YADEA"
+    },
+    {
+      "zqdm": "01610",
+      "zqjc": "中粮家佳康",
+      "zqywjc": "COFCO JOYCOME"
+    },
+    {
+      "zqdm": "01618",
+      "zqjc": "中国中冶",
+      "zqywjc": "MCC"
+    },
+    {
+      "zqdm": "01635",
+      "zqjc": "大众公用",
+      "zqywjc": "DZUG"
+    },
+    {
+      "zqdm": "01658",
+      "zqjc": "邮储银行",
+      "zqywjc": "PSBC"
+    },
+    {
+      "zqdm": "01675",
+      "zqjc": "亚信科技",
+      "zqywjc": "ASIAINFO TECH"
+    },
+    {
+      "zqdm": "01681",
+      "zqjc": "康臣药业",
+      "zqywjc": "CONSUN PHARMA"
+    },
+    {
+      "zqdm": "01686",
+      "zqjc": "新意网集团",
+      "zqywjc": "SUNEVISION"
+    },
+    {
+      "zqdm": "01691",
+      "zqjc": "ＪＳ环球生活",
+      "zqywjc": "JS GLOBAL LIFE"
+    },
+    {
+      "zqdm": "01729",
+      "zqjc": "汇聚科技",
+      "zqywjc": "TIME INTERCON"
+    },
+    {
+      "zqdm": "01735",
+      "zqjc": "中环新能源",
+      "zqywjc": "CENTRAL NEW EGY"
+    },
+    {
+      "zqdm": "01766",
+      "zqjc": "中国中车",
+      "zqywjc": "CRRC"
+    },
+    {
+      "zqdm": "01772",
+      "zqjc": "赣锋锂业",
+      "zqywjc": "GANFENGLITHIUM"
+    },
+    {
+      "zqdm": "01773",
+      "zqjc": "天立国际控股",
+      "zqywjc": "TIANLI INT HLDG"
+    },
+    {
+      "zqdm": "01776",
+      "zqjc": "广发证券",
+      "zqywjc": "GF SEC"
+    },
+    {
+      "zqdm": "01783",
+      "zqjc": "晋景新能",
+      "zqywjc": "ENVISION GREEN"
+    },
+    {
+      "zqdm": "01787",
+      "zqjc": "山东黄金",
+      "zqywjc": "SD GOLD"
+    },
+    {
+      "zqdm": "01788",
+      "zqjc": "国泰君安国际",
+      "zqywjc": "GUOTAI JUNAN I"
+    },
+    {
+      "zqdm": "01789",
+      "zqjc": "爱康医疗",
+      "zqywjc": "AK MEDICAL"
+    },
+    {
+      "zqdm": "01797",
+      "zqjc": "东方甄选",
+      "zqywjc": "EAST BUY"
+    },
+    {
+      "zqdm": "01800",
+      "zqjc": "中国交通建设",
+      "zqywjc": "CHINA COMM CONS"
+    },
+    {
+      "zqdm": "01801",
+      "zqjc": "信达生物",
+      "zqywjc": "INNOVENT BIO"
+    },
+    {
+      "zqdm": "01810",
+      "zqjc": "小米集团－Ｗ",
+      "zqywjc": "XIAOMI-W"
+    },
+    {
+      "zqdm": "01811",
+      "zqjc": "中广核新能源",
+      "zqywjc": "CGN NEW ENERGY"
+    },
+    {
+      "zqdm": "01816",
+      "zqjc": "中广核电力",
+      "zqywjc": "CGN POWER"
+    },
+    {
+      "zqdm": "01818",
+      "zqjc": "招金矿业",
+      "zqywjc": "ZHAOJIN MINING"
+    },
+    {
+      "zqdm": "01828",
+      "zqjc": "富卫集团",
+      "zqywjc": "FWD"
+    },
+    {
+      "zqdm": "01833",
+      "zqjc": "平安好医生",
+      "zqywjc": "PA GOODDOCTOR"
+    },
+    {
+      "zqdm": "01836",
+      "zqjc": "九兴控股",
+      "zqywjc": "STELLA HOLDINGS"
+    },
+    {
+      "zqdm": "01858",
+      "zqjc": "春立医疗",
+      "zqywjc": "CHUNLI MEDICAL"
+    },
+    {
+      "zqdm": "01860",
+      "zqjc": "汇量科技",
+      "zqywjc": "MOBVISTA"
+    },
+    {
+      "zqdm": "01876",
+      "zqjc": "百威亚太",
+      "zqywjc": "BUD APAC"
+    },
+    {
+      "zqdm": "01877",
+      "zqjc": "君实生物",
+      "zqywjc": "JUNSHI BIO"
+    },
+    {
+      "zqdm": "01880",
+      "zqjc": "中国中免",
+      "zqywjc": "CTG DUTY-FREE"
+    },
+    {
+      "zqdm": "01882",
+      "zqjc": "海天国际",
+      "zqywjc": "HAITIAN INT'L"
+    },
+    {
+      "zqdm": "01883",
+      "zqjc": "中信国际电讯",
+      "zqywjc": "CITIC TELECOM"
+    },
+    {
+      "zqdm": "01888",
+      "zqjc": "建滔积层板",
+      "zqywjc": "KB LAMINATES"
+    },
+    {
+      "zqdm": "01896",
+      "zqjc": "猫眼娱乐",
+      "zqywjc": "MAOYAN ENT"
+    },
+    {
+      "zqdm": "01898",
+      "zqjc": "中煤能源",
+      "zqywjc": "CHINA COAL"
+    },
+    {
+      "zqdm": "01907",
+      "zqjc": "中国旭阳集团",
+      "zqywjc": "CHINA RISUN GP"
+    },
+    {
+      "zqdm": "01908",
+      "zqjc": "建发国际集团",
+      "zqywjc": "C&D INTL GROUP"
+    },
+    {
+      "zqdm": "01910",
+      "zqjc": "新秀丽",
+      "zqywjc": "SAMSONITE"
+    },
+    {
+      "zqdm": "01918",
+      "zqjc": "融创中国",
+      "zqywjc": "SUNAC"
+    },
+    {
+      "zqdm": "01919",
+      "zqjc": "中远海控",
+      "zqywjc": "COSCO SHIP HOLD"
+    },
+    {
+      "zqdm": "01921",
+      "zqjc": "达力普控股",
+      "zqywjc": "DALIPAL HLDG"
+    },
+    {
+      "zqdm": "01928",
+      "zqjc": "金沙中国有限公司",
+      "zqywjc": "SANDS CHINA LTD"
+    },
+    {
+      "zqdm": "01929",
+      "zqjc": "周大福",
+      "zqywjc": "CHOW TAI FOOK"
+    },
+    {
+      "zqdm": "01951",
+      "zqjc": "锦欣生殖",
+      "zqywjc": "JXR"
+    },
+    {
+      "zqdm": "01952",
+      "zqjc": "云顶新耀",
+      "zqywjc": "EVEREST MED"
+    },
+    {
+      "zqdm": "01963",
+      "zqjc": "重庆银行",
+      "zqywjc": "BCQ"
+    },
+    {
+      "zqdm": "01972",
+      "zqjc": "太古地产",
+      "zqywjc": "SWIREPROPERTIES"
+    },
+    {
+      "zqdm": "01988",
+      "zqjc": "民生银行",
+      "zqywjc": "MINSHENG BANK"
+    },
+    {
+      "zqdm": "01989",
+      "zqjc": "广合科技",
+      "zqywjc": "DELTON"
+    },
+    {
+      "zqdm": "01997",
+      "zqjc": "九龙仓置业",
+      "zqywjc": "WHARF REIC"
+    },
+    {
+      "zqdm": "01999",
+      "zqjc": "敏华控股",
+      "zqywjc": "MAN WAH HLDGS"
+    },
+    {
+      "zqdm": "02005",
+      "zqjc": "石四药集团",
+      "zqywjc": "SSY GROUP"
+    },
+    {
+      "zqdm": "02007",
+      "zqjc": "碧桂园",
+      "zqywjc": "COUNTRY GARDEN"
+    },
+    {
+      "zqdm": "02009",
+      "zqjc": "金隅集团",
+      "zqywjc": "BBMG"
+    },
+    {
+      "zqdm": "02013",
+      "zqjc": "微盟集团",
+      "zqywjc": "WEIMOB INC"
+    },
+    {
+      "zqdm": "02015",
+      "zqjc": "理想汽车－Ｗ",
+      "zqywjc": "LI AUTO-W"
+    },
+    {
+      "zqdm": "02016",
+      "zqjc": "浙商银行",
+      "zqywjc": "CZBANK"
+    },
+    {
+      "zqdm": "02018",
+      "zqjc": "瑞声科技",
+      "zqywjc": "AAC TECH"
+    },
+    {
+      "zqdm": "02020",
+      "zqjc": "安踏体育",
+      "zqywjc": "ANTA SPORTS"
+    },
+    {
+      "zqdm": "02026",
+      "zqjc": "小马智行－Ｗ",
+      "zqywjc": "PONY-W"
+    },
+    {
+      "zqdm": "02038",
+      "zqjc": "富智康集团",
+      "zqywjc": "FIH"
+    },
+    {
+      "zqdm": "02039",
+      "zqjc": "中集集团",
+      "zqywjc": "CIMC"
+    },
+    {
+      "zqdm": "02050",
+      "zqjc": "三花智控",
+      "zqywjc": "SANHUA"
+    },
+    {
+      "zqdm": "02057",
+      "zqjc": "中通快递－Ｗ",
+      "zqywjc": "ZTO EXPRESS-W"
+    },
+    {
+      "zqdm": "02068",
+      "zqjc": "中铝国际",
+      "zqywjc": "CHALIECO"
+    },
+    {
+      "zqdm": "02096",
+      "zqjc": "先声药业",
+      "zqywjc": "SIMCERE PHARMA"
+    },
+    {
+      "zqdm": "02097",
+      "zqjc": "蜜雪集团",
+      "zqywjc": "MIXUE GROUP"
+    },
+    {
+      "zqdm": "02099",
+      "zqjc": "中国黄金国际",
+      "zqywjc": "CHINAGOLDINTL"
+    },
+    {
+      "zqdm": "02128",
+      "zqjc": "中国联塑",
+      "zqywjc": "CHINA LESSO"
+    },
+    {
+      "zqdm": "02145",
+      "zqjc": "上美股份",
+      "zqywjc": "CHICMAX"
+    },
+    {
+      "zqdm": "02155",
+      "zqjc": "森松国际",
+      "zqywjc": "MORIMATSU INTL"
+    },
+    {
+      "zqdm": "02157",
+      "zqjc": "乐普生物",
+      "zqywjc": "LEPU BIO"
+    },
+    {
+      "zqdm": "02158",
+      "zqjc": "医渡科技",
+      "zqywjc": "YIDU TECH"
+    },
+    {
+      "zqdm": "02162",
+      "zqjc": "康诺亚－Ｂ",
+      "zqywjc": "KEYMED BIO-B"
+    },
+    {
+      "zqdm": "02171",
+      "zqjc": "科济药业－Ｂ",
+      "zqywjc": "CARSGEN-B"
+    },
+    {
+      "zqdm": "02172",
+      "zqjc": "微创脑科学",
+      "zqywjc": "MICROPORT NEURO"
+    },
+    {
+      "zqdm": "02186",
+      "zqjc": "绿叶制药",
+      "zqywjc": "LUYE PHARMA"
+    },
+    {
+      "zqdm": "02192",
+      "zqjc": "医脉通",
+      "zqywjc": "MEDLIVE"
+    },
+    {
+      "zqdm": "02196",
+      "zqjc": "复星医药",
+      "zqywjc": "FOSUN PHARMA"
+    },
+    {
+      "zqdm": "02202",
+      "zqjc": "万科企业",
+      "zqywjc": "CHINA VANKE"
+    },
+    {
+      "zqdm": "02208",
+      "zqjc": "金风科技",
+      "zqywjc": "GOLDWIND"
+    },
+    {
+      "zqdm": "02218",
+      "zqjc": "安德利果汁",
+      "zqywjc": "ANDRE JUICE"
+    },
+    {
+      "zqdm": "02228",
+      "zqjc": "晶泰控股",
+      "zqywjc": "XTALPI"
+    },
+    {
+      "zqdm": "02232",
+      "zqjc": "晶苑国际",
+      "zqywjc": "CRYSTAL INTL"
+    },
+    {
+      "zqdm": "02233",
+      "zqjc": "西部水泥",
+      "zqywjc": "WESTCHINACEMENT"
+    },
+    {
+      "zqdm": "02238",
+      "zqjc": "广汽集团",
+      "zqywjc": "GAC GROUP"
+    },
+    {
+      "zqdm": "02252",
+      "zqjc": "微创机器人－Ｂ",
+      "zqywjc": "MEDBOT-B"
+    },
+    {
+      "zqdm": "02255",
+      "zqjc": "海昌海洋公园",
+      "zqywjc": "HAICHANG HLDG"
+    },
+    {
+      "zqdm": "02259",
+      "zqjc": "紫金黄金国际",
+      "zqywjc": "ZIJIN GOLD INTL"
+    },
+    {
+      "zqdm": "02268",
+      "zqjc": "药明合联",
+      "zqywjc": "WUXI XDC"
+    },
+    {
+      "zqdm": "02269",
+      "zqjc": "药明生物",
+      "zqywjc": "WUXI BIO"
+    },
+    {
+      "zqdm": "02273",
+      "zqjc": "固生堂",
+      "zqywjc": "GUSHENGTANG"
+    },
+    {
+      "zqdm": "02276",
+      "zqjc": "康耐特光学",
+      "zqywjc": "CONANT OPTICAL"
+    },
+    {
+      "zqdm": "02282",
+      "zqjc": "美高梅中国",
+      "zqywjc": "MGM CHINA"
+    },
+    {
+      "zqdm": "02285",
+      "zqjc": "泉峰控股",
+      "zqywjc": "CHERVON"
+    },
+    {
+      "zqdm": "02291",
+      "zqjc": "心泰医疗",
+      "zqywjc": "SCIENTECH"
+    },
+    {
+      "zqdm": "02313",
+      "zqjc": "申洲国际",
+      "zqywjc": "SHENZHOU INTL"
+    },
+    {
+      "zqdm": "02314",
+      "zqjc": "理文造纸",
+      "zqywjc": "LEE & MAN PAPER"
+    },
+    {
+      "zqdm": "02315",
+      "zqjc": "百奥赛图－Ｂ",
+      "zqywjc": "BIOCYTOGEN-B"
+    },
+    {
+      "zqdm": "02318",
+      "zqjc": "中国平安",
+      "zqywjc": "PING AN"
+    },
+    {
+      "zqdm": "02319",
+      "zqjc": "蒙牛乳业",
+      "zqywjc": "MENGNIU DAIRY"
+    },
+    {
+      "zqdm": "02328",
+      "zqjc": "中国财险",
+      "zqywjc": "PICC P&C"
+    },
+    {
+      "zqdm": "02331",
+      "zqjc": "李宁",
+      "zqywjc": "LI NING"
+    },
+    {
+      "zqdm": "02333",
+      "zqjc": "长城汽车",
+      "zqywjc": "GWMOTOR"
+    },
+    {
+      "zqdm": "02338",
+      "zqjc": "潍柴动力",
+      "zqywjc": "WEICHAI POWER"
+    },
+    {
+      "zqdm": "02343",
+      "zqjc": "太平洋航运",
+      "zqywjc": "PACIFIC BASIN"
+    },
+    {
+      "zqdm": "02356",
+      "zqjc": "大新银行集团",
+      "zqywjc": "DAHSING BANKING"
+    },
+    {
+      "zqdm": "02357",
+      "zqjc": "中航科工",
+      "zqywjc": "AVICHINA"
+    },
+    {
+      "zqdm": "02359",
+      "zqjc": "药明康德",
+      "zqywjc": "WUXI APPTEC"
+    },
+    {
+      "zqdm": "02367",
+      "zqjc": "巨子生物",
+      "zqywjc": "GIANT BIOGENE"
+    },
+    {
+      "zqdm": "02378",
+      "zqjc": "保诚",
+      "zqywjc": "PRU"
+    },
+    {
+      "zqdm": "02380",
+      "zqjc": "中国电力",
+      "zqywjc": "CHINA POWER"
+    },
+    {
+      "zqdm": "02382",
+      "zqjc": "舜宇光学科技",
+      "zqywjc": "SUNNY OPTICAL"
+    },
+    {
+      "zqdm": "02386",
+      "zqjc": "中石化炼化工程",
+      "zqywjc": "SINOPEC SEG"
+    },
+    {
+      "zqdm": "02388",
+      "zqjc": "中银香港",
+      "zqywjc": "BOC HONG KONG"
+    },
+    {
+      "zqdm": "02400",
+      "zqjc": "心动公司",
+      "zqywjc": "XD INC"
+    },
+    {
+      "zqdm": "02402",
+      "zqjc": "亿华通",
+      "zqywjc": "SINOHYTEC"
+    },
+    {
+      "zqdm": "02410",
+      "zqjc": "同源康医药－Ｂ",
+      "zqywjc": "TYK MEDICINES-B"
+    },
+    {
+      "zqdm": "02419",
+      "zqjc": "德康农牧",
+      "zqywjc": "DEKON AGR"
+    },
+    {
+      "zqdm": "02423",
+      "zqjc": "贝壳－Ｗ",
+      "zqywjc": "BEKE-W"
+    },
+    {
+      "zqdm": "02431",
+      "zqjc": "佑驾创新",
+      "zqywjc": "MINIEYE"
+    },
+    {
+      "zqdm": "02432",
+      "zqjc": "越疆",
+      "zqywjc": "DOBOT"
+    },
+    {
+      "zqdm": "02460",
+      "zqjc": "华润饮料",
+      "zqywjc": "CR BEVERAGE"
+    },
+    {
+      "zqdm": "02465",
+      "zqjc": "龙蟠科技",
+      "zqywjc": "LOPAL TECH"
+    },
+    {
+      "zqdm": "02473",
+      "zqjc": "喜相逢集团",
+      "zqywjc": "XXF"
+    },
+    {
+      "zqdm": "02476",
+      "zqjc": "胜宏科技",
+      "zqywjc": "VGT"
+    },
+    {
+      "zqdm": "02477",
+      "zqjc": "经纬天地",
+      "zqywjc": "WELLCELL HOLD"
+    },
+    {
+      "zqdm": "02493",
+      "zqjc": "迈威生物－Ｂ",
+      "zqywjc": "MABWELL-B"
+    },
+    {
+      "zqdm": "02498",
+      "zqjc": "速腾聚创",
+      "zqywjc": "ROBOSENSE"
+    },
+    {
+      "zqdm": "02506",
+      "zqjc": "讯飞医疗科技",
+      "zqywjc": "XUNFEIHEALTH"
+    },
+    {
+      "zqdm": "02507",
+      "zqjc": "西锐",
+      "zqywjc": "CIRRUS"
+    },
+    {
+      "zqdm": "02510",
+      "zqjc": "德翔海运",
+      "zqywjc": "TS LINES"
+    },
+    {
+      "zqdm": "02517",
+      "zqjc": "锅圈",
+      "zqywjc": "GUOQUAN"
+    },
+    {
+      "zqdm": "02525",
+      "zqjc": "禾赛－Ｗ",
+      "zqywjc": "HESAI-W"
+    },
+    {
+      "zqdm": "02533",
+      "zqjc": "黑芝麻智能",
+      "zqywjc": "BLACK SESAME"
+    },
+    {
+      "zqdm": "02555",
+      "zqjc": "茶百道",
+      "zqywjc": "CHABAIDAO"
+    },
+    {
+      "zqdm": "02556",
+      "zqjc": "迈富时",
+      "zqywjc": "MARKETINGFORCE"
+    },
+    {
+      "zqdm": "02562",
+      "zqjc": "狮腾控股",
+      "zqywjc": "SYNAGISTICS"
+    },
+    {
+      "zqdm": "02565",
+      "zqjc": "派格生物医药－Ｂ",
+      "zqywjc": "PEGBIO CO-B"
+    },
+    {
+      "zqdm": "02570",
+      "zqjc": "重塑能源",
+      "zqywjc": "REFIRE"
+    },
+    {
+      "zqdm": "02575",
+      "zqjc": "轩竹生物－Ｂ",
+      "zqywjc": "XUANZHUBIO-B"
+    },
+    {
+      "zqdm": "02577",
+      "zqjc": "英诺赛科",
+      "zqywjc": "INNOSCIENCE"
+    },
+    {
+      "zqdm": "02579",
+      "zqjc": "中伟新材",
+      "zqywjc": "CNGR"
+    },
+    {
+      "zqdm": "02580",
+      "zqjc": "奥克斯电气",
+      "zqywjc": "AUX ELECTRIC"
+    },
+    {
+      "zqdm": "02582",
+      "zqjc": "国富氢能",
+      "zqywjc": "GUOFUHEE"
+    },
+    {
+      "zqdm": "02583",
+      "zqjc": "西普尼",
+      "zqywjc": "HIPINE"
+    },
+    {
+      "zqdm": "02586",
+      "zqjc": "多点数智",
+      "zqywjc": "DMALL"
+    },
+    {
+      "zqdm": "02587",
+      "zqjc": "健康之路",
+      "zqywjc": "HEALTHYWAY INC"
+    },
+    {
+      "zqdm": "02588",
+      "zqjc": "中银航空租赁",
+      "zqywjc": "BOC AVIATION"
+    },
+    {
+      "zqdm": "02589",
+      "zqjc": "沪上阿姨",
+      "zqywjc": "AUNTEA JENNY"
+    },
+    {
+      "zqdm": "02590",
+      "zqjc": "极智嘉－Ｗ",
+      "zqywjc": "GEEKPLUS-W"
+    },
+    {
+      "zqdm": "02591",
+      "zqjc": "银诺医药－Ｂ",
+      "zqywjc": "INNOGEN-B"
+    },
+    {
+      "zqdm": "02595",
+      "zqjc": "劲方医药－Ｂ",
+      "zqywjc": "GENFLEET-B"
+    },
+    {
+      "zqdm": "02600",
+      "zqjc": "中国铝业",
+      "zqywjc": "CHALCO"
+    },
+    {
+      "zqdm": "02601",
+      "zqjc": "中国太保",
+      "zqywjc": "CPIC"
+    },
+    {
+      "zqdm": "02602",
+      "zqjc": "万物云",
+      "zqywjc": "ONEWO"
+    },
+    {
+      "zqdm": "02603",
+      "zqjc": "吉宏股份",
+      "zqywjc": "JIHONG CO"
+    },
+    {
+      "zqdm": "02607",
+      "zqjc": "上海医药",
+      "zqywjc": "SH PHARMA"
+    },
+    {
+      "zqdm": "02609",
+      "zqjc": "佰泽医疗",
+      "zqywjc": "BAYZED HEALTH"
+    },
+    {
+      "zqdm": "02610",
+      "zqjc": "南山铝业国际",
+      "zqywjc": "NANSHAN AL INTL"
+    },
+    {
+      "zqdm": "02611",
+      "zqjc": "国泰海通",
+      "zqywjc": "GTHT"
+    },
+    {
+      "zqdm": "02617",
+      "zqjc": "药捷安康－Ｂ",
+      "zqywjc": "TRANSTHERA-B"
+    },
+    {
+      "zqdm": "02618",
+      "zqjc": "京东物流",
+      "zqywjc": "JD LOGISTICS"
+    },
+    {
+      "zqdm": "02627",
+      "zqjc": "中慧生物－Ｂ",
+      "zqywjc": "AB&B BIO-TECH-B"
+    },
+    {
+      "zqdm": "02628",
+      "zqjc": "中国人寿",
+      "zqywjc": "CHINA LIFE"
+    },
+    {
+      "zqdm": "02629",
+      "zqjc": "",
+      "zqywjc": "MIRXES-B"
+    },
+    {
+      "zqdm": "02631",
+      "zqjc": "天岳先进",
+      "zqywjc": "SICC"
+    },
+    {
+      "zqdm": "02635",
+      "zqjc": "诺比侃",
+      "zqywjc": "NUOBIKAN"
+    },
+    {
+      "zqdm": "02637",
+      "zqjc": "海西新药",
+      "zqywjc": "HAIXI PHARMA"
+    },
+    {
+      "zqdm": "02643",
+      "zqjc": "曹操出行",
+      "zqywjc": "CAOCAO INC"
+    },
+    {
+      "zqdm": "02648",
+      "zqjc": "安井食品",
+      "zqywjc": "ANJOY FOOD"
+    },
+    {
+      "zqdm": "02650",
+      "zqjc": "挚达科技",
+      "zqywjc": "ZHIDA TECH"
+    },
+    {
+      "zqdm": "02652",
+      "zqjc": "长风药业",
+      "zqywjc": "CF PHARMTECH"
+    },
+    {
+      "zqdm": "02655",
+      "zqjc": "果下科技",
+      "zqywjc": "GUOXIA TECH"
+    },
+    {
+      "zqdm": "02656",
+      "zqjc": "健康１６０",
+      "zqywjc": "160 HEALTH"
+    },
+    {
+      "zqdm": "02659",
+      "zqjc": "宝济药业－Ｂ",
+      "zqywjc": "BAO PHARMA-B"
+    },
+    {
+      "zqdm": "02661",
+      "zqjc": "轻松健康",
+      "zqywjc": "QINGSONG HEALTH"
+    },
+    {
+      "zqdm": "02665",
+      "zqjc": "图达通",
+      "zqywjc": "SEYOND"
+    },
+    {
+      "zqdm": "02666",
+      "zqjc": "环球医疗",
+      "zqywjc": "UNI MEDICAL"
+    },
+    {
+      "zqdm": "02669",
+      "zqjc": "中海物业",
+      "zqywjc": "CHINA OVS PPT"
+    },
+    {
+      "zqdm": "02676",
+      "zqjc": "纳芯微",
+      "zqywjc": "NOVOSENSE"
+    },
+    {
+      "zqdm": "02685",
+      "zqjc": "量化派",
+      "zqywjc": "QUANTGROUP"
+    },
+    {
+      "zqdm": "02687",
+      "zqjc": "卓越睿新",
+      "zqywjc": "ABLE DIGITAL"
+    },
+    {
+      "zqdm": "02688",
+      "zqjc": "新奥能源",
+      "zqywjc": "ENN ENERGY"
+    },
+    {
+      "zqdm": "02689",
+      "zqjc": "玖龙纸业",
+      "zqywjc": "ND PAPER"
+    },
+    {
+      "zqdm": "02691",
+      "zqjc": "南华期货股份",
+      "zqywjc": "NANHUA FUTURES"
+    },
+    {
+      "zqdm": "02692",
+      "zqjc": "兆威机电",
+      "zqywjc": "ZHAOWEI"
+    },
+    {
+      "zqdm": "02698",
+      "zqjc": "乐舒适",
+      "zqywjc": "SOFTCARE"
+    },
+    {
+      "zqdm": "02701",
+      "zqjc": "国民技术",
+      "zqywjc": "NSING TECH"
+    },
+    {
+      "zqdm": "02714",
+      "zqjc": "牧原股份",
+      "zqywjc": "MUYUAN"
+    },
+    {
+      "zqdm": "02715",
+      "zqjc": "埃斯顿",
+      "zqywjc": "ESTUN"
+    },
+    {
+      "zqdm": "02718",
+      "zqjc": "明略科技－Ｗ",
+      "zqywjc": "MININGLAMP-W"
+    },
+    {
+      "zqdm": "02727",
+      "zqjc": "上海电气",
+      "zqywjc": "SH ELECTRIC"
+    },
+    {
+      "zqdm": "02768",
+      "zqjc": "国恩科技",
+      "zqywjc": "GON TECHNOLOGY"
+    },
+    {
+      "zqdm": "02788",
+      "zqjc": "创新实业",
+      "zqywjc": "CHUANGXIN IND"
+    },
+    {
+      "zqdm": "02799",
+      "zqjc": "中信金融资产",
+      "zqywjc": "CITIC FAMC"
+    },
+    {
+      "zqdm": "02800",
+      "zqjc": "盈富基金",
+      "zqywjc": "TRACKER FUND"
+    },
+    {
+      "zqdm": "02801",
+      "zqjc": "安硕中国",
+      "zqywjc": "ISHARES CHINA"
+    },
+    {
+      "zqdm": "02825",
+      "zqjc": "标智香港１００",
+      "zqywjc": "WISECSIHK100ETF"
+    },
+    {
+      "zqdm": "02828",
+      "zqjc": "恒生中国企业",
+      "zqywjc": "HSCEI ETF"
+    },
+    {
+      "zqdm": "02837",
+      "zqjc": "ＧＸ恒生科技",
+      "zqywjc": "GX HS TECH"
+    },
+    {
+      "zqdm": "02858",
+      "zqjc": "易鑫集团",
+      "zqywjc": "YIXIN"
+    },
+    {
+      "zqdm": "02865",
+      "zqjc": "钧达股份",
+      "zqywjc": "DRINDA"
+    },
+    {
+      "zqdm": "02866",
+      "zqjc": "中远海发",
+      "zqywjc": "COSCO SHIP DEV"
+    },
+    {
+      "zqdm": "02869",
+      "zqjc": "绿城服务",
+      "zqywjc": "GREENTOWN SER"
+    },
+    {
+      "zqdm": "02877",
+      "zqjc": "神威药业",
+      "zqywjc": "SHINEWAY PHARM"
+    },
+    {
+      "zqdm": "02880",
+      "zqjc": "辽港股份",
+      "zqywjc": "LIAONING PORT"
+    },
+    {
+      "zqdm": "02883",
+      "zqjc": "中海油田服务",
+      "zqywjc": "CHINA OILFIELD"
+    },
+    {
+      "zqdm": "02888",
+      "zqjc": "渣打集团",
+      "zqywjc": "STANCHART"
+    },
+    {
+      "zqdm": "02889",
+      "zqjc": "博泰车联",
+      "zqywjc": "PATEO"
+    },
+    {
+      "zqdm": "02899",
+      "zqjc": "紫金矿业",
+      "zqywjc": "ZIJIN MINING"
+    },
+    {
+      "zqdm": "03032",
+      "zqjc": "恒生科技ＥＴＦ",
+      "zqywjc": "HSTECH ETF"
+    },
+    {
+      "zqdm": "03033",
+      "zqjc": "南方恒生科技",
+      "zqywjc": "CSOP HS TECH"
+    },
+    {
+      "zqdm": "03037",
+      "zqjc": "南方恒指ＥＴＦ",
+      "zqywjc": "CSOP HSI ETF"
+    },
+    {
+      "zqdm": "03039",
+      "zqjc": "易方达恒指ＥＳＧ",
+      "zqywjc": "EFUNDHSIESG"
+    },
+    {
+      "zqdm": "03040",
+      "zqjc": "ＧＸ中国",
+      "zqywjc": "GX MSCI CHINA"
+    },
+    {
+      "zqdm": "03067",
+      "zqjc": "安硕恒生科技",
+      "zqywjc": "ISHARESHSTECH"
+    },
+    {
+      "zqdm": "03069",
+      "zqjc": "华夏恒生生科",
+      "zqywjc": "CAM HSBIOTECH"
+    },
+    {
+      "zqdm": "03070",
+      "zqjc": "平安香港高息",
+      "zqywjc": "PING AN HKDIV"
+    },
+    {
+      "zqdm": "03088",
+      "zqjc": "华夏恒生科技",
+      "zqywjc": "CAM HS TECH"
+    },
+    {
+      "zqdm": "03110",
+      "zqjc": "ＧＸ恒生股息",
+      "zqywjc": "GX HS HIGHDIV"
+    },
+    {
+      "zqdm": "03115",
+      "zqjc": "安硕恒生指数",
+      "zqywjc": "ISHARESHSI"
+    },
+    {
+      "zqdm": "03167",
+      "zqjc": "工银南方中国",
+      "zqywjc": "ICBCCSOPCHINA"
+    },
+    {
+      "zqdm": "03174",
+      "zqjc": "南方恒生生科",
+      "zqywjc": "CSOP HSBIOTECH"
+    },
+    {
+      "zqdm": "03200",
+      "zqjc": "大族数控",
+      "zqywjc": "HANS CNC"
+    },
+    {
+      "zqdm": "03268",
+      "zqjc": "美格智能",
+      "zqywjc": "MEIG"
+    },
+    {
+      "zqdm": "03288",
+      "zqjc": "海天味业",
+      "zqywjc": "HAITIAN FLAV"
+    },
+    {
+      "zqdm": "03296",
+      "zqjc": "华勤技术",
+      "zqywjc": "HUAQIN"
+    },
+    {
+      "zqdm": "03306",
+      "zqjc": "江南布衣",
+      "zqywjc": "JNBY"
+    },
+    {
+      "zqdm": "03311",
+      "zqjc": "中国建筑国际",
+      "zqywjc": "CHINA STATE CON"
+    },
+    {
+      "zqdm": "03317",
+      "zqjc": "迅策",
+      "zqywjc": "XUNCE"
+    },
+    {
+      "zqdm": "03320",
+      "zqjc": "华润医药",
+      "zqywjc": "CHINARES PHARMA"
+    },
+    {
+      "zqdm": "03323",
+      "zqjc": "中国建材",
+      "zqywjc": "CNBM"
+    },
+    {
+      "zqdm": "03328",
+      "zqjc": "交通银行",
+      "zqywjc": "BANKCOMM"
+    },
+    {
+      "zqdm": "03330",
+      "zqjc": "灵宝黄金",
+      "zqywjc": "LINGBAO GOLD"
+    },
+    {
+      "zqdm": "03339",
+      "zqjc": "中国龙工",
+      "zqywjc": "LONKING"
+    },
+    {
+      "zqdm": "03347",
+      "zqjc": "泰格医药",
+      "zqywjc": "TIGERMED"
+    },
+    {
+      "zqdm": "03360",
+      "zqjc": "远东宏信",
+      "zqywjc": "FE HORIZON"
+    },
+    {
+      "zqdm": "03369",
+      "zqjc": "秦港股份",
+      "zqywjc": "QHD PORT"
+    },
+    {
+      "zqdm": "03380",
+      "zqjc": "龙光集团",
+      "zqywjc": "LOGAN GROUP"
+    },
+    {
+      "zqdm": "03393",
+      "zqjc": "威胜控股",
+      "zqywjc": "WASION HOLDINGS"
+    },
+    {
+      "zqdm": "03396",
+      "zqjc": "联想控股",
+      "zqywjc": "LEGENDHOLDING"
+    },
+    {
+      "zqdm": "03403",
+      "zqjc": "华夏恒ＥＳＧ",
+      "zqywjc": "CAM HSI ESG"
+    },
+    {
+      "zqdm": "03406",
+      "zqjc": "平安科技精选",
+      "zqywjc": "PA TECHSELECT"
+    },
+    {
+      "zqdm": "03423",
+      "zqjc": "招商恒生科技",
+      "zqywjc": "CMS HS TECH"
+    },
+    {
+      "zqdm": "03431",
+      "zqjc": "南方港韩科技",
+      "zqywjc": "CSOP HKKRTECH"
+    },
+    {
+      "zqdm": "03432",
+      "zqjc": "南方港股通",
+      "zqywjc": "CSOP HKCNCON"
+    },
+    {
+      "zqdm": "03437",
+      "zqjc": "博时央企红利",
+      "zqywjc": "BOS CSOE HIDV"
+    },
+    {
+      "zqdm": "03441",
+      "zqjc": "南方东西精选",
+      "zqywjc": "CSOP EWSELECT"
+    },
+    {
+      "zqdm": "03442",
+      "zqjc": "南方港美科技",
+      "zqywjc": "CSOP HKUSTECH"
+    },
+    {
+      "zqdm": "03443",
+      "zqjc": "南方香港股票",
+      "zqywjc": "CSOP HK EQUITY"
+    },
+    {
+      "zqdm": "03469",
+      "zqjc": "南方港股通红利",
+      "zqywjc": "CSOP SCHIGHDIV"
+    },
+    {
+      "zqdm": "03477",
+      "zqjc": "平安东西精选",
+      "zqywjc": "PA EW SELECT"
+    },
+    {
+      "zqdm": "03483",
+      "zqjc": "易方达高股息",
+      "zqywjc": "EFUND APAC HD"
+    },
+    {
+      "zqdm": "03489",
+      "zqjc": "易方达ＡＩ",
+      "zqywjc": "EFUND AI"
+    },
+    {
+      "zqdm": "03606",
+      "zqjc": "福耀玻璃",
+      "zqywjc": "FUYAO GLASS"
+    },
+    {
+      "zqdm": "03613",
+      "zqjc": "同仁堂国药",
+      "zqywjc": "TONGRENTANGCM"
+    },
+    {
+      "zqdm": "03618",
+      "zqjc": "重庆农村商业银行",
+      "zqywjc": "CQRC BANK"
+    },
+    {
+      "zqdm": "03633",
+      "zqjc": "中裕能源",
+      "zqywjc": "ZHONGYU ENERGY"
+    },
+    {
+      "zqdm": "03668",
+      "zqjc": "兖煤澳大利亚",
+      "zqywjc": "YANCOAL AUS"
+    },
+    {
+      "zqdm": "03677",
+      "zqjc": "正力新能",
+      "zqywjc": "ZENERGY"
+    },
+    {
+      "zqdm": "03678",
+      "zqjc": "弘业期货",
+      "zqywjc": "HOLLY FUTURES"
+    },
+    {
+      "zqdm": "03690",
+      "zqjc": "美团－Ｗ",
+      "zqywjc": "MEITUAN-W"
+    },
+    {
+      "zqdm": "03692",
+      "zqjc": "翰森制药",
+      "zqywjc": "HANSOH PHARMA"
+    },
+    {
+      "zqdm": "03696",
+      "zqjc": "英矽智能",
+      "zqywjc": "INSILICO"
+    },
+    {
+      "zqdm": "03698",
+      "zqjc": "徽商银行",
+      "zqywjc": "HUISHANG BANK"
+    },
+    {
+      "zqdm": "03738",
+      "zqjc": "阜博集团",
+      "zqywjc": "VOBILE GROUP"
+    },
+    {
+      "zqdm": "03750",
+      "zqjc": "宁德时代",
+      "zqywjc": "CATL"
+    },
+    {
+      "zqdm": "03759",
+      "zqjc": "康龙化成",
+      "zqywjc": "PHARMARON"
+    },
+    {
+      "zqdm": "03800",
+      "zqjc": "协鑫科技",
+      "zqywjc": "GCL TECH"
+    },
+    {
+      "zqdm": "03808",
+      "zqjc": "中国重汽",
+      "zqywjc": "SINOTRUK"
+    },
+    {
+      "zqdm": "03858",
+      "zqjc": "佳鑫国际资源",
+      "zqywjc": "JIAXIN INTL RES"
+    },
+    {
+      "zqdm": "03866",
+      "zqjc": "青岛银行",
+      "zqywjc": "BQD"
+    },
+    {
+      "zqdm": "03868",
+      "zqjc": "信义能源",
+      "zqywjc": "XINYI ENERGY"
+    },
+    {
+      "zqdm": "03877",
+      "zqjc": "中国船舶租赁",
+      "zqywjc": "CSSC SHIPPING"
+    },
+    {
+      "zqdm": "03881",
+      "zqjc": "希迪智驾",
+      "zqywjc": "CIDI"
+    },
+    {
+      "zqdm": "03888",
+      "zqjc": "金山软件",
+      "zqywjc": "KINGSOFT"
+    },
+    {
+      "zqdm": "03896",
+      "zqjc": "金山云",
+      "zqywjc": "KINGSOFT CLOUD"
+    },
+    {
+      "zqdm": "03898",
+      "zqjc": "时代电气",
+      "zqywjc": "TIMES ELECTRIC"
+    },
+    {
+      "zqdm": "03899",
+      "zqjc": "中集安瑞科",
+      "zqywjc": "CIMC ENRIC"
+    },
+    {
+      "zqdm": "03900",
+      "zqjc": "绿城中国",
+      "zqywjc": "GREENTOWN CHINA"
+    },
+    {
+      "zqdm": "03908",
+      "zqjc": "中金公司",
+      "zqywjc": "CICC"
+    },
+    {
+      "zqdm": "03918",
+      "zqjc": "金界控股",
+      "zqywjc": "NAGACORP"
+    },
+    {
+      "zqdm": "03931",
+      "zqjc": "中创新航",
+      "zqywjc": "CALB"
+    },
+    {
+      "zqdm": "03933",
+      "zqjc": "联邦制药",
+      "zqywjc": "UNITED LAB"
+    },
+    {
+      "zqdm": "03939",
+      "zqjc": "万国黄金集团",
+      "zqywjc": "WANGUO GOLD GP"
+    },
+    {
+      "zqdm": "03958",
+      "zqjc": "东方证券",
+      "zqywjc": "DFZQ"
+    },
+    {
+      "zqdm": "03968",
+      "zqjc": "招商银行",
+      "zqywjc": "CM BANK"
+    },
+    {
+      "zqdm": "03969",
+      "zqjc": "中国通号",
+      "zqywjc": "CHINA CRSC"
+    },
+    {
+      "zqdm": "03986",
+      "zqjc": "兆易创新",
+      "zqywjc": "GIGADEVICE"
+    },
+    {
+      "zqdm": "03988",
+      "zqjc": "中国银行",
+      "zqywjc": "BANK OF CHINA"
+    },
+    {
+      "zqdm": "03993",
+      "zqjc": "洛阳钼业",
+      "zqywjc": "CMOC"
+    },
+    {
+      "zqdm": "03996",
+      "zqjc": "中国能源建设",
+      "zqywjc": "CH ENERGY ENG"
+    },
+    {
+      "zqdm": "03998",
+      "zqjc": "波司登",
+      "zqywjc": "BOSIDENG"
+    },
+    {
+      "zqdm": "06030",
+      "zqjc": "中信证券",
+      "zqywjc": "CITIC SEC"
+    },
+    {
+      "zqdm": "06031",
+      "zqjc": "三一重工",
+      "zqywjc": "SANY HEAVY IND"
+    },
+    {
+      "zqdm": "06049",
+      "zqjc": "保利物业",
+      "zqywjc": "POLY PPT SER"
+    },
+    {
+      "zqdm": "06055",
+      "zqjc": "中烟香港",
+      "zqywjc": "CTIHK"
+    },
+    {
+      "zqdm": "06060",
+      "zqjc": "众安在线",
+      "zqywjc": "ZA ONLINE"
+    },
+    {
+      "zqdm": "06066",
+      "zqjc": "中信建投证券",
+      "zqywjc": "CSC"
+    },
+    {
+      "zqdm": "06069",
+      "zqjc": "盛业",
+      "zqywjc": "SY HOLDINGS"
+    },
+    {
+      "zqdm": "06078",
+      "zqjc": "海吉亚医疗",
+      "zqywjc": "HYGEIA HEALTH"
+    },
+    {
+      "zqdm": "06088",
+      "zqjc": "",
+      "zqywjc": "FIT HON TENG"
+    },
+    {
+      "zqdm": "06090",
+      "zqjc": "不同集团",
+      "zqywjc": "BUTONG GROUP"
+    },
+    {
+      "zqdm": "06098",
+      "zqjc": "碧桂园服务",
+      "zqywjc": "CG SERVICES"
+    },
+    {
+      "zqdm": "06099",
+      "zqjc": "招商证券",
+      "zqywjc": "CMSC"
+    },
+    {
+      "zqdm": "06110",
+      "zqjc": "滔搏",
+      "zqywjc": "TOPSPORTS"
+    },
+    {
+      "zqdm": "06127",
+      "zqjc": "昭衍新药",
+      "zqywjc": "JOINN"
+    },
+    {
+      "zqdm": "06160",
+      "zqjc": "百济神州",
+      "zqywjc": "BEONE MEDICINES"
+    },
+    {
+      "zqdm": "06166",
+      "zqjc": "剑桥科技",
+      "zqywjc": "CIG"
+    },
+    {
+      "zqdm": "06168",
+      "zqjc": "周六福",
+      "zqywjc": "ZHOU LIU FU"
+    },
+    {
+      "zqdm": "06178",
+      "zqjc": "光大证券",
+      "zqywjc": "EB SECURITIES"
+    },
+    {
+      "zqdm": "06181",
+      "zqjc": "老铺黄金",
+      "zqywjc": "LAOPU GOLD"
+    },
+    {
+      "zqdm": "06185",
+      "zqjc": "康希诺生物",
+      "zqywjc": "CANSINOBIO"
+    },
+    {
+      "zqdm": "06186",
+      "zqjc": "中国飞鹤",
+      "zqywjc": "CHINA FEIHE"
+    },
+    {
+      "zqdm": "06196",
+      "zqjc": "郑州银行",
+      "zqywjc": "BANKOFZHENGZHOU"
+    },
+    {
+      "zqdm": "06198",
+      "zqjc": "青岛港",
+      "zqywjc": "QINGDAO PORT"
+    },
+    {
+      "zqdm": "06600",
+      "zqjc": "卧安机器人",
+      "zqywjc": "ONEROBOTICS"
+    },
+    {
+      "zqdm": "06603",
+      "zqjc": "",
+      "zqywjc": "IFBH"
+    },
+    {
+      "zqdm": "06613",
+      "zqjc": "蓝思科技",
+      "zqywjc": "LENS"
+    },
+    {
+      "zqdm": "06618",
+      "zqjc": "京东健康",
+      "zqywjc": "JD HEALTH"
+    },
+    {
+      "zqdm": "06651",
+      "zqjc": "五一视界",
+      "zqywjc": "51WORLD"
+    },
+    {
+      "zqdm": "06655",
+      "zqjc": "华新建材",
+      "zqywjc": "HX BLDG MAT"
+    },
+    {
+      "zqdm": "06666",
+      "zqjc": "恒大物业",
+      "zqywjc": "EVERG SERVICES"
+    },
+    {
+      "zqdm": "06680",
+      "zqjc": "金力永磁",
+      "zqywjc": "JLMAG"
+    },
+    {
+      "zqdm": "06681",
+      "zqjc": "脑动极光－Ｂ",
+      "zqywjc": "BRAINAURORA-B"
+    },
+    {
+      "zqdm": "06682",
+      "zqjc": "范式智能",
+      "zqywjc": "PHANCY"
+    },
+    {
+      "zqdm": "06683",
+      "zqjc": "巨星传奇",
+      "zqywjc": "STARPLUS LEGEND"
+    },
+    {
+      "zqdm": "06687",
+      "zqjc": "聚水潭",
+      "zqywjc": "JST GROUP"
+    },
+    {
+      "zqdm": "06690",
+      "zqjc": "海尔智家",
+      "zqywjc": "HAIER SMARTHOME"
+    },
+    {
+      "zqdm": "06693",
+      "zqjc": "赤峰黄金",
+      "zqywjc": "CHIFENG GOLD"
+    },
+    {
+      "zqdm": "06699",
+      "zqjc": "时代天使",
+      "zqywjc": "ANGELALIGN"
+    },
+    {
+      "zqdm": "06806",
+      "zqjc": "申万宏源",
+      "zqywjc": "SWHY"
+    },
+    {
+      "zqdm": "06808",
+      "zqjc": "高鑫零售",
+      "zqywjc": "SUNART RETAIL"
+    },
+    {
+      "zqdm": "06809",
+      "zqjc": "澜起科技",
+      "zqywjc": "MONTAGE TECH"
+    },
+    {
+      "zqdm": "06818",
+      "zqjc": "中国光大银行",
+      "zqywjc": "CEB BANK"
+    },
+    {
+      "zqdm": "06821",
+      "zqjc": "凯莱英",
+      "zqywjc": "ASYMCHEM"
+    },
+    {
+      "zqdm": "06826",
+      "zqjc": "昊海生物科技",
+      "zqywjc": "HAOHAI BIOTEC"
+    },
+    {
+      "zqdm": "06855",
+      "zqjc": "亚盛医药",
+      "zqywjc": "ASCENTAGE"
+    },
+    {
+      "zqdm": "06862",
+      "zqjc": "海底捞",
+      "zqywjc": "HAIDILAO"
+    },
+    {
+      "zqdm": "06865",
+      "zqjc": "福莱特玻璃",
+      "zqywjc": "FLAT GLASS"
+    },
+    {
+      "zqdm": "06869",
+      "zqjc": "长飞光纤光缆",
+      "zqywjc": "YOFC"
+    },
+    {
+      "zqdm": "06881",
+      "zqjc": "中国银河",
+      "zqywjc": "CGS"
+    },
+    {
+      "zqdm": "06886",
+      "zqjc": "",
+      "zqywjc": "HTSC"
+    },
+    {
+      "zqdm": "06936",
+      "zqjc": "顺丰控股",
+      "zqywjc": "SF HOLDING"
+    },
+    {
+      "zqdm": "06955",
+      "zqjc": "博安生物",
+      "zqywjc": "BOAN BIOTECH"
+    },
+    {
+      "zqdm": "06963",
+      "zqjc": "阳光保险",
+      "zqywjc": "SUNSHINE INS"
+    },
+    {
+      "zqdm": "06969",
+      "zqjc": "思摩尔国际",
+      "zqywjc": "SMOORE INTL"
+    },
+    {
+      "zqdm": "06979",
+      "zqjc": "珍酒李渡",
+      "zqywjc": "ZJLD"
+    },
+    {
+      "zqdm": "06990",
+      "zqjc": "科伦博泰生物",
+      "zqywjc": "SKB BIO"
+    },
+    {
+      "zqdm": "06993",
+      "zqjc": "蓝月亮集团",
+      "zqywjc": "BLUE MOON GROUP"
+    },
+    {
+      "zqdm": "07618",
+      "zqjc": "京东工业",
+      "zqywjc": "JD INDUSTRIALS"
+    },
+    {
+      "zqdm": "09606",
+      "zqjc": "映恩生物－Ｂ",
+      "zqywjc": "DUALITYBIO-B"
+    },
+    {
+      "zqdm": "09611",
+      "zqjc": "龙旗科技",
+      "zqywjc": "LONGCHEER"
+    },
+    {
+      "zqdm": "09626",
+      "zqjc": "哔哩哔哩－Ｗ",
+      "zqywjc": "BILIBILI-W"
+    },
+    {
+      "zqdm": "09633",
+      "zqjc": "农夫山泉",
+      "zqywjc": "NONGFU SPRING"
+    },
+    {
+      "zqdm": "09636",
+      "zqjc": "九方智投控股",
+      "zqywjc": "JF SMARTINVEST"
+    },
+    {
+      "zqdm": "09658",
+      "zqjc": "特海国际",
+      "zqywjc": "SUPER HI"
+    },
+    {
+      "zqdm": "09660",
+      "zqjc": "地平线机器人－Ｗ",
+      "zqywjc": "HORIZONROBOT-W"
+    },
+    {
+      "zqdm": "09678",
+      "zqjc": "云知声",
+      "zqywjc": "UNISOUND"
+    },
+    {
+      "zqdm": "09688",
+      "zqjc": "再鼎医药",
+      "zqywjc": "ZAI LAB"
+    },
+    {
+      "zqdm": "09690",
+      "zqjc": "途虎－Ｗ",
+      "zqywjc": "TUHU-W"
+    },
+    {
+      "zqdm": "09696",
+      "zqjc": "天齐锂业",
+      "zqywjc": "TIANQI LITHIUM"
+    },
+    {
+      "zqdm": "09699",
+      "zqjc": "顺丰同城",
+      "zqywjc": "SF INTRA-CITY"
+    },
+    {
+      "zqdm": "09858",
+      "zqjc": "优然牧业",
+      "zqywjc": "YOURAN DAIRY"
+    },
+    {
+      "zqdm": "09863",
+      "zqjc": "零跑汽车",
+      "zqywjc": "LEAPMOTOR"
+    },
+    {
+      "zqdm": "09868",
+      "zqjc": "小鹏集团－Ｗ",
+      "zqywjc": "XPENG-W"
+    },
+    {
+      "zqdm": "09880",
+      "zqjc": "优必选",
+      "zqywjc": "UBTECH ROBOTICS"
+    },
+    {
+      "zqdm": "09887",
+      "zqjc": "维立志博－Ｂ",
+      "zqywjc": "LEADS BIOLABS-B"
+    },
+    {
+      "zqdm": "09890",
+      "zqjc": "贪玩",
+      "zqywjc": "TANWAN"
+    },
+    {
+      "zqdm": "09896",
+      "zqjc": "名创优品",
+      "zqywjc": "MNSO"
+    },
+    {
+      "zqdm": "09899",
+      "zqjc": "网易云音乐",
+      "zqywjc": "NETEASE MUSIC"
+    },
+    {
+      "zqdm": "09911",
+      "zqjc": "赤子城科技",
+      "zqywjc": "NEWBORNTOWN"
+    },
+    {
+      "zqdm": "09926",
+      "zqjc": "康方生物",
+      "zqywjc": "AKESO"
+    },
+    {
+      "zqdm": "09927",
+      "zqjc": "赛力斯",
+      "zqywjc": "SERES"
+    },
+    {
+      "zqdm": "09969",
+      "zqjc": "诺诚健华",
+      "zqywjc": "INNOCARE"
+    },
+    {
+      "zqdm": "09973",
+      "zqjc": "奇瑞汽车",
+      "zqywjc": "CHERY AUTO"
+    },
+    {
+      "zqdm": "09980",
+      "zqjc": "东鹏饮料",
+      "zqywjc": "EASTROC"
+    },
+    {
+      "zqdm": "09981",
+      "zqjc": "沃尔核材",
+      "zqywjc": "WOER"
+    },
+    {
+      "zqdm": "09985",
+      "zqjc": "卫龙美味",
+      "zqywjc": "WL DELICIOUS"
+    },
+    {
+      "zqdm": "09987",
+      "zqjc": "百胜中国",
+      "zqywjc": "YUM CHINA"
+    },
+    {
+      "zqdm": "09988",
+      "zqjc": "阿里巴巴－Ｗ",
+      "zqywjc": "BABA-W"
+    },
+    {
+      "zqdm": "09989",
+      "zqjc": "海普瑞",
+      "zqywjc": "HEPALINK"
+    },
+    {
+      "zqdm": "09992",
+      "zqjc": "泡泡玛特",
+      "zqywjc": "POP MART"
+    },
+    {
+      "zqdm": "09993",
+      "zqjc": "金辉控股",
+      "zqywjc": "RADIANCE HLDGS"
+    },
+    {
+      "zqdm": "09995",
+      "zqjc": "荣昌生物",
+      "zqywjc": "REMEGEN"
+    }
+  ],
+  "fetched_at": "2026-06-06T17:18:06"
+}

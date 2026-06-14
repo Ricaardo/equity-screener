@@ -906,6 +906,42 @@ def update_exclusives_command(
         console.print(f"{k}: {v}")
 
 
+@app.command("hk-connect")
+def hk_connect_command(
+    output_dir: Path = typer.Option(Path("reports"), help="Directory for CSV and Markdown outputs."),
+) -> None:
+    """Build the 港股通 (HK Stock Connect) universe from bundled snapshots and write reports."""
+    from ah_screener.hk_connect import HKConnectUniverse, SnapshotDataSource
+
+    universe = HKConnectUniverse(SnapshotDataSource())
+    stats = universe.summary_stats()
+    full = universe.full_universe()
+    eligible = universe.eligible_universe()
+    report = universe.build_report()
+
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    raw_path = out / "hkex_all_securities_raw.csv"
+    full_path = out / "hk_equity_universe_with_connect_quotes.csv"
+    eligible_path = out / "hk_connect_constituents_with_quotes.csv"
+    report_path = out / "hk_stock_connect_comparison_report.md"
+
+    # Write raw securities (reuse the raw frame via the internal cache)
+    universe._ensure_built()  # noqa: SLF001
+    assert universe._raw is not None  # noqa: SLF001
+    universe._raw.to_csv(raw_path, index=False, encoding="utf-8-sig")  # noqa: SLF001
+
+    full.to_csv(full_path, index=False, encoding="utf-8-sig")
+    eligible_sorted = eligible.sort_values("market_cap", ascending=False, na_position="last")
+    eligible_sorted.to_csv(eligible_path, index=False, encoding="utf-8-sig")
+    report_path.write_text(report, encoding="utf-8")
+
+    for key, value in stats.items():
+        console.print(f"{key}: {value}")
+    console.print(f"outputs: {out}")
+
+
 @app.command("update-all")
 def update_all_command(
     top: int = typer.Option(120, help="Top liquid names per market for daily-price history."),

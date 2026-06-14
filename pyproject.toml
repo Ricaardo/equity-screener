@@ -58,7 +58,7 @@ us-screener = "us_screener.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-ah_screener = ["data/*.json"]
+ah_screener = ["data/*.json", "data/hk_connect/*"]
 
 [tool.ruff]
 line-length = 100

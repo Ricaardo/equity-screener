@@ -27,3 +27,8 @@ data/hkex_documents/
 
 # Serena MCP tool artifacts
 .serena/
+
+# generated 港股通 (hk-connect) outputs
+reports/hk_*.csv
+reports/hk_stock_connect_comparison_report.md
+reports/hkex_all_securities_raw.csv
