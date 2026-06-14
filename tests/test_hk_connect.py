@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from unittest import TestCase
+from unittest.mock import patch
 
-from ah_screener.hk_connect import HKConnectUniverse, SnapshotDataSource
+import pandas as pd
+
+from ah_screener.hk_connect import HKConnectUniverse, LiveDataSource, SnapshotDataSource
 
 
 class HKConnectUniverseTest(TestCase):
@@ -42,3 +45,71 @@ class HKConnectUniverseTest(TestCase):
         self.assertIsInstance(report, str)
         self.assertGreater(len(report), 200)
         self.assertIn("港股通", report)
+
+
+class LiveDataSourceFallbackTest(TestCase):
+    """Tests that LiveDataSource falls back to snapshot when live fetch fails.
+
+    All tests are fully offline: the live fetch helpers are monkeypatched to
+    raise an exception so we never touch the network.
+    """
+
+    def _make_live(self) -> LiveDataSource:
+        """Return a LiveDataSource backed by the real bundled SnapshotDataSource."""
+        return LiveDataSource(fallback=SnapshotDataSource(), refresh_snapshots=False)
+
+    def test_hkex_securities_falls_back_on_network_error(self) -> None:
+        src = self._make_live()
+        with patch(
+            "ah_screener.hk_connect._http_get_bytes", side_effect=RuntimeError("network down")
+        ):
+            df, label = src.get_hkex_securities()
+        # Should have received the snapshot DataFrame, not raised
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertGreater(len(df), 0)
+        self.assertIn("stock_code", df.columns)
+
+    def test_sse_southbound_falls_back_on_network_error(self) -> None:
+        src = self._make_live()
+        with patch(
+            "ah_screener.hk_connect._http_get_bytes", side_effect=RuntimeError("network down")
+        ):
+            df, update_date = src.get_sse_southbound()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertGreater(len(df), 0)
+        self.assertIn("stock_code", df.columns)
+
+    def test_szse_southbound_falls_back_on_network_error(self) -> None:
+        src = self._make_live()
+        with patch(
+            "ah_screener.hk_connect._http_get_bytes", side_effect=RuntimeError("network down")
+        ):
+            df, update_date = src.get_szse_southbound()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertGreater(len(df), 0)
+        self.assertIn("stock_code", df.columns)
+
+    def test_tradingview_quotes_falls_back_on_network_error(self) -> None:
+        src = self._make_live()
+        with patch(
+            "ah_screener.hk_connect._http_post_json", side_effect=RuntimeError("network down")
+        ):
+            df = src.get_tradingview_quotes()
+        self.assertIsInstance(df, pd.DataFrame)
+        self.assertGreater(len(df), 0)
+        self.assertIn("stock_code", df.columns)
+
+    def test_universe_builds_when_all_live_fetches_fail(self) -> None:
+        """Full universe build completes via fallback even if every live fetch raises."""
+        src = self._make_live()
+        with (
+            patch(
+                "ah_screener.hk_connect._http_get_bytes", side_effect=RuntimeError("network down")
+            ),
+            patch(
+                "ah_screener.hk_connect._http_post_json", side_effect=RuntimeError("network down")
+            ),
+        ):
+            universe = HKConnectUniverse(src)
+            eligible = universe.eligible_universe()
+        self.assertGreater(len(eligible), 0)

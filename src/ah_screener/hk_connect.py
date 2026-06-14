@@ -8,8 +8,8 @@ This module ports the standalone ``build_hk_stock_report.py`` script into the
   TradingView quotes).
 * ``SnapshotDataSource`` — reads the bundled manual-snapshot files from
   ``src/ah_screener/data/hk_connect/``.
-* ``LiveDataSource`` — stub; raises ``NotImplementedError``; documents how
-  ``hkexnews_client`` / ``futu_client`` can be wired in later.
+* ``LiveDataSource`` — fetches live from HKEX / SSE / SZSE / TradingView,
+  with per-source fallback to ``SnapshotDataSource`` when an upstream fails.
 * ``HKConnectUniverse`` — takes any data source, builds the merged equity
   universe DataFrame with ``connect_eligible`` / ``connect_sh`` /
   ``connect_sz`` markers, and exposes ``eligible_universe()``,
@@ -18,15 +18,22 @@ This module ports the standalone ``build_hk_stock_report.py`` script into the
 
 from __future__ import annotations
 
+import io
 import json
+import logging
 import math
 import re
+import time
+import urllib.parse
+import urllib.request
 import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 import pandas as pd
+
+logger = logging.getLogger("ah_screener.hk_connect")
 
 
 # ---------------------------------------------------------------------------
@@ -114,11 +121,13 @@ def _xlsx_col_index(cell_ref: str) -> int:
     return value - 1
 
 
-def _read_xlsx_first_sheet(path: Path) -> list[list[str]]:
+def _parse_xlsx_rows(source: Path | bytes) -> list[list[str]]:
+    """Parse the first sheet of an xlsx file from a ``Path`` or raw ``bytes``."""
     ns = {"a": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
     import xml.etree.ElementTree as ET
 
-    with zipfile.ZipFile(path) as archive:
+    buf: io.IOBase = open(source, "rb") if isinstance(source, Path) else io.BytesIO(source)
+    with buf, zipfile.ZipFile(buf) as archive:
         shared: list[str] = []
         if "xl/sharedStrings.xml" in archive.namelist():
             root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
@@ -148,6 +157,119 @@ def _read_xlsx_first_sheet(path: Path) -> list[list[str]]:
                 row_values[idx] = value
             rows.append(row_values)
     return rows
+
+
+def _read_xlsx_first_sheet(path: Path) -> list[list[str]]:
+    return _parse_xlsx_rows(path)
+
+
+def _hkex_xlsx_rows_to_df(rows: list[list[str]]) -> tuple[pd.DataFrame, str]:
+    """Convert raw xlsx rows (as returned by ``_parse_xlsx_rows``) to the canonical DataFrame."""
+    update_label = _clean_text(rows[0][0])
+    headers = rows[2]
+    raw = pd.DataFrame(rows[3:], columns=headers)
+    raw = raw.rename(
+        columns={
+            "Stock Code": "stock_code",
+            "Name of Securities": "name_en_hkex",
+            "Category": "category",
+            "Sub-Category": "sub_category",
+            "Board Lot": "board_lot",
+            "ISIN": "isin",
+            "Expiry Date": "expiry_date",
+            "Subject to Stamp Duty": "stamp_duty",
+            "Shortsell Eligible": "shortsell_eligible",
+            "CAS Eligible": "cas_eligible",
+            "VCM Eligible": "vcm_eligible",
+            "Admitted to CCASS": "ccass_eligible",
+            "Debt Securities Board Lot (Nominal)": "debt_board_lot_nominal",
+            "Debt Securities Investor Type": "debt_investor_type",
+            "POS Eligible": "pos_eligible",
+            "Trading Currency": "trading_currency_hkex",
+            "RMB Counter": "rmb_counter",
+        }
+    )
+    spread_cols = [c for c in raw.columns if "Spread Table" in c]
+    if spread_cols:
+        raw = raw.rename(columns={spread_cols[0]: "spread_table"})
+    raw["stock_code"] = raw["stock_code"].map(_normalize_code)
+    raw["name_en_hkex"] = raw["name_en_hkex"].map(_clean_text)
+    raw = raw[raw["stock_code"] != ""].copy()
+    return raw, update_label
+
+
+def _sse_rows_to_df(rows: list[dict[str, Any]]) -> tuple[pd.DataFrame, str]:
+    """Convert raw SSE JSON rows to the canonical DataFrame."""
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=["stock_code"]), ""
+    df = df.rename(
+        columns={
+            "SECURITY_CODE": "stock_code",
+            "ABBR_EN": "sse_name_en",
+            "ABBR_CN": "sse_name_cn",
+            "SECURITY_TYPE": "sse_security_type",
+            "UPDATE_DATE": "sse_update_date",
+            "TRADE_FLAG": "sse_trade_flag",
+        }
+    )
+    df["stock_code"] = df["stock_code"].map(_normalize_code)
+    for col in ["sse_name_en", "sse_name_cn", "sse_security_type", "sse_update_date"]:
+        if col in df.columns:
+            df[col] = df[col].map(_clean_text)
+    update_date = (
+        _clean_text(df["sse_update_date"].dropna().iloc[0])
+        if "sse_update_date" in df.columns and not df["sse_update_date"].dropna().empty
+        else ""
+    )
+    return df, update_date
+
+
+def _szse_rows_to_df(rows: list[dict[str, Any]]) -> pd.DataFrame:
+    """Convert raw SZSE JSON rows to the canonical DataFrame."""
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return pd.DataFrame(columns=["stock_code"])
+    df = df.rename(
+        columns={
+            "zqdm": "stock_code",
+            "zqjc": "szse_name_cn",
+            "zqywjc": "szse_name_en",
+        }
+    )
+    df["stock_code"] = df["stock_code"].map(_normalize_code)
+    for col in ["szse_name_cn", "szse_name_en"]:
+        if col in df.columns:
+            df[col] = df[col].map(_clean_text)
+    return df
+
+
+def _tv_payload_to_df(payload: dict[str, Any]) -> pd.DataFrame:
+    """Convert a TradingView scanner JSON payload to the canonical DataFrame."""
+    columns = [
+        "tv_code",
+        "tv_name",
+        "last_price",
+        "change_percent",
+        "volume",
+        "market_cap",
+        "price_currency",
+        "sector",
+        "industry",
+        "exchange",
+    ]
+    rows: list[dict[str, Any]] = []
+    for item in payload.get("data", []):
+        values = item.get("d", [])
+        row = dict(zip(columns, values, strict=False))
+        row["tv_symbol"] = item.get("s", "")
+        row["stock_code"] = _normalize_code(row.get("tv_code"))
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    for col in ["last_price", "change_percent", "volume", "market_cap"]:
+        if col in df.columns:
+            df[col] = df[col].map(_as_number)
+    return df.drop_duplicates("stock_code", keep="first") if not df.empty else df
 
 
 # ---------------------------------------------------------------------------
@@ -221,66 +343,14 @@ class SnapshotDataSource:
         """Load HKEX ListOfSecurities.xlsx from the snapshot directory."""
         xlsx_path = self._path("ListOfSecurities.xlsx")
         rows = _read_xlsx_first_sheet(xlsx_path)
-        update_label = _clean_text(rows[0][0])
-        headers = rows[2]
-        raw = pd.DataFrame(rows[3:], columns=headers)
-        raw = raw.rename(
-            columns={
-                "Stock Code": "stock_code",
-                "Name of Securities": "name_en_hkex",
-                "Category": "category",
-                "Sub-Category": "sub_category",
-                "Board Lot": "board_lot",
-                "ISIN": "isin",
-                "Expiry Date": "expiry_date",
-                "Subject to Stamp Duty": "stamp_duty",
-                "Shortsell Eligible": "shortsell_eligible",
-                "CAS Eligible": "cas_eligible",
-                "VCM Eligible": "vcm_eligible",
-                "Admitted to CCASS": "ccass_eligible",
-                "Debt Securities Board Lot (Nominal)": "debt_board_lot_nominal",
-                "Debt Securities Investor Type": "debt_investor_type",
-                "POS Eligible": "pos_eligible",
-                "Trading Currency": "trading_currency_hkex",
-                "RMB Counter": "rmb_counter",
-            }
-        )
-        spread_cols = [c for c in raw.columns if "Spread Table" in c]
-        if spread_cols:
-            raw = raw.rename(columns={spread_cols[0]: "spread_table"})
-        raw["stock_code"] = raw["stock_code"].map(_normalize_code)
-        raw["name_en_hkex"] = raw["name_en_hkex"].map(_clean_text)
-        raw = raw[raw["stock_code"] != ""].copy()
-        return raw, update_label
+        return _hkex_xlsx_rows_to_df(rows)
 
     def get_sse_southbound(self) -> tuple[pd.DataFrame, str]:
         """Load SSE southbound eligible list from the snapshot JSONP file."""
         jsonp_path = self._path("sse_southbound.jsonp")
         data = _read_jsonp(jsonp_path)
         rows = data.get("result") or data.get("pageHelp", {}).get("data") or []
-        df = pd.DataFrame(rows)
-        if df.empty:
-            return pd.DataFrame(columns=["stock_code"]), ""
-        df = df.rename(
-            columns={
-                "SECURITY_CODE": "stock_code",
-                "ABBR_EN": "sse_name_en",
-                "ABBR_CN": "sse_name_cn",
-                "SECURITY_TYPE": "sse_security_type",
-                "UPDATE_DATE": "sse_update_date",
-                "TRADE_FLAG": "sse_trade_flag",
-            }
-        )
-        df["stock_code"] = df["stock_code"].map(_normalize_code)
-        for col in ["sse_name_en", "sse_name_cn", "sse_security_type", "sse_update_date"]:
-            if col in df.columns:
-                df[col] = df[col].map(_clean_text)
-        update_date = (
-            _clean_text(df["sse_update_date"].dropna().iloc[0])
-            if "sse_update_date" in df.columns and not df["sse_update_date"].dropna().empty
-            else ""
-        )
-        return df, update_date
+        return _sse_rows_to_df(rows)
 
     def get_szse_southbound(self) -> tuple[pd.DataFrame, str]:
         """Load SZSE southbound eligible list from the snapshot JSON file."""
@@ -288,88 +358,331 @@ class SnapshotDataSource:
         payload = json.loads(all_path.read_text(encoding="utf-8"))
         rows = payload["rows"]
         update_date = payload.get("update_date", "")
-        df = pd.DataFrame(rows)
+        df = _szse_rows_to_df(rows)
         if df.empty:
             return pd.DataFrame(columns=["stock_code"]), update_date
-        df = df.rename(
-            columns={
-                "zqdm": "stock_code",
-                "zqjc": "szse_name_cn",
-                "zqywjc": "szse_name_en",
-            }
-        )
-        df["stock_code"] = df["stock_code"].map(_normalize_code)
-        for col in ["szse_name_cn", "szse_name_en"]:
-            if col in df.columns:
-                df[col] = df[col].map(_clean_text)
         return df, update_date
 
     def get_tradingview_quotes(self) -> pd.DataFrame:
         """Load TradingView HK quotes from the snapshot JSON file."""
         tv_path = self._path("tradingview_hk_stocks.json")
         payload = json.loads(tv_path.read_text(encoding="utf-8"))
-        columns = [
-            "tv_code",
-            "tv_name",
-            "last_price",
-            "change_percent",
-            "volume",
-            "market_cap",
-            "price_currency",
-            "sector",
-            "industry",
-            "exchange",
-        ]
-        rows: list[dict[str, Any]] = []
-        for item in payload.get("data", []):
-            values = item.get("d", [])
-            row = dict(zip(columns, values, strict=False))
-            row["tv_symbol"] = item.get("s", "")
-            row["stock_code"] = _normalize_code(row.get("tv_code"))
-            rows.append(row)
-        df = pd.DataFrame(rows)
-        for col in ["last_price", "change_percent", "volume", "market_cap"]:
-            if col in df.columns:
-                df[col] = df[col].map(_as_number)
-        return df.drop_duplicates("stock_code", keep="first") if not df.empty else df
+        return _tv_payload_to_df(payload)
 
 
 # ---------------------------------------------------------------------------
-# LiveDataSource: stub for future live-fetch wiring
+# LiveDataSource: live network fetch with per-source snapshot fallback
 # ---------------------------------------------------------------------------
+
+_DEFAULT_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+_DEFAULT_TIMEOUT = 20
+_DEFAULT_RETRIES = 3
+
+# SSE JSONP query endpoint + SQL identifier for the southbound eligible list
+_SSE_QUERY_URL = "https://query.sse.com.cn/commonQuery.do"
+_SSE_SQL_ID = "COMMON_SSE_JYFW_HGT_XXPL_BDZQQD_L"
+
+# SZSE paginated JSON endpoint
+_SZSE_API_URL = "https://www.szse.cn/api/report/ShowReport/data"
+
+# TradingView HK scanner endpoint
+_TV_SCAN_URL = "https://scanner.tradingview.com/hongkong/scan"
+# Columns requested from TradingView scanner (maps to the 10-column tv_payload format)
+_TV_COLUMNS = [
+    "name",  # -> tv_code (ticker symbol)
+    "description",  # -> tv_name (company name)
+    "close",  # -> last_price
+    "change",  # -> change_percent
+    "volume",  # -> volume
+    "market_cap_basic",  # -> market_cap
+    "currency",  # -> price_currency
+    "sector",  # -> sector
+    "industry",  # -> industry
+    "exchange",  # -> exchange
+]
+_TV_PAGE_SIZE = 2000  # maximum records per TradingView request
+
+
+def _http_get_bytes(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: int = _DEFAULT_TIMEOUT,
+    retries: int = _DEFAULT_RETRIES,
+) -> bytes:
+    """GET ``url`` and return raw response bytes; retries on transient errors."""
+    req_headers: dict[str, str] = {
+        "User-Agent": _DEFAULT_UA,
+        "Accept": "*/*",
+    }
+    if headers:
+        req_headers.update(headers)
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers=req_headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return resp.read()  # type: ignore[return-value]
+        except Exception as exc:  # noqa: BLE001 – retry on any transient error
+            last_exc = exc
+            if attempt < retries - 1:
+                time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError(f"GET {url} failed after {retries} retries: {last_exc}") from last_exc
+
+
+def _http_post_json(
+    url: str,
+    body: Any,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: int = _DEFAULT_TIMEOUT,
+    retries: int = _DEFAULT_RETRIES,
+) -> Any:
+    """POST JSON ``body`` to ``url`` and return the parsed JSON response."""
+    req_headers: dict[str, str] = {
+        "User-Agent": _DEFAULT_UA,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if headers:
+        req_headers.update(headers)
+    data = json.dumps(body).encode("utf-8")
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, data=data, headers=req_headers, method="POST")
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            if attempt < retries - 1:
+                time.sleep(0.5 * (attempt + 1))
+    raise RuntimeError(f"POST {url} failed after {retries} retries: {last_exc}") from last_exc
 
 
 class LiveDataSource:
-    """Stub live data source — not yet implemented.
+    """Live network data source for 港股通.
 
-    Future implementation can reuse:
-    - ``ah_screener.sources.hkexnews_client`` for HKEX securities and announcements.
-    - ``ah_screener.sources.futu_client`` for real-time HK quotes and market caps.
-    - SSE / SZSE southbound APIs (see URLs in build_hk_stock_report.py) for
-      eligible-stock lists.
+    Each of the four methods attempts a live fetch from the upstream API.
+    If the fetch raises an exception or returns an empty result, and a
+    ``fallback`` ``SnapshotDataSource`` is configured (the default), a warning
+    is logged and the snapshot result is returned instead — so the full
+    universe remains buildable even when one upstream is unavailable.
 
-    All four methods raise ``NotImplementedError`` until wired.
+    Parameters
+    ----------
+    fallback:
+        Snapshot source to use when live fetch fails.  Pass ``None`` to
+        disable fallback (errors will propagate).
+    refresh_snapshots:
+        When ``True``, successful live fetches overwrite the bundled
+        snapshot files so subsequent snapshot runs reflect the latest data.
     """
 
-    def get_hkex_securities(self) -> tuple[pd.DataFrame, str]:
-        raise NotImplementedError(
-            "live HK connect fetch not yet wired; see ah_screener.sources.hkexnews_client"
+    def __init__(
+        self,
+        fallback: SnapshotDataSource | None = None,
+        *,
+        refresh_snapshots: bool = False,
+    ) -> None:
+        # Construct a default SnapshotDataSource if caller did not opt out
+        self._fallback: SnapshotDataSource | None = (
+            fallback if fallback is not None else SnapshotDataSource()
         )
+        self._refresh_snapshots = refresh_snapshots
+
+    # -- internal helpers ----------------------------------------------------
+
+    def _maybe_write_snapshot(self, filename: str, content: bytes) -> None:
+        if not self._refresh_snapshots:
+            return
+        path = _DEFAULT_DATA_DIR / filename
+        try:
+            path.write_bytes(content)
+            logger.info("refreshed snapshot: %s", path)
+        except OSError as exc:
+            logger.warning("could not write snapshot %s: %s", path, exc)
+
+    # -- public API ----------------------------------------------------------
+
+    def get_hkex_securities(self) -> tuple[pd.DataFrame, str]:
+        """Download HKEX ListOfSecurities.xlsx live and parse it."""
+        try:
+            raw_bytes = _http_get_bytes(_HKEX_SECURITIES_URL)
+            if not raw_bytes:
+                raise ValueError("HKEX securities xlsx download returned empty bytes")
+            rows = _parse_xlsx_rows(raw_bytes)
+            df, label = _hkex_xlsx_rows_to_df(rows)
+            if df.empty:
+                raise ValueError("HKEX securities xlsx parsed to empty DataFrame")
+            self._maybe_write_snapshot("ListOfSecurities.xlsx", raw_bytes)
+            logger.info("live HKEX securities: %d rows, label=%r", len(df), label)
+            return df, label
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("live HKEX securities fetch failed (%s); using snapshot", exc)
+            if self._fallback is not None:
+                return self._fallback.get_hkex_securities()
+            raise
 
     def get_sse_southbound(self) -> tuple[pd.DataFrame, str]:
-        raise NotImplementedError(
-            "live HK connect fetch not yet wired; see ah_screener.sources.hkexnews_client"
-        )
+        """Fetch SSE southbound eligible list live via query.sse.com.cn."""
+        try:
+            params = urllib.parse.urlencode(
+                {
+                    "jsonCallBack": "jsonpCallback",
+                    "isPagination": "true",
+                    "pageHelp.pageSize": 2000,
+                    "pageHelp.pageNo": 1,
+                    "sqlId": _SSE_SQL_ID,
+                }
+            )
+            url = f"{_SSE_QUERY_URL}?{params}"
+            raw_bytes = _http_get_bytes(
+                url, headers={"Referer": _SSE_SOUTHBOUND_URL}
+            )
+            text = raw_bytes.decode("utf-8")
+            match = re.match(r"^[^(]*\((.*)\)\s*$", text, flags=re.S)
+            payload = json.loads(match.group(1) if match else text)
+            rows: list[dict[str, Any]] = (
+                payload.get("pageHelp", {}).get("data")
+                or payload.get("result")
+                or []
+            )
+            df, update_date = _sse_rows_to_df(rows)
+            if df.empty:
+                raise ValueError("SSE southbound live fetch returned empty list")
+            if self._refresh_snapshots:
+                self._maybe_write_snapshot("sse_southbound.jsonp", raw_bytes)
+            logger.info("live SSE southbound: %d rows, date=%r", len(df), update_date)
+            return df, update_date
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("live SSE southbound fetch failed (%s); using snapshot", exc)
+            if self._fallback is not None:
+                return self._fallback.get_sse_southbound()
+            raise
 
     def get_szse_southbound(self) -> tuple[pd.DataFrame, str]:
-        raise NotImplementedError(
-            "live HK connect fetch not yet wired; see ah_screener.sources.hkexnews_client"
-        )
+        """Fetch SZSE southbound eligible list live via paginated szse.cn API."""
+        try:
+            all_rows: list[dict[str, Any]] = []
+            update_date = ""
+
+            # Fetch page 1 to discover page count
+            page1_url = (
+                f"{_SZSE_API_URL}?"
+                + urllib.parse.urlencode(
+                    {
+                        "SHOWTYPE": "JSON",
+                        "CATALOGID": "SGT_GGTBDQD",
+                        "TABKEY": "tab1",
+                        "PAGENO": 1,
+                        "random": f"{time.time():.6f}",
+                    }
+                )
+            )
+            page1_raw = _http_get_bytes(
+                page1_url, headers={"Referer": _SZSE_SOUTHBOUND_URL}
+            )
+            page1 = json.loads(page1_raw.decode("utf-8"))
+            meta = page1[0]["metadata"]
+            page_count = int(meta["pagecount"])
+            record_count = int(meta["recordcount"])
+            update_date = _clean_text(meta.get("subname", ""))
+            all_rows.extend(page1[0]["data"])
+
+            for page_no in range(2, page_count + 1):
+                page_url = (
+                    f"{_SZSE_API_URL}?"
+                    + urllib.parse.urlencode(
+                        {
+                            "SHOWTYPE": "JSON",
+                            "CATALOGID": "SGT_GGTBDQD",
+                            "TABKEY": "tab1",
+                            "PAGENO": page_no,
+                            "random": f"{time.time():.6f}",
+                        }
+                    )
+                )
+                page_raw = _http_get_bytes(
+                    page_url, headers={"Referer": _SZSE_SOUTHBOUND_URL}
+                )
+                page = json.loads(page_raw.decode("utf-8"))
+                all_rows.extend(page[0]["data"])
+
+            if len(all_rows) != record_count:
+                logger.warning(
+                    "SZSE row count mismatch: got %d, expected %d", len(all_rows), record_count
+                )
+
+            df = _szse_rows_to_df(all_rows)
+            if df.empty:
+                raise ValueError("SZSE southbound live fetch returned empty list")
+
+            if self._refresh_snapshots:
+                snapshot_payload = {
+                    "update_date": update_date,
+                    "recordcount": record_count,
+                    "pagecount": page_count,
+                    "rows": all_rows,
+                    "fetched_at": datetime.now().isoformat(timespec="seconds"),
+                }
+                self._maybe_write_snapshot(
+                    "szse_southbound_all.json",
+                    json.dumps(snapshot_payload, ensure_ascii=False, indent=2).encode("utf-8"),
+                )
+
+            logger.info("live SZSE southbound: %d rows, date=%r", len(df), update_date)
+            return df, update_date
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("live SZSE southbound fetch failed (%s); using snapshot", exc)
+            if self._fallback is not None:
+                return self._fallback.get_szse_southbound()
+            raise
 
     def get_tradingview_quotes(self) -> pd.DataFrame:
-        raise NotImplementedError(
-            "live HK connect fetch not yet wired; see ah_screener.sources.futu_client"
-        )
+        """Fetch TradingView HK stock quotes via the scanner API (paginated)."""
+        try:
+            all_data: list[dict[str, Any]] = []
+            offset = 0
+
+            while True:
+                body = {
+                    "columns": _TV_COLUMNS,
+                    "filter": [],
+                    "markets": ["hongkong"],
+                    "symbols": {"query": {"types": ["stock"]}},
+                    "sort": {"sortBy": "market_cap_basic", "sortOrder": "desc"},
+                    "range": [offset, offset + _TV_PAGE_SIZE],
+                }
+                resp = _http_post_json(_TV_SCAN_URL, body)
+                page_data: list[dict[str, Any]] = resp.get("data", [])
+                all_data.extend(page_data)
+                if len(page_data) < _TV_PAGE_SIZE:
+                    break
+                offset += _TV_PAGE_SIZE
+
+            payload: dict[str, Any] = {"data": all_data, "totalCount": len(all_data)}
+            df = _tv_payload_to_df(payload)
+            if df.empty:
+                raise ValueError("TradingView live fetch returned empty DataFrame")
+
+            if self._refresh_snapshots:
+                self._maybe_write_snapshot(
+                    "tradingview_hk_stocks.json",
+                    json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                )
+
+            logger.info("live TradingView HK quotes: %d rows", len(df))
+            return df
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("live TradingView quotes fetch failed (%s); using snapshot", exc)
+            if self._fallback is not None:
+                return self._fallback.get_tradingview_quotes()
+            raise
 
 
 # ---------------------------------------------------------------------------

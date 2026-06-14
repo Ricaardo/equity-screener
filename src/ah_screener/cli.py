@@ -909,11 +909,30 @@ def update_exclusives_command(
 @app.command("hk-connect")
 def hk_connect_command(
     output_dir: Path = typer.Option(Path("reports"), help="Directory for CSV and Markdown outputs."),
+    live: bool = typer.Option(
+        False,
+        "--live/--snapshot",
+        help="Fetch data live from upstream APIs instead of reading bundled snapshots.",
+    ),
+    refresh_snapshots: bool = typer.Option(
+        False,
+        "--refresh-snapshots",
+        help="(--live only) Overwrite bundled snapshot files after a successful live fetch.",
+    ),
 ) -> None:
     """Build the 港股通 (HK Stock Connect) universe from bundled snapshots and write reports."""
-    from ah_screener.hk_connect import HKConnectUniverse, SnapshotDataSource
+    from ah_screener.hk_connect import HKConnectUniverse, LiveDataSource, SnapshotDataSource
 
-    universe = HKConnectUniverse(SnapshotDataSource())
+    if live:
+        source: SnapshotDataSource | LiveDataSource = LiveDataSource(
+            refresh_snapshots=refresh_snapshots
+        )
+        console.print("data source: live (with snapshot fallback per source)")
+    else:
+        source = SnapshotDataSource()
+        console.print("data source: snapshot (bundled)")
+
+    universe = HKConnectUniverse(source)
     stats = universe.summary_stats()
     full = universe.full_universe()
     eligible = universe.eligible_universe()
