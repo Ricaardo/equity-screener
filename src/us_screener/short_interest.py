@@ -11,7 +11,11 @@ is breaking down, squeeze fuel if the name is leading (high RS). Cached as a
 from __future__ import annotations
 
 import io
+import json
 import logging
+import os
+import subprocess
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -21,10 +25,47 @@ logger = logging.getLogger(__name__)
 FINRA_URL = "https://cdn.finra.org/equity/regsho/daily/CNMSshvol{date}.txt"
 TAG_TYPE = "short_ratio"
 SOURCE = "finra.regsho"
+# data-gateway centralizes the per-day FINRA file fetch (fetched once, cached by
+# date) so this bulk pipeline and the nimbus short-interest skill share one pull.
+DATA_GATEWAY = Path(
+    os.environ.get("DATA_GATEWAY_BIN", "/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
+)
+
+
+def _fetch_finra_short_via_gateway(date_yyyymmdd: str) -> pd.DataFrame | None:
+    """One day's rows via data-gateway (shared cache). None if gateway unusable."""
+    if not DATA_GATEWAY.exists():
+        return None
+    try:
+        proc = subprocess.run(
+            [str(DATA_GATEWAY), "fetch", "finra-day", "--date", date_yyyymmdd],
+            capture_output=True, text=True, timeout=60,
+        )
+        if proc.returncode != 0:
+            return None
+        data = json.loads(proc.stdout).get("data", {})
+        if not data.get("published"):
+            return pd.DataFrame()  # holiday / not published — a definitive empty
+        rows = data.get("rows") or {}
+        if not rows:
+            return pd.DataFrame()
+        out = pd.DataFrame(
+            [(s, v[0], v[1]) for s, v in rows.items()],
+            columns=["symbol", "short_vol", "total_vol"],
+        )
+        out["symbol"] = out["symbol"].astype(str).str.strip().str.upper()
+        return out.dropna(subset=["symbol", "total_vol"])
+    except Exception as exc:  # noqa: BLE001 — fall back to direct fetch
+        logger.debug("data-gateway finra-day failed for %s: %s", date_yyyymmdd, exc)
+        return None
 
 
 def fetch_finra_short(date_yyyymmdd: str, *, timeout: int = 25) -> pd.DataFrame:
     """symbol / short_vol / total_vol for one trading day (empty on failure)."""
+    gated = _fetch_finra_short_via_gateway(date_yyyymmdd)
+    if gated is not None:
+        return gated
+
     import requests
 
     try:
