@@ -13,9 +13,13 @@ Fetched once per process (lru_cache); degrades gracefully per-series on any fail
 from __future__ import annotations
 
 import io
+import json
 import logging
 import math
+import os
+import subprocess
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -23,6 +27,34 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
+# data-gateway centralizes the FRED fetch (direct keyless CSV, cached) so this
+# pipeline, news macro and signal-gateway share one pull per series.
+DATA_GATEWAY = Path(
+    os.environ.get("DATA_GATEWAY_BIN", "/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
+)
+
+
+def _fetch_fred_via_gateway(series_id: str) -> pd.Series | None:
+    """Full series via data-gateway (shared cache). None if gateway unusable."""
+    if not DATA_GATEWAY.exists():
+        return None
+    try:
+        proc = subprocess.run(
+            [str(DATA_GATEWAY), "fetch", "fred-series", "--series", series_id],
+            capture_output=True, text=True, timeout=60,
+        )
+        if proc.returncode != 0:
+            return None
+        obs = json.loads(proc.stdout).get("data", {}).get("observations") or []
+        if not obs:
+            return pd.Series(dtype="float64")
+        idx = pd.to_datetime([o["date"] for o in obs], errors="coerce")
+        vals = pd.to_numeric([o.get("value") for o in obs], errors="coerce")
+        s = pd.Series(vals, index=idx, name=series_id).dropna()
+        return s
+    except Exception as exc:  # noqa: BLE001 — fall back to direct fetch
+        logger.debug("data-gateway fred-series failed for %s: %s", series_id, exc)
+        return None
 
 # series id -> human label
 SERIES = {
@@ -50,6 +82,10 @@ def _num(value: object) -> float | None:
 
 def fetch_fred_series(series_id: str, *, timeout: int = 20) -> pd.Series:
     """Date-indexed float series for one FRED id (empty Series on failure)."""
+    gated = _fetch_fred_via_gateway(series_id)
+    if gated is not None:
+        return gated
+
     import requests
 
     try:
