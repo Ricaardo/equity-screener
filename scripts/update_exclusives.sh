@@ -1,6 +1,6 @@
 #!/bin/zsh
 set -euo pipefail
-cd /Users/x/nimbus-stack/equity-screener
+cd /Users/x/nimbus-os/equity-screener
 LOCK_DIR=".exclusives.lock"
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
   echo "$(date +%Y-%m-%dT%H:%M:%S%z) exclusives skipped: another run is active"
