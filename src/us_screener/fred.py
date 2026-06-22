@@ -1,60 +1,48 @@
-"""Real macro inputs from FRED (no API key required).
+"""Real macro inputs from FRED, read through the data-access facade.
 
-FRED exposes every series as a no-key CSV at
-``https://fred.stlouisfed.org/graph/fredgraph.csv?id=<SERIES>``. We pull a handful
-of risk-appetite gauges — high-yield credit spread, the 2s10s curve, VIX, the broad
-dollar and the 10Y level — and fold them into a 0-100 risk-appetite score. This
-replaces the previous proxy-ETF-momentum-only macro signal (which fell back to
-neutral when ETF history was missing) with actual rates/credit/vol data.
+We pull a handful of risk-appetite gauges — high-yield credit spread, the 2s10s
+curve, VIX, the broad dollar and the 10Y level — and fold them into a 0-100
+risk-appetite score. This replaces the previous proxy-ETF-momentum-only macro
+signal (which fell back to neutral when ETF history was missing) with actual
+rates/credit/vol data.
 
-Fetched once per process (lru_cache); degrades gracefully per-series on any failure.
+Data path: the facade ``/macro`` endpoint (reference-data), the single sanctioned
+macro source — it serves the same keyless FRED series, cached and kept warm, so
+this pipeline no longer collects FRED on its own (decoupling plan §4.8). Fetched
+once per process (lru_cache); degrades gracefully per-series on any failure.
 """
 
 from __future__ import annotations
 
-import io
-import json
 import logging
 import math
 import os
-import subprocess
+import sys
 from functools import lru_cache
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 logger = logging.getLogger(__name__)
 
-FRED_CSV_URL = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
-# data-gateway centralizes the FRED fetch (direct keyless CSV, cached) so this
-# pipeline, news macro and signal-gateway share one pull per series.
-DATA_GATEWAY = Path(
-    os.environ.get("DATA_GATEWAY_BIN", "/Users/x/nimbus-os/services/data-gateway/bin/data-gateway")
-)
+# Enough history for the score's lookbacks: 20-trading-day change (iloc[-21]) on
+# daily series and CPI YoY/accel (iloc[-13]/-16, monthly). 480 covers ~22 months
+# of daily data and far more than enough monthly points.
+MACRO_LIMIT = int(os.environ.get("FRED_MACRO_LIMIT", "480"))
+
+_data = None
 
 
-def _fetch_fred_via_gateway(series_id: str) -> pd.Series | None:
-    """Full series via data-gateway (shared cache). None if gateway unusable."""
-    if not DATA_GATEWAY.exists():
-        return None
-    try:
-        proc = subprocess.run(
-            [str(DATA_GATEWAY), "fetch", "fred-series", "--series", series_id],
-            capture_output=True, text=True, timeout=60,
-        )
-        if proc.returncode != 0:
-            return None
-        obs = json.loads(proc.stdout).get("data", {}).get("observations") or []
-        if not obs:
-            return pd.Series(dtype="float64")
-        idx = pd.to_datetime([o["date"] for o in obs], errors="coerce")
-        vals = pd.to_numeric([o.get("value") for o in obs], errors="coerce")
-        s = pd.Series(vals, index=idx, name=series_id).dropna()
-        return s
-    except Exception as exc:  # noqa: BLE001 — fall back to direct fetch
-        logger.debug("data-gateway fred-series failed for %s: %s", series_id, exc)
-        return None
+def _facade():
+    """Lazily import the data-access facade SDK (the single read path)."""
+    global _data
+    if _data is None:
+        pkg = os.environ.get("DATA_ACCESS_PKG", "/Users/x/nimbus-os/services/data-access")
+        if pkg not in sys.path:
+            sys.path.insert(0, pkg)
+        import data_access as _da  # noqa: PLC0415
+        _data = _da
+    return _data
 
 # series id -> human label
 SERIES = {
@@ -81,27 +69,21 @@ def _num(value: object) -> float | None:
 
 
 def fetch_fred_series(series_id: str, *, timeout: int = 20) -> pd.Series:
-    """Date-indexed float series for one FRED id (empty Series on failure)."""
-    gated = _fetch_fred_via_gateway(series_id)
-    if gated is not None:
-        return gated
+    """Date-indexed float series for one FRED id (empty Series on failure).
 
-    import requests
-
+    Reads through the facade ``/macro``; rows are ``{date, <series>: value}``
+    oldest->newest, so the resulting Series is ascending (iloc[-1] = latest).
+    """
     try:
-        response = requests.get(FRED_CSV_URL.format(series=series_id), timeout=timeout)
-        response.raise_for_status()
-        frame = pd.read_csv(io.StringIO(response.text))
+        rows = _facade().macro(series_id, limit=MACRO_LIMIT)
     except Exception as exc:  # noqa: BLE001 — degrade gracefully
-        logger.debug("FRED fetch failed for %s: %s", series_id, exc)
+        logger.debug("facade macro fetch failed for %s: %s", series_id, exc)
         return pd.Series(dtype="float64")
-    if frame.shape[1] < 2:
+    if not rows:
         return pd.Series(dtype="float64")
-    date_col, value_col = frame.columns[0], frame.columns[1]
-    frame[date_col] = pd.to_datetime(frame[date_col], errors="coerce")
-    frame[value_col] = pd.to_numeric(frame[value_col], errors="coerce")  # FRED uses '.' for NA
-    frame = frame.dropna()
-    return pd.Series(frame[value_col].values, index=frame[date_col].values, name=series_id)
+    idx = pd.to_datetime([r.get("date") for r in rows], errors="coerce")
+    vals = pd.to_numeric([r.get(series_id) for r in rows], errors="coerce")  # FRED uses '.' for NA
+    return pd.Series(vals, index=idx, name=series_id).dropna()
 
 
 def _band(value: float, breaks: list[tuple[float, float]], default: float) -> float:
