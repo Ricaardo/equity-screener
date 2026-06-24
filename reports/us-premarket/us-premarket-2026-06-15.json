@@ -3,7 +3,7 @@
   "report_type": "us-premarket",
   "report_date": "2026-06-15",
   "generated_at": "2026-06-15T20:43:16",
-  "database": "/Users/x/nimbus-stack/equity-screener/data/us_screener.duckdb",
+  "database": "/Users/x/nimbus-os/equity-screener/data/us_screener.duckdb",
   "disclaimer": "US screener output is for research and candidate review only, not investment advice.",
   "macro_context": {
     "status": "ok",

@@ -4,7 +4,7 @@
   "generated_at": "2026-06-17T09:14:58",
   "report_date": "2026-06-17",
   "strategy": "china_masters_fundamental_theme_technical_v2",
-  "database": "/Users/x/nimbus-stack/equity-screener/data/ah_screener.duckdb",
+  "database": "/Users/x/nimbus-os/equity-screener/data/ah_screener.duckdb",
   "disclaimer": "本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。",
   "markdown_report": "ah-screening-report-2026-06-17.md",
   "appendix_report": "ah-screening-appendix-2026-06-17.md",

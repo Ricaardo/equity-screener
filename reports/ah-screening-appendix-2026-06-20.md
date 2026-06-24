@@ -1,7 +1,7 @@
 # A/H/US 股票筛选研究报告
 
 - 生成时间：2026-06-20 09:08:52
-- 数据库：`/Users/x/nimbus-stack/equity-screener/data/ah_screener.duckdb`
+- 数据库：`/Users/x/nimbus-os/equity-screener/data/ah_screener.duckdb`
 - 策略：`china_masters_fundamental_theme_technical_v2`
 - 声明：本报告仅用于研究和候选筛选，不构成投资建议或买卖指令。
 
